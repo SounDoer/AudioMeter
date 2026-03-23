@@ -23,7 +23,8 @@
     const CH = H - PAD * 2;
     const cx = PAD + CW / 2;
     const cy = PAD + CH / 2;
-    const scale = Math.min(CW, CH) * 0.44;
+    // Increase scope footprint for better readability.
+    const scale = Math.min(CW, CH) * 0.82;
 
     ctx.fillStyle = th.vectorscope.bg;
     ctx.fillRect(0, 0, W, H);
