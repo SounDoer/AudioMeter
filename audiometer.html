@@ -27,12 +27,6 @@ body{
 .logo{font-weight:700;font-size:14px;letter-spacing:4px;text-transform:uppercase;color:var(--hi);white-space:nowrap;}
 .logo span{color:var(--cyan);}
 .hsp{flex:1;}
-#devSel{
-  background:var(--bg);border:1px solid var(--b2);color:var(--txt);
-  font-family:'Barlow Condensed',sans-serif;font-size:11px;
-  padding:3px 7px;border-radius:3px;cursor:pointer;max-width:200px;min-width:120px;
-}
-#devSel option{background:#0d1520;}
 .tgl{display:flex;background:var(--bg);border:1px solid var(--b2);border-radius:3px;overflow:hidden;}
 .tbtn{
   background:none;border:none;color:var(--dim);
@@ -95,7 +89,6 @@ body{
 <div id="hdr">
   <div class="logo">AUDIO<span>METER</span></div>
   <div class="hsp"></div>
-  <select id="devSel"><option value="">Default input</option></select>
   <div class="tgl">
     <button class="tbtn on" id="btnEbu">EBU R128</button>
     <button class="tbtn" id="btnStream">STREAMING</button>

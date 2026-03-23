@@ -95,28 +95,6 @@ class LoudnessMeter extends AudioWorkletProcessor{
 registerProcessor('loudness-meter',LoudnessMeter);
 `;
 
-  async function loadDevices() {
-    try {
-      const devs = await navigator.mediaDevices.enumerateDevices();
-      const ins = devs.filter((d) => d.kind === 'audioinput');
-
-      const sel = document.getElementById('devSel');
-      if (!sel) return;
-
-      const cur = sel.value;
-      sel.innerHTML = '';
-      for (const d of ins) {
-        const o = document.createElement('option');
-        o.value = d.deviceId;
-        o.textContent = d.label || (d.deviceId === 'default' ? 'Default input' : 'Input ' + (sel.options.length + 1));
-        if (d.deviceId === cur) o.selected = true;
-        sel.appendChild(o);
-      }
-    } catch (_) {
-      // 忽略枚举失败（通常是权限未就绪）
-    }
-  }
-
   function setTgt(t) {
     S.target = t === 'ebu' ? -23 : -14;
 
@@ -131,10 +109,8 @@ registerProcessor('loudness-meter',LoudnessMeter);
   async function initAudio() {
     AM.ui.setSt('Requesting microphone...', 'warn');
 
-    const devId = document.getElementById('devSel')?.value;
     AM.runtime.mstrm = await navigator.mediaDevices.getUserMedia({
       audio: {
-        deviceId: devId ? { exact: devId } : undefined,
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
@@ -192,7 +168,6 @@ registerProcessor('loudness-meter',LoudnessMeter);
     AM.ui.setSt(lbl.length > 55 ? lbl.slice(0, 52) + '…' : lbl, 'ok');
     AM.ui.setSt2('SR: ' + AM.runtime.actx.sampleRate + ' Hz');
 
-    await loadDevices();
     AM.renderLoop.startLoop();
   }
 
@@ -265,7 +240,6 @@ registerProcessor('loudness-meter',LoudnessMeter);
   }
 
   AM.audio = {
-    loadDevices,
     setTgt,
     doToggle,
     doReset,

@@ -16,7 +16,6 @@
   function bootstrap() {
     bindUi();
     AM.renderLoop.initStatic();
-    AM.audio.loadDevices();
   }
 
   bootstrap();
