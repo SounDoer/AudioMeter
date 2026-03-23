@@ -16,7 +16,7 @@
       const mc = document.getElementById('mCvs');
       if (mc && AM.renderers.meters) AM.renderers.meters.drawMeters(mc);
 
-      for (const id of ['sCvs', 'hCvs']) {
+      for (const id of ['sCvs', 'hCvs', 'vCvs']) {
         const cvs = document.getElementById(id);
         if (!cvs) continue;
         const dpr = window.devicePixelRatio || 1;
@@ -36,7 +36,8 @@
     const mc = document.getElementById('mCvs');
     const sc = document.getElementById('sCvs');
     const hc = document.getElementById('hCvs');
-    if (!mc || !sc || !hc) return;
+    const vc = document.getElementById('vCvs');
+    if (!mc || !sc || !hc || !vc) return;
 
     stopLoop();
 
@@ -55,6 +56,11 @@
       }
 
       if (AM.renderers.history) AM.renderers.history.drawHistory(hc);
+      if (AM.runtime.vAnL && AM.runtime.vAnR && AM.renderers.vectorscope) {
+        AM.renderers.vectorscope.drawVectorscope(vc, AM.runtime.vAnL, AM.runtime.vAnR);
+      } else if (AM.renderers.vectorscope) {
+        AM.renderers.vectorscope.clearVectorscope(vc);
+      }
       if (AM.ui.updateReadouts) AM.ui.updateReadouts();
     }
 

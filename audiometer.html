@@ -78,8 +78,10 @@ body{
 
 #rp{flex:1;display:flex;flex-direction:column;padding:10px 10px 10px 11px;gap:6px;overflow:hidden;min-width:0;}
 #sCvs{flex:1;display:block;width:100%;min-height:0;}
-#histWrap{flex-shrink:0;height:26%;min-height:80px;max-height:190px;}
+#histWrap{flex-shrink:0;height:20%;min-height:72px;max-height:160px;}
 #hCvs{display:block;width:100%;height:100%;}
+#vecWrap{flex-shrink:0;height:20%;min-height:96px;max-height:190px;}
+#vCvs{display:block;width:100%;height:100%;}
 
 #sbar{height:22px;background:var(--panel);border-top:1px solid var(--b1);
   padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
@@ -181,6 +183,8 @@ body{
     <canvas id="sCvs"></canvas>
     <div class="slbl">Loudness History — Short-term LUFS</div>
     <div id="histWrap"><canvas id="hCvs"></canvas></div>
+    <div class="slbl">Vectorscope — Correlation <span id="corrVal">—</span></div>
+    <div id="vecWrap"><canvas id="vCvs"></canvas></div>
   </div>
 
 </div>
@@ -200,6 +204,7 @@ body{
 <script src="./src/renderers/loudness.js"></script>
 <script src="./src/renderers/spectrum.js"></script>
 <script src="./src/renderers/loudness-history.js"></script>
+<script src="./src/renderers/vectorscope.js"></script>
 <script src="./src/render-loop.js"></script>
 <script src="./src/audio/controller.js"></script>
 <script src="./src/main.js"></script>

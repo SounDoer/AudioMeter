@@ -64,6 +64,18 @@
       labelText: '#2a4060',
     timeLabelBg: '#1e3248',
     },
+    vectorscope: {
+      bg: '#030608',
+      grid: '#12202e',
+      axis: '#2a4060',
+      trace: '#20d4e8',
+      center: '#4a80ff',
+      border: '#12202e',
+      text: '#2a4060',
+      corrGood: '#00e896',
+      corrWarn: '#ffb828',
+      corrBad: '#ff4444',
+    },
   };
 })();
 

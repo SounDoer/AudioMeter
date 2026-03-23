@@ -170,9 +170,21 @@ registerProcessor('loudness-meter',LoudnessMeter);
     AM.runtime.ansr.minDecibels = -100;
     AM.runtime.ansr.maxDecibels = 0;
 
+    // Vectorscope: independent stereo time-domain analyzers
+    AM.runtime.vAnL = AM.runtime.actx.createAnalyser();
+    AM.runtime.vAnR = AM.runtime.actx.createAnalyser();
+    AM.runtime.vAnL.fftSize = 2048;
+    AM.runtime.vAnR.fftSize = 2048;
+    AM.runtime.vAnL.smoothingTimeConstant = 0.1;
+    AM.runtime.vAnR.smoothingTimeConstant = 0.1;
+
     AM.runtime.src = AM.runtime.actx.createMediaStreamSource(AM.runtime.mstrm);
     AM.runtime.src.connect(AM.runtime.wklt);
     AM.runtime.src.connect(AM.runtime.ansr);
+    AM.runtime.split = AM.runtime.actx.createChannelSplitter(2);
+    AM.runtime.src.connect(AM.runtime.split);
+    AM.runtime.split.connect(AM.runtime.vAnL, 0);
+    AM.runtime.split.connect(AM.runtime.vAnR, 1);
 
     S.running = true;
 
@@ -199,6 +211,9 @@ registerProcessor('loudness-meter',LoudnessMeter);
     AM.runtime.actx = null;
     AM.runtime.wklt = null;
     AM.runtime.ansr = null;
+    AM.runtime.split = null;
+    AM.runtime.vAnL = null;
+    AM.runtime.vAnR = null;
     AM.runtime.src = null;
     AM.runtime.mstrm = null;
 
