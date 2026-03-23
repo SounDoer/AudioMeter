@@ -5,21 +5,37 @@
   AM.ui.fmtL = function fmtL(v) {
     return isFinite(v) && v > -90 ? v.toFixed(1) : '—';
   };
+  AM.ui.fmtP = function fmtP(v) {
+    return isFinite(v) ? v.toFixed(1) : '—';
+  };
 
   AM.ui.updateReadouts = function updateReadouts() {
     const S = AM.state.S;
-
-    const SP = S.samplePeak;
+    const M = S.momentary;
+    const ST = S.shortTerm;
+    const I = S.integrated;
+    const MMAX = S.mMax;
+    const STMAX = S.stMax;
+    const LRA = S.lra;
+    const TP = S.truePeak;
     const TPM = S.truePeakMax;
-    const TG = S.target;
 
-    document.getElementById('tpVal').textContent = AM.ui.fmtL(SP);
-    const tpMaxMeta = document.getElementById('tpMaxMeta');
-    if (tpMaxMeta) tpMaxMeta.textContent = 'TP MAX ' + AM.ui.fmtL(TPM) + ' dBTP';
-    document.getElementById('tgtVal').textContent = TG;
+    const PSR = isFinite(TP) && isFinite(ST) ? TP - ST : -Infinity;
+    const PLR = isFinite(TPM) && isFinite(I) ? TPM - I : -Infinity;
 
-    const tpBox = document.getElementById('tpBox');
-    tpBox.className = 'rdout wide' + (isFinite(SP) ? (SP >= 0 ? ' c-bad' : SP >= -1 ? ' c-warn' : '') : '');
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setText('mVal', AM.ui.fmtL(M));
+    setText('stVal', AM.ui.fmtL(ST));
+    setText('intVal', AM.ui.fmtL(I));
+    setText('mMaxVal', AM.ui.fmtL(MMAX));
+    setText('stMaxVal', AM.ui.fmtL(STMAX));
+    setText('lraVal', isFinite(LRA) && LRA > 0 ? LRA.toFixed(1) : '—');
+    setText('psrVal', AM.ui.fmtP(PSR));
+    setText('plrVal', AM.ui.fmtP(PLR));
   };
 })();
 

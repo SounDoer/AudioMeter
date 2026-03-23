@@ -65,15 +65,15 @@ body{
 #mWrap,#vWrap{flex:1;min-height:0;}
 #mCvs{display:block;width:100%;height:100%;}
 
-#rdouts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;flex-shrink:0;}
+#rdouts{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+.metricRow{display:grid;gap:5px;}
+.metricRow.row3{grid-template-columns:1fr 1fr;}
+.metricRow:not(.row3){grid-template-columns:1fr 1fr 1fr;}
 .rdout{background:#0a1420;border:1px solid #1a2d42;border-radius:4px;padding:7px 10px;}
-.rdout.wide{grid-column:span 3;display:flex;align-items:center;gap:10px;padding:9px 13px;background:#0c1828;border-color:#1e3450;}
-.rdiv{grid-column:span 3;height:1px;background:#0f1e2c;margin:1px 0;}
 .rl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#5a7a96;margin-bottom:3px;line-height:1.2;}
 .rv{font-family:'Share Tech Mono',monospace;font-size:19px;line-height:1.1;color:#d8eefa;}
 .ru{font-size:9px;letter-spacing:1px;color:#3a5a74;margin-top:2px;font-weight:600;}
-.rdout.wide .rv{font-size:26px;}
-.rinfo{display:flex;flex-direction:column;}
+.rdout.compact .rv{font-size:23px;}
 .rdout.c-ok  .rv{color:#00f0a0;}
 .rdout.c-warn .rv{color:#ffc040;}
 .rdout.c-bad  .rv{color:#ff5050;}
@@ -181,18 +181,50 @@ body{
       <div class="loudRow">
         <div class="modBody" id="hWrap"><canvas id="hCvs"></canvas></div>
         <div id="rdouts">
-          <div class="rdout wide" id="tpBox">
-            <div class="rinfo">
-              <div class="rl">Sample Peak</div>
-              <div class="rv" id="tpVal">—</div>
-              <div class="ru">dBFS</div>
-              <div class="ru" id="tpMaxMeta">TP MAX — dBTP</div>
-            </div>
-            <div style="flex:1"></div>
-            <div class="rinfo" style="text-align:right">
-              <div class="rl">Target</div>
-              <div class="rv" id="tgtVal" style="color:var(--blue)">−23</div>
+          <div class="metricRow">
+            <div class="rdout compact">
+              <div class="rl">Momentary</div>
+              <div class="rv" id="mVal">—</div>
               <div class="ru">LUFS</div>
+            </div>
+            <div class="rdout compact">
+              <div class="rl">Short-term</div>
+              <div class="rv" id="stVal">—</div>
+              <div class="ru">LUFS</div>
+            </div>
+            <div class="rdout compact">
+              <div class="rl">Integrated</div>
+              <div class="rv" id="intVal">—</div>
+              <div class="ru">LUFS</div>
+            </div>
+          </div>
+          <div class="metricRow">
+            <div class="rdout compact">
+              <div class="rl">Momentary Max</div>
+              <div class="rv" id="mMaxVal">—</div>
+              <div class="ru">LUFS</div>
+            </div>
+            <div class="rdout compact">
+              <div class="rl">Short-term Max</div>
+              <div class="rv" id="stMaxVal">—</div>
+              <div class="ru">LUFS</div>
+            </div>
+            <div class="rdout compact">
+              <div class="rl">Loudness Range (LRA)</div>
+              <div class="rv" id="lraVal">—</div>
+              <div class="ru">LU</div>
+            </div>
+          </div>
+          <div class="metricRow row3">
+            <div class="rdout compact">
+              <div class="rl">Dynamics / PSR</div>
+              <div class="rv" id="psrVal">—</div>
+              <div class="ru">dB</div>
+            </div>
+            <div class="rdout compact">
+              <div class="rl">Avg. Dynamics / PLR</div>
+              <div class="rv" id="plrVal">—</div>
+              <div class="ru">dB</div>
             </div>
           </div>
         </div>
