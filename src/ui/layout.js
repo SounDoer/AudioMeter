@@ -1,25 +1,27 @@
 (function () {
   const AM = window.AM || (window.AM = {});
 
-  const STORE_KEY = 'am.layout.v1';
+  const STORE_KEY = 'am.layout.v3';
   const SPLIT_PX = 6;
   const MAIN_MIN = {
-    left: 260,
-    right: 420,
+    left: 180,
+    right: 620,
   };
   const MODULE_DEFAULTS = {
-    specMod: { ratio: 0.56, min: 180 },
-    histMod: { ratio: 0.22, min: 110 },
-    vecMod: { ratio: 0.22, min: 120 },
+    peakMod: { ratio: 0.68, min: 140 },
+    leftVecMod: { ratio: 0.32, min: 100 },
+    loudMod: { ratio: 0.54, min: 180 },
+    specMod: { ratio: 0.46, min: 190 },
   };
   const FALLBACK_RATIO = 0.2;
   const FALLBACK_MIN = 96;
-  const DEF_LEFT_RATIO = 0.34;
+  const DEF_LEFT_RATIO = 0.22;
 
   let state = {
     leftRatio: DEF_LEFT_RATIO,
     modRatios: {},
   };
+  let leftModel = null;
   let rightModel = null;
   let rafResize = 0;
 
@@ -71,25 +73,24 @@
     for (const item of items) item.ratio = Math.max(0.01, item.ratio) / sum;
   }
 
-  function initRightModel() {
-    const rp = document.getElementById('rp');
-    if (!rp) return null;
+  function initVerticalModel(containerId) {
+    const el = document.getElementById(containerId);
+    if (!el) return null;
 
-    const mods = Array.from(rp.querySelectorAll('.mod'));
-    const splits = Array.from(rp.querySelectorAll('.splitV'));
+    const mods = Array.from(el.children).filter((c) => c.classList && c.classList.contains('mod'));
+    const splits = Array.from(el.children).filter((c) => c.classList && c.classList.contains('splitV'));
     if (mods.length < 1 || splits.length !== mods.length - 1) return null;
 
     const items = mods.map((modEl, idx) => getModuleConfig(modEl, idx, mods.length));
     normalizeRatios(items);
 
-    rightModel = {
-      rp,
+    return {
+      root: el,
       mods,
       splits,
       items,
       px: new Array(items.length).fill(0),
     };
-    return rightModel;
   }
 
   function clampTwoWithRest(total, a, b, minA, minB) {
@@ -113,11 +114,11 @@
     return { a: na, b: nb };
   }
 
-  function applyRightLayout() {
-    if (!rightModel) return;
-    const { rp, items } = rightModel;
+  function applyVerticalLayout(model) {
+    if (!model) return;
+    const { root, items } = model;
 
-    const totalH = rp.clientHeight;
+    const totalH = root.clientHeight;
     const splitCount = items.length - 1;
     const innerH = totalH - splitCount * SPLIT_PX;
     if (innerH <= 0) return;
@@ -160,9 +161,9 @@
       rows.push(px[i] + 'px');
       if (i < px.length - 1) rows.push(SPLIT_PX + 'px');
     }
-    rp.style.gridTemplateRows = rows.join(' ');
+    root.style.gridTemplateRows = rows.join(' ');
 
-    rightModel.px = px;
+    model.px = px;
     for (let i = 0; i < items.length; i++) {
       items[i].ratio = px[i] / innerH;
       state.modRatios[items[i].id] = items[i].ratio;
@@ -185,7 +186,8 @@
 
   function applyLayout() {
     applyMainLayout();
-    applyRightLayout();
+    applyVerticalLayout(leftModel);
+    applyVerticalLayout(rightModel);
   }
 
   function refreshStaticRender() {
@@ -224,9 +226,9 @@
     window.addEventListener('pointerup', onUp);
   }
 
-  function startDragSplitByIndex(splitIdx, e) {
-    if (!rightModel) return;
-    const { rp, items, px } = rightModel;
+  function startDragSplitByIndex(model, splitIdx, e) {
+    if (!model) return;
+    const { root, items, px } = model;
     if (splitIdx < 0 || splitIdx >= items.length - 1) return;
 
     const startY = e.clientY;
@@ -234,21 +236,21 @@
     const startB = px[splitIdx + 1];
     const minA = items[splitIdx].min;
     const minB = items[splitIdx + 1].min;
-    const totalH = rp.clientHeight;
+    const totalH = root.clientHeight;
     const innerH = totalH - (items.length - 1) * SPLIT_PX;
 
     function onMove(ev) {
       const dy = ev.clientY - startY;
       const c = clampTwoWithRest(startA + startB, startA + dy, startB - dy, minA, minB);
-      rightModel.px[splitIdx] = c.a;
-      rightModel.px[splitIdx + 1] = c.b;
+      model.px[splitIdx] = c.a;
+      model.px[splitIdx + 1] = c.b;
 
       const rows = [];
-      for (let i = 0; i < rightModel.px.length; i++) {
-        rows.push(rightModel.px[i] + 'px');
-        if (i < rightModel.px.length - 1) rows.push(SPLIT_PX + 'px');
+      for (let i = 0; i < model.px.length; i++) {
+        rows.push(model.px[i] + 'px');
+        if (i < model.px.length - 1) rows.push(SPLIT_PX + 'px');
       }
-      rp.style.gridTemplateRows = rows.join(' ');
+      root.style.gridTemplateRows = rows.join(' ');
 
       items[splitIdx].ratio = c.a / innerH;
       items[splitIdx + 1].ratio = c.b / innerH;
@@ -270,14 +272,15 @@
       leftRatio: DEF_LEFT_RATIO,
       modRatios: {},
     };
-    if (rightModel) {
-      rightModel.items.forEach((it, idx) => {
+    [leftModel, rightModel].forEach((model) => {
+      if (!model) return;
+      model.items.forEach((it) => {
         const preset = MODULE_DEFAULTS[it.id];
-        it.ratio = Number((preset && preset.ratio) || (1 / Math.max(1, rightModel.items.length)) || FALLBACK_RATIO);
+        it.ratio = Number((preset && preset.ratio) || (1 / Math.max(1, model.items.length)) || FALLBACK_RATIO);
         state.modRatios[it.id] = it.ratio;
       });
-      normalizeRatios(rightModel.items);
-    }
+      normalizeRatios(model.items);
+    });
     applyLayout();
     saveState();
     refreshStaticRender();
@@ -285,7 +288,8 @@
 
   function init() {
     loadState();
-    initRightModel();
+    leftModel = initVerticalModel('lp');
+    rightModel = initVerticalModel('rp');
     applyLayout();
     refreshStaticRender();
 
@@ -293,11 +297,12 @@
     const resetLayoutBtn = document.getElementById('resetLayoutBtn');
 
     if (splitMain) splitMain.addEventListener('pointerdown', startDragMain);
-    if (rightModel) {
-      rightModel.splits.forEach((sp, idx) => {
-        sp.addEventListener('pointerdown', (e) => startDragSplitByIndex(idx, e));
+    [leftModel, rightModel].forEach((model) => {
+      if (!model) return;
+      model.splits.forEach((sp, idx) => {
+        sp.addEventListener('pointerdown', (e) => startDragSplitByIndex(model, idx, e));
       });
-    }
+    });
     if (resetLayoutBtn) resetLayoutBtn.addEventListener('click', resetLayout);
 
     window.addEventListener('resize', () => {

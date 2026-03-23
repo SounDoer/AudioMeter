@@ -50,18 +50,19 @@ body{
 
 #main{
   display:grid;
-  grid-template-columns:minmax(260px, 34%) 6px minmax(420px, 1fr);
+  grid-template-columns:minmax(180px, 22%) 6px minmax(620px, 1fr);
   flex:1;
   overflow:hidden;
   min-height:0;
 }
 #lp{
   border-right:1px solid var(--b1);
-  display:flex;flex-direction:column;padding:10px 11px;gap:8px;overflow:hidden;
+  display:grid;grid-template-rows:minmax(240px, 68%) 6px minmax(120px, 32%);
+  padding:10px 11px;gap:8px;overflow:hidden;
   min-width:0;
 }
 .slbl{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#3a6080;flex-shrink:0;}
-#mWrap{flex:1;min-height:0;}
+#mWrap,#vWrap{flex:1;min-height:0;}
 #mCvs{display:block;width:100%;height:100%;}
 
 #rdouts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;flex-shrink:0;}
@@ -97,7 +98,7 @@ body{
   overflow:hidden;
   padding:10px 10px 10px 11px;
   display:grid;
-  grid-template-rows:minmax(180px, 56%) 6px minmax(110px, 22%) 6px minmax(120px, 1fr);
+  grid-template-rows:minmax(180px, 54%) 6px minmax(190px, 46%);
   gap:0;
 }
 .mod{
@@ -112,21 +113,25 @@ body{
   flex:1;
   min-height:0;
 }
-#specMod{grid-row:1;}
+#loudMod{grid-row:1;}
 .splitV{
   grid-row:2;
   cursor:row-resize;
 }
-#histMod{grid-row:3;}
-#splitRightBottom{
-  grid-row:4;
-}
-#vecMod{grid-row:5;}
+#specMod{grid-row:3;}
 #sCvs,#hCvs,#vCvs{
   display:block;
   width:100%;
   height:100%;
 }
+.loudRow{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(280px, 1fr) minmax(210px, 250px);
+  gap:8px;
+}
+#hWrap{min-height:0;}
 .splitV::after{
   content:'';
   position:absolute;
@@ -157,42 +162,45 @@ body{
 
 <div id="main">
   <div id="lp">
-    <div class="slbl">Peak Meters — L / R</div>
-    <div id="mWrap"><canvas id="mCvs"></canvas></div>
-
-    <div id="rdouts">
-      <div class="rdout wide" id="tpBox">
-        <div class="rinfo">
-          <div class="rl">True Peak</div>
-          <div class="rv" id="tpVal">—</div>
-          <div class="ru">dBTP</div>
-        </div>
-        <div style="flex:1"></div>
-        <div class="rinfo" style="text-align:right">
-          <div class="rl">Target</div>
-          <div class="rv" id="tgtVal" style="color:var(--blue)">−23</div>
-          <div class="ru">LUFS</div>
-        </div>
-      </div>
+    <div class="mod" id="peakMod">
+      <div class="slbl">True Peak</div>
+      <div id="mWrap"><canvas id="mCvs"></canvas></div>
+    </div>
+    <div class="splitV" id="splitLeft" title="Drag to resize true peak/vectorscope"></div>
+    <div class="mod" id="leftVecMod">
+      <div class="slbl">Vectorscope — Correlation <span id="corrVal">—</span></div>
+      <div id="vWrap"><canvas id="vCvs"></canvas></div>
     </div>
   </div>
 
   <div id="splitMain" title="Drag to resize columns"></div>
 
   <div id="rp">
+    <div class="mod" id="loudMod">
+      <div class="slbl">Loudness</div>
+      <div class="loudRow">
+        <div class="modBody" id="hWrap"><canvas id="hCvs"></canvas></div>
+        <div id="rdouts">
+          <div class="rdout wide" id="tpBox">
+            <div class="rinfo">
+              <div class="rl">True Peak</div>
+              <div class="rv" id="tpVal">—</div>
+              <div class="ru">dBTP</div>
+            </div>
+            <div style="flex:1"></div>
+            <div class="rinfo" style="text-align:right">
+              <div class="rl">Target</div>
+              <div class="rv" id="tgtVal" style="color:var(--blue)">−23</div>
+              <div class="ru">LUFS</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="splitV" id="splitRightTop" title="Drag to resize loudness/spectrum"></div>
     <div class="mod" id="specMod">
       <div class="slbl">Spectrum Analyzer — Real-time FFT</div>
       <div class="modBody"><canvas id="sCvs"></canvas></div>
-    </div>
-    <div class="splitV" id="splitRightTop" title="Drag to resize spectrum/history"></div>
-    <div class="mod" id="histMod">
-      <div class="slbl">Loudness History — M/S/INT Overlay</div>
-      <div class="modBody"><canvas id="hCvs"></canvas></div>
-    </div>
-    <div class="splitV" id="splitRightBottom" title="Drag to resize history/vectorscope"></div>
-    <div class="mod" id="vecMod">
-      <div class="slbl">Vectorscope — Correlation <span id="corrVal">—</span></div>
-      <div class="modBody"><canvas id="vCvs"></canvas></div>
     </div>
   </div>
 
