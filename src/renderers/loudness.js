@@ -3,8 +3,9 @@
   const th = AM.theme;
   AM.renderers = AM.renderers || {};
 
-  let phM = { v: -Infinity, t: 0 };
-  let phS = { v: -Infinity, t: 0 };
+  let phL = { v: -Infinity, t: 0 };
+  let phR = { v: -Infinity, t: 0 };
+  const holdMs = 2000;
 
   const MMIN = -60;
   const MMAX = 3;
@@ -30,8 +31,8 @@
   }
 
   function resetPeakHold() {
-    phM.v = phS.v = -Infinity;
-    phM.t = phS.t = 0;
+    phL.v = phR.v = -Infinity;
+    phL.t = phR.t = 0;
   }
 
   function drawMeters(cvs) {
@@ -50,9 +51,9 @@
     ctx.scale(dpr, dpr);
 
     const S = AM.state.S;
-    const tgt = S.target;
-    const MV = S.momentary;
-    const SV = S.shortTerm;
+    const L = S.truePeakL;
+    const R = S.truePeakR;
+    const peakMax = Math.max(L, R, S.truePeak);
 
     const PL = 36;
     const PT = 6;
@@ -75,34 +76,17 @@
 
     for (const t of TICKS) {
       const y = vY(t.v);
-      const isTgt = Math.abs(t.v - tgt) < 0.1;
-      ctx.strokeStyle = t.clip
-        ? th.meters.clipLine
-        : isTgt
-          ? th.meters.targetGlow
-          : t.maj
-            ? th.meters.tickLineMaj
-            : th.meters.tickLineDim;
+      ctx.strokeStyle = t.clip ? th.meters.clipLine : t.maj ? th.meters.tickLineMaj : th.meters.tickLineDim;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(PL, y);
       ctx.lineTo(W, y);
       ctx.stroke();
-      if (t.maj || isTgt) {
-        ctx.fillStyle = t.clip ? th.meters.clipLabel : isTgt ? th.meters.targetLine : th.meters.labelDim;
+      if (t.maj) {
+        ctx.fillStyle = t.clip ? th.meters.clipLabel : th.meters.labelDim;
         ctx.fillText(t.lb, PL - 4, y + 3);
       }
     }
-
-    // target line
-    ctx.strokeStyle = th.meters.targetLine;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(PL, vY(tgt));
-    ctx.lineTo(W, vY(tgt));
-    ctx.stroke();
-    ctx.setLineDash([]);
 
     // 0 line highlight
     ctx.strokeStyle = th.meters.zeroLine;
@@ -142,20 +126,19 @@
     }
 
     const now = Date.now();
-    if (isFinite(MV) && MV > phM.v) {
-      phM.v = MV;
-      phM.t = now + 2500;
+    if (isFinite(L) && L > phL.v) {
+      phL.v = L;
+      phL.t = now + holdMs;
     }
-    if (now > phM.t) phM.v = -Infinity;
-
-    if (isFinite(SV) && SV > phS.v) {
-      phS.v = SV;
-      phS.t = now + 2500;
+    if (now > phL.t) phL.v = -Infinity;
+    if (isFinite(R) && R > phR.v) {
+      phR.v = R;
+      phR.t = now + holdMs;
     }
-    if (now > phS.t) phS.v = -Infinity;
+    if (now > phR.t) phR.v = -Infinity;
 
-    drawBar(MX, MV);
-    drawBar(SX, SV);
+    drawBar(MX, L);
+    drawBar(SX, R);
 
     function phLine(bx, phv) {
       if (!isFinite(phv)) return;
@@ -169,8 +152,8 @@
       ctx.stroke();
     }
 
-    phLine(MX, phM.v);
-    phLine(SX, phS.v);
+    phLine(MX, phL.v);
+    phLine(SX, phR.v);
 
     function fmtV(v) {
       return isFinite(v) && v > -90 ? v.toFixed(1) : '—';
@@ -179,13 +162,17 @@
     ctx.font = '8px ' + th.fonts.mono;
     ctx.textAlign = 'center';
     ctx.fillStyle = th.meters.tickText;
-    ctx.fillText('M', MX + BW / 2, H - 8);
-    ctx.fillText('S', SX + BW / 2, H - 8);
+    ctx.fillText('L', MX + BW / 2, H - 8);
+    ctx.fillText('R', SX + BW / 2, H - 8);
 
-    ctx.fillStyle = isFinite(MV) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText(fmtV(MV), MX + BW / 2, H - 1);
-    ctx.fillStyle = isFinite(SV) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText(fmtV(SV), SX + BW / 2, H - 1);
+    ctx.fillStyle = isFinite(L) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText(fmtV(L), MX + BW / 2, H - 1);
+    ctx.fillStyle = isFinite(R) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText(fmtV(R), SX + BW / 2, H - 1);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = isFinite(peakMax) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText('MAX ' + fmtV(peakMax), PL, PT + 9);
 
     ctx.restore();
   }

@@ -26,7 +26,7 @@
 
     const PADL = 42;
     const PADR = 6;
-    const PADT = 4;
+    const PADT = 28;
     const PADB = 18;
     const CW = W - PADL - PADR;
     const CH = H - PADT - PADB;
@@ -120,6 +120,23 @@
         ctx.stroke();
       }
 
+      const mPts = [];
+      const mHistBuf = AM.state.mHistBuf;
+      for (let i = 0; i < n; i++) {
+        const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
+        const v = mHistBuf[idx];
+        const px = (i / (n - 1)) * CW;
+        if (isFinite(v)) mPts.push({ px, v });
+      }
+      if (mPts.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(PADL + mPts[0].px, dToY(mPts[0].v));
+        for (const p of mPts) ctx.lineTo(PADL + p.px, dToY(p.v));
+        ctx.strokeStyle = '#89b4ff99';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
       if (isFinite(S.integrated)) {
         const iy = dToY(S.integrated);
         ctx.strokeStyle = th.history.marker;
@@ -137,6 +154,19 @@
         ctx.fillText('INT ' + S.integrated.toFixed(1), PADL + 4, iy - 3);
       }
     }
+
+    // Overlay loudness readouts on top of history graph.
+    ctx.font = '10px ' + th.fonts.mono;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = th.history.labelText;
+    const f = AM.ui && AM.ui.fmtL ? AM.ui.fmtL : (v) => (isFinite(v) && v > -90 ? v.toFixed(1) : '—');
+    const line1 = `M ${f(S.momentary)}   S ${f(S.shortTerm)}   INT ${f(S.integrated)}`;
+    const dT = isFinite(S.integrated)
+      ? (S.integrated - S.target >= 0 ? '+' : '') + (S.integrated - S.target).toFixed(1)
+      : '—';
+    const line2 = `LRA ${S.lra > 0.1 ? S.lra.toFixed(1) : '—'}   TP ${f(S.truePeak)}   L ${f(S.truePeakL)}   R ${f(S.truePeakR)}   dT ${dT}`;
+    ctx.fillText(line1, PADL + 4, 11);
+    ctx.fillText(line2, PADL + 4, 22);
 
     ctx.strokeStyle = th.history.grid;
     ctx.lineWidth = 1;

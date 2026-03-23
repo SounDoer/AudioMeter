@@ -83,6 +83,8 @@ class LoudnessMeter extends AudioWorkletProcessor {
     this.sth = [];
     this.tpMax = 0;
     this.tpBlock = 0;
+    this.tpMaxCh = [0, 0];
+    this.tpBlockCh = [0, 0];
 
     this._initTP();
     this.tpH = [new Float64Array(this.tpT), new Float64Array(this.tpT)];
@@ -96,6 +98,8 @@ class LoudnessMeter extends AudioWorkletProcessor {
     this.ibl = [];
     this.sth = [];
     this.tpMax = 0;
+    this.tpMaxCh = [0, 0];
+    this.tpBlockCh = [0, 0];
     this.ring.fill(0);
     this.rh = 0;
     this.rc = 0;
@@ -210,6 +214,7 @@ class LoudnessMeter extends AudioWorkletProcessor {
         this.ba[ch] += kw * kw;
         const tp = this._tpSample(x, ch);
         if (tp > this.tpBlock) this.tpBlock = tp;
+        if (tp > this.tpBlockCh[ch]) this.tpBlockCh[ch] = tp;
       }
 
       if (++this.bn >= this.bsz) {
@@ -250,18 +255,24 @@ class LoudnessMeter extends AudioWorkletProcessor {
         }
 
         if (this.tpBlock > this.tpMax) this.tpMax = this.tpBlock;
+        if (this.tpBlockCh[0] > this.tpMaxCh[0]) this.tpMaxCh[0] = this.tpBlockCh[0];
+        if (this.tpBlockCh[1] > this.tpMaxCh[1]) this.tpMaxCh[1] = this.tpBlockCh[1];
         this.port.postMessage({
           momentary,
           shortTerm,
           integrated: this._integrated(),
           lra: this._lra(),
           truePeak: this.tpMax > 0 ? 20 * Math.log10(this.tpMax) : -Infinity,
+          truePeakL: this.tpMaxCh[0] > 0 ? 20 * Math.log10(this.tpMaxCh[0]) : -Infinity,
+          truePeakR: this.tpMaxCh[1] > 0 ? 20 * Math.log10(this.tpMaxCh[1]) : -Infinity,
         });
 
         this.ba[0] = 0;
         this.ba[1] = 0;
         this.bn = 0;
         this.tpBlock = 0;
+        this.tpBlockCh[0] = 0;
+        this.tpBlockCh[1] = 0;
       }
     }
 

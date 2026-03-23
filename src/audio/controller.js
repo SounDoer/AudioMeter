@@ -25,11 +25,11 @@ class LoudnessMeter extends AudioWorkletProcessor{
     this.kf=[mf(c),mf(c)];
     this.bsz=Math.round(sr*0.1);this.ba=[0,0];this.bn=0;
     this.RN=60;this.ring=new Float64Array(this.RN*2);this.rh=0;this.rc=0;
-    this.ibl=[];this.sth=[];this.tpMax=0;this.tpBlock=0;
+    this.ibl=[];this.sth=[];this.tpMax=0;this.tpBlock=0;this.tpMaxCh=[0,0];this.tpBlockCh=[0,0];
     this._initTP();this.tpH=[new Float64Array(this.tpT),new Float64Array(this.tpT)];this.tpWP=[0,0];
     this.port.onmessage=e=>{if(e.data==='reset')this._reset();};
   }
-  _reset(){this.ibl=[];this.sth=[];this.tpMax=0;this.ring.fill(0);this.rh=0;this.rc=0;}
+  _reset(){this.ibl=[];this.sth=[];this.tpMax=0;this.tpMaxCh=[0,0];this.tpBlockCh=[0,0];this.ring.fill(0);this.rh=0;this.rc=0;}
   _initTP(){
     const P=4,T=32,N=P*T,h=new Float64Array(N),ctr=(N-1)/2;
     for(let i=0;i<N;i++){const n=i-ctr,x=n/P,sinc=Math.abs(x)<1e-12?1:Math.sin(Math.PI*x)/(Math.PI*x);
@@ -70,7 +70,7 @@ class LoudnessMeter extends AudioWorkletProcessor{
       for(let ch=0;ch<2;ch++){
         const x=ch<nc?inp[ch][i]:(nc===1?inp[0][i]:0);
         const kw=this.kf[ch][1].tick(this.kf[ch][0].tick(x));this.ba[ch]+=kw*kw;
-        const tp=this._tpSample(x,ch);if(tp>this.tpBlock)this.tpBlock=tp;
+        const tp=this._tpSample(x,ch);if(tp>this.tpBlock)this.tpBlock=tp;if(tp>this.tpBlockCh[ch])this.tpBlockCh[ch]=tp;
       }
       if(++this.bn>=this.bsz){
         const m0=this.ba[0]/this.bn,m1=this.ba[1]/this.bn;
@@ -85,8 +85,10 @@ class LoudnessMeter extends AudioWorkletProcessor{
         const shortTerm=an?this._lufs(a0/an,a1/an):-Infinity;
         if(isFinite(shortTerm)){this.sth.push(shortTerm);if(this.sth.length>36000)this.sth.shift();}
         if(this.tpBlock>this.tpMax)this.tpMax=this.tpBlock;
-        this.port.postMessage({momentary,shortTerm,integrated:this._integrated(),lra:this._lra(),truePeak:this.tpMax>0?20*Math.log10(this.tpMax):-Infinity});
-        this.ba[0]=this.ba[1]=0;this.bn=0;this.tpBlock=0;
+        if(this.tpBlockCh[0]>this.tpMaxCh[0])this.tpMaxCh[0]=this.tpBlockCh[0];
+        if(this.tpBlockCh[1]>this.tpMaxCh[1])this.tpMaxCh[1]=this.tpBlockCh[1];
+        this.port.postMessage({momentary,shortTerm,integrated:this._integrated(),lra:this._lra(),truePeak:this.tpMax>0?20*Math.log10(this.tpMax):-Infinity,truePeakL:this.tpMaxCh[0]>0?20*Math.log10(this.tpMaxCh[0]):-Infinity,truePeakR:this.tpMaxCh[1]>0?20*Math.log10(this.tpMaxCh[1]):-Infinity});
+        this.ba[0]=this.ba[1]=0;this.bn=0;this.tpBlock=0;this.tpBlockCh[0]=0;this.tpBlockCh[1]=0;
       }
     }
     return true;
@@ -137,7 +139,10 @@ registerProcessor('loudness-meter',LoudnessMeter);
 
       if (isFinite(d.momentary) && d.momentary > S.mMax) S.mMax = d.momentary;
       if (isFinite(d.shortTerm) && d.shortTerm > S.stMax) S.stMax = d.shortTerm;
-      AM.state.histPush(isFinite(d.shortTerm) ? d.shortTerm : -Infinity);
+      AM.state.histPush(
+        isFinite(d.shortTerm) ? d.shortTerm : -Infinity,
+        isFinite(d.momentary) ? d.momentary : -Infinity
+      );
     };
 
     AM.runtime.ansr = AM.runtime.actx.createAnalyser();
@@ -195,6 +200,13 @@ registerProcessor('loudness-meter',LoudnessMeter);
     S.running = false;
     S.momentary = -Infinity;
     S.shortTerm = -Infinity;
+    S.integrated = -Infinity;
+    S.truePeak = -Infinity;
+    S.truePeakL = -Infinity;
+    S.truePeakR = -Infinity;
+    S.lra = 0;
+    S.mMax = -Infinity;
+    S.stMax = -Infinity;
 
     AM.ui.setSt('Stopped — click START to resume', '');
     AM.ui.setSt2('');
@@ -230,8 +242,12 @@ registerProcessor('loudness-meter',LoudnessMeter);
     if (AM.runtime.wklt) AM.runtime.wklt.port.postMessage('reset');
 
     S.integrated = -Infinity;
+    S.momentary = -Infinity;
+    S.shortTerm = -Infinity;
     S.lra = 0;
     S.truePeak = -Infinity;
+    S.truePeakL = -Infinity;
+    S.truePeakR = -Infinity;
     S.mMax = -Infinity;
     S.stMax = -Infinity;
 

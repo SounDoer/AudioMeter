@@ -157,15 +157,15 @@ body{
 
 <div id="main">
   <div id="lp">
-    <div class="slbl">Loudness Meters</div>
+    <div class="slbl">Peak Meters — L / R</div>
     <div id="mWrap"><canvas id="mCvs"></canvas></div>
 
     <div id="rdouts">
-      <div class="rdout wide" id="intBox">
+      <div class="rdout wide" id="tpBox">
         <div class="rinfo">
-          <div class="rl">Integrated Loudness</div>
-          <div class="rv" id="intVal">—</div>
-          <div class="ru">LUFS</div>
+          <div class="rl">True Peak</div>
+          <div class="rv" id="tpVal">—</div>
+          <div class="ru">dBTP</div>
         </div>
         <div style="flex:1"></div>
         <div class="rinfo" style="text-align:right">
@@ -173,58 +173,6 @@ body{
           <div class="rv" id="tgtVal" style="color:var(--blue)">−23</div>
           <div class="ru">LUFS</div>
         </div>
-      </div>
-
-      <div class="rdout">
-        <div class="rl">Short Term</div>
-        <div class="rv" id="stVal">—</div>
-        <div class="ru">LUFS</div>
-      </div>
-      <div class="rdout">
-        <div class="rl">Momentary</div>
-        <div class="rv" id="mVal">—</div>
-        <div class="ru">LUFS</div>
-      </div>
-      <div class="rdout" id="tpBox">
-        <div class="rl">True Peak</div>
-        <div class="rv" id="tpVal">—</div>
-        <div class="ru">dBTP</div>
-      </div>
-
-      <div class="rdiv"></div>
-
-      <div class="rdout">
-        <div class="rl">ST Max</div>
-        <div class="rv" id="stMaxVal">—</div>
-        <div class="ru">LUFS</div>
-      </div>
-      <div class="rdout">
-        <div class="rl">M Max</div>
-        <div class="rv" id="mMaxVal">—</div>
-        <div class="ru">LUFS</div>
-      </div>
-      <div class="rdout">
-        <div class="rl">LRA</div>
-        <div class="rv" id="lraVal">—</div>
-        <div class="ru">LU</div>
-      </div>
-
-      <div class="rdiv"></div>
-
-      <div class="rdout">
-        <div class="rl">PSR</div>
-        <div class="rv" id="psrVal">—</div>
-        <div class="ru">LU  Peak−ST</div>
-      </div>
-      <div class="rdout">
-        <div class="rl">PLR</div>
-        <div class="rv" id="plrVal">—</div>
-        <div class="ru">LU  Peak−Int</div>
-      </div>
-      <div class="rdout">
-        <div class="rl">M − S</div>
-        <div class="rv" id="dynVal">—</div>
-        <div class="ru">LU  Dynamics</div>
       </div>
     </div>
   </div>
@@ -238,7 +186,7 @@ body{
     </div>
     <div class="splitV" id="splitRightTop" title="Drag to resize spectrum/history"></div>
     <div class="mod" id="histMod">
-      <div class="slbl">Loudness History — Short-term LUFS</div>
+      <div class="slbl">Loudness History — M/S/INT Overlay</div>
       <div class="modBody"><canvas id="hCvs"></canvas></div>
     </div>
     <div class="splitV" id="splitRightBottom" title="Drag to resize history/vectorscope"></div>
