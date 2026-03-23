@@ -5,12 +5,12 @@
 
   let phL = { v: -Infinity, t: 0 };
   let phR = { v: -Infinity, t: 0 };
+  let tpMax = -Infinity;
   const holdMs = 2000;
 
   const MMIN = -60;
   const MMAX = 3;
   const MRNG = MMAX - MMIN;
-
   const TICKS = [
     { v: 3, lb: '+3', maj: true },
     { v: 0, lb: '0', maj: true, clip: true },
@@ -26,13 +26,28 @@
     { v: -60, lb: '-60' },
   ];
 
+  let spBufL = new Float32Array(0);
+  let spBufR = new Float32Array(0);
+
   function mFrac(v) {
     return Math.max(0, Math.min(1, (v - MMIN) / MRNG));
+  }
+
+  function samplePeakDb(buf) {
+    let mx = 0;
+    for (let i = 0; i < buf.length; i++) {
+      const a = Math.abs(buf[i]);
+      if (a > mx) mx = a;
+    }
+    return mx > 0 ? 20 * Math.log10(mx) : -Infinity;
   }
 
   function resetPeakHold() {
     phL.v = phR.v = -Infinity;
     phL.t = phR.t = 0;
+    tpMax = -Infinity;
+    AM.state.S.truePeakMax = -Infinity;
+    AM.state.S.samplePeak = -Infinity;
   }
 
   function drawMeters(cvs) {
@@ -51,9 +66,28 @@
     ctx.scale(dpr, dpr);
 
     const S = AM.state.S;
-    const L = S.truePeakL;
-    const R = S.truePeakR;
-    const peakMax = Math.max(L, R, S.truePeak);
+    const anL = AM.runtime && AM.runtime.vAnL;
+    const anR = AM.runtime && AM.runtime.vAnR;
+
+    let spL = -Infinity;
+    let spR = -Infinity;
+    if (anL && anR) {
+      const nL = anL.fftSize;
+      const nR = anR.fftSize;
+      if (spBufL.length !== nL) spBufL = new Float32Array(nL);
+      if (spBufR.length !== nR) spBufR = new Float32Array(nR);
+      anL.getFloatTimeDomainData(spBufL);
+      anR.getFloatTimeDomainData(spBufR);
+      spL = samplePeakDb(spBufL);
+      spR = samplePeakDb(spBufR);
+    }
+
+    const samplePeakNow = Math.max(spL, spR);
+    S.samplePeak = samplePeakNow;
+    const truePeakNow = Math.max(S.truePeak, S.truePeakL, S.truePeakR);
+    if (isFinite(truePeakNow) && truePeakNow > tpMax) tpMax = truePeakNow;
+    if (isFinite(truePeakNow) && truePeakNow > S.truePeakMax) S.truePeakMax = truePeakNow;
+    tpMax = S.truePeakMax;
 
     const PL = 36;
     const PT = 6;
@@ -68,12 +102,15 @@
       return PT + (1 - mFrac(v)) * TH;
     }
 
+    function fmtV(v) {
+      return isFinite(v) && v > -90 ? v.toFixed(1) : '—';
+    }
+
     ctx.fillStyle = th.canvas.bg;
     ctx.fillRect(0, 0, W, H);
 
     ctx.font = '8px ' + th.fonts.mono;
     ctx.textAlign = 'right';
-
     for (const t of TICKS) {
       const y = vY(t.v);
       ctx.strokeStyle = t.clip ? th.meters.clipLine : t.maj ? th.meters.tickLineMaj : th.meters.tickLineDim;
@@ -88,7 +125,6 @@
       }
     }
 
-    // 0 line highlight
     ctx.strokeStyle = th.meters.zeroLine;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -104,7 +140,6 @@
       const fr = mFrac(val);
       const bH = fr * TH;
       const bY = PT + TH - bH;
-
       const g = ctx.createLinearGradient(bx, bY, bx, PT + TH);
       if (val >= -6) {
         g.addColorStop(0, th.meters.clipFillTop);
@@ -126,19 +161,19 @@
     }
 
     const now = Date.now();
-    if (isFinite(L) && L > phL.v) {
-      phL.v = L;
+    if (isFinite(spL) && spL > phL.v) {
+      phL.v = spL;
       phL.t = now + holdMs;
     }
     if (now > phL.t) phL.v = -Infinity;
-    if (isFinite(R) && R > phR.v) {
-      phR.v = R;
+    if (isFinite(spR) && spR > phR.v) {
+      phR.v = spR;
       phR.t = now + holdMs;
     }
     if (now > phR.t) phR.v = -Infinity;
 
-    drawBar(MX, L);
-    drawBar(SX, R);
+    drawBar(MX, spL);
+    drawBar(SX, spR);
 
     function phLine(bx, phv) {
       if (!isFinite(phv)) return;
@@ -155,8 +190,14 @@
     phLine(MX, phL.v);
     phLine(SX, phR.v);
 
-    function fmtV(v) {
-      return isFinite(v) && v > -90 ? v.toFixed(1) : '—';
+    if (isFinite(tpMax)) {
+      const y = vY(tpMax);
+      ctx.strokeStyle = th.meters.peakLineWarn;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(PL, y);
+      ctx.lineTo(W - 2, y);
+      ctx.stroke();
     }
 
     ctx.font = '8px ' + th.fonts.mono;
@@ -165,14 +206,16 @@
     ctx.fillText('L', MX + BW / 2, H - 8);
     ctx.fillText('R', SX + BW / 2, H - 8);
 
-    ctx.fillStyle = isFinite(L) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText(fmtV(L), MX + BW / 2, H - 1);
-    ctx.fillStyle = isFinite(R) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText(fmtV(R), SX + BW / 2, H - 1);
+    ctx.fillStyle = isFinite(spL) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText(fmtV(spL), MX + BW / 2, H - 1);
+    ctx.fillStyle = isFinite(spR) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText(fmtV(spR), SX + BW / 2, H - 1);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = isFinite(peakMax) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText('MAX ' + fmtV(peakMax), PL, PT + 9);
+    ctx.fillStyle = isFinite(samplePeakNow) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText('SP ' + fmtV(samplePeakNow), PL, PT + 9);
+    ctx.fillStyle = isFinite(tpMax) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText('TP MAX ' + fmtV(tpMax), PL + 46, PT + 9);
 
     ctx.restore();
   }
@@ -182,4 +225,3 @@
     resetPeakHold,
   };
 })();
-

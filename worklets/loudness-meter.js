@@ -257,14 +257,18 @@ class LoudnessMeter extends AudioWorkletProcessor {
         if (this.tpBlock > this.tpMax) this.tpMax = this.tpBlock;
         if (this.tpBlockCh[0] > this.tpMaxCh[0]) this.tpMaxCh[0] = this.tpBlockCh[0];
         if (this.tpBlockCh[1] > this.tpMaxCh[1]) this.tpMaxCh[1] = this.tpBlockCh[1];
+
+        const tpNow = this.tpBlock > 0 ? 20 * Math.log10(this.tpBlock) : -Infinity;
+        const tpNowL = this.tpBlockCh[0] > 0 ? 20 * Math.log10(this.tpBlockCh[0]) : -Infinity;
+        const tpNowR = this.tpBlockCh[1] > 0 ? 20 * Math.log10(this.tpBlockCh[1]) : -Infinity;
         this.port.postMessage({
           momentary,
           shortTerm,
           integrated: this._integrated(),
           lra: this._lra(),
-          truePeak: this.tpMax > 0 ? 20 * Math.log10(this.tpMax) : -Infinity,
-          truePeakL: this.tpMaxCh[0] > 0 ? 20 * Math.log10(this.tpMaxCh[0]) : -Infinity,
-          truePeakR: this.tpMaxCh[1] > 0 ? 20 * Math.log10(this.tpMaxCh[1]) : -Infinity,
+          truePeak: tpNow,
+          truePeakL: tpNowL,
+          truePeakR: tpNowR,
         });
 
         this.ba[0] = 0;

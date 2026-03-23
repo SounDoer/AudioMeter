@@ -9,6 +9,8 @@
     truePeak: -Infinity,
     truePeakL: -Infinity,
     truePeakR: -Infinity,
+    truePeakMax: -Infinity,
+    samplePeak: -Infinity,
     mMax: -Infinity,
     stMax: -Infinity,
     target: -23,

@@ -163,10 +163,10 @@ body{
 <div id="main">
   <div id="lp">
     <div class="mod" id="peakMod">
-      <div class="slbl">True Peak</div>
+      <div class="slbl">Peak</div>
       <div id="mWrap"><canvas id="mCvs"></canvas></div>
     </div>
-    <div class="splitV" id="splitLeft" title="Drag to resize true peak/vectorscope"></div>
+    <div class="splitV" id="splitLeft" title="Drag to resize peak/vectorscope"></div>
     <div class="mod" id="leftVecMod">
       <div class="slbl">Vectorscope — Correlation <span id="corrVal">—</span></div>
       <div id="vWrap"><canvas id="vCvs"></canvas></div>
@@ -183,9 +183,10 @@ body{
         <div id="rdouts">
           <div class="rdout wide" id="tpBox">
             <div class="rinfo">
-              <div class="rl">True Peak</div>
+              <div class="rl">Sample Peak</div>
               <div class="rv" id="tpVal">—</div>
-              <div class="ru">dBTP</div>
+              <div class="ru">dBFS</div>
+              <div class="ru" id="tpMaxMeta">TP MAX — dBTP</div>
             </div>
             <div style="flex:1"></div>
             <div class="rinfo" style="text-align:right">
@@ -219,7 +220,7 @@ body{
 <script src="./src/ui/status.js"></script>
 <script src="./src/ui/readouts.js"></script>
 <script src="./src/ui/layout.js"></script>
-<script src="./src/renderers/loudness.js"></script>
+<script src="./src/renderers/peak.js"></script>
 <script src="./src/renderers/spectrum.js"></script>
 <script src="./src/renderers/loudness-history.js"></script>
 <script src="./src/renderers/vectorscope.js"></script>

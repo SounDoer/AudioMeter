@@ -87,7 +87,10 @@ class LoudnessMeter extends AudioWorkletProcessor{
         if(this.tpBlock>this.tpMax)this.tpMax=this.tpBlock;
         if(this.tpBlockCh[0]>this.tpMaxCh[0])this.tpMaxCh[0]=this.tpBlockCh[0];
         if(this.tpBlockCh[1]>this.tpMaxCh[1])this.tpMaxCh[1]=this.tpBlockCh[1];
-        this.port.postMessage({momentary,shortTerm,integrated:this._integrated(),lra:this._lra(),truePeak:this.tpMax>0?20*Math.log10(this.tpMax):-Infinity,truePeakL:this.tpMaxCh[0]>0?20*Math.log10(this.tpMaxCh[0]):-Infinity,truePeakR:this.tpMaxCh[1]>0?20*Math.log10(this.tpMaxCh[1]):-Infinity});
+        const tpNow=this.tpBlock>0?20*Math.log10(this.tpBlock):-Infinity;
+        const tpNowL=this.tpBlockCh[0]>0?20*Math.log10(this.tpBlockCh[0]):-Infinity;
+        const tpNowR=this.tpBlockCh[1]>0?20*Math.log10(this.tpBlockCh[1]):-Infinity;
+        this.port.postMessage({momentary,shortTerm,integrated:this._integrated(),lra:this._lra(),truePeak:tpNow,truePeakL:tpNowL,truePeakR:tpNowR});
         this.ba[0]=this.ba[1]=0;this.bn=0;this.tpBlock=0;this.tpBlockCh[0]=0;this.tpBlockCh[1]=0;
       }
     }
@@ -136,6 +139,7 @@ registerProcessor('loudness-meter',LoudnessMeter);
     AM.runtime.wklt.port.onmessage = (e) => {
       const d = e.data || {};
       Object.assign(S, d);
+      if (isFinite(d.truePeak) && d.truePeak > S.truePeakMax) S.truePeakMax = d.truePeak;
 
       if (isFinite(d.momentary) && d.momentary > S.mMax) S.mMax = d.momentary;
       if (isFinite(d.shortTerm) && d.shortTerm > S.stMax) S.stMax = d.shortTerm;
@@ -204,6 +208,8 @@ registerProcessor('loudness-meter',LoudnessMeter);
     S.truePeak = -Infinity;
     S.truePeakL = -Infinity;
     S.truePeakR = -Infinity;
+    S.truePeakMax = -Infinity;
+    S.samplePeak = -Infinity;
     S.lra = 0;
     S.mMax = -Infinity;
     S.stMax = -Infinity;
@@ -248,6 +254,8 @@ registerProcessor('loudness-meter',LoudnessMeter);
     S.truePeak = -Infinity;
     S.truePeakL = -Infinity;
     S.truePeakR = -Infinity;
+    S.truePeakMax = -Infinity;
+    S.samplePeak = -Infinity;
     S.mMax = -Infinity;
     S.stMax = -Infinity;
 

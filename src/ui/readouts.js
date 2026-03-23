@@ -9,14 +9,17 @@
   AM.ui.updateReadouts = function updateReadouts() {
     const S = AM.state.S;
 
-    const TP = S.truePeak;
+    const SP = S.samplePeak;
+    const TPM = S.truePeakMax;
     const TG = S.target;
 
-    document.getElementById('tpVal').textContent = AM.ui.fmtL(TP);
+    document.getElementById('tpVal').textContent = AM.ui.fmtL(SP);
+    const tpMaxMeta = document.getElementById('tpMaxMeta');
+    if (tpMaxMeta) tpMaxMeta.textContent = 'TP MAX ' + AM.ui.fmtL(TPM) + ' dBTP';
     document.getElementById('tgtVal').textContent = TG;
 
     const tpBox = document.getElementById('tpBox');
-    tpBox.className = 'rdout wide' + (isFinite(TP) ? (TP >= 0 ? ' c-bad' : TP >= -1 ? ' c-warn' : '') : '');
+    tpBox.className = 'rdout wide' + (isFinite(SP) ? (SP >= 0 ? ' c-bad' : SP >= -1 ? ' c-warn' : '') : '');
   };
 })();
 
