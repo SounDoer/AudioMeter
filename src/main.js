@@ -15,6 +15,7 @@
 
   function bootstrap() {
     bindUi();
+    if (AM.layout && AM.layout.init) AM.layout.init();
     AM.renderLoop.initStatic();
   }
 

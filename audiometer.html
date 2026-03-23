@@ -48,10 +48,17 @@ body{
 #startBtn.on::before{animation:blink 1.1s ease-in-out infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
 
-#main{display:flex;flex:1;overflow:hidden;min-height:0;}
+#main{
+  display:grid;
+  grid-template-columns:minmax(260px, 34%) 6px minmax(420px, 1fr);
+  flex:1;
+  overflow:hidden;
+  min-height:0;
+}
 #lp{
-  width:306px;flex-shrink:0;border-right:1px solid var(--b1);
+  border-right:1px solid var(--b1);
   display:flex;flex-direction:column;padding:10px 11px;gap:8px;overflow:hidden;
+  min-width:0;
 }
 .slbl{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#3a6080;flex-shrink:0;}
 #mWrap{flex:1;min-height:0;}
@@ -70,12 +77,62 @@ body{
 .rdout.c-warn .rv{color:#ffc040;}
 .rdout.c-bad  .rv{color:#ff5050;}
 
-#rp{flex:1;display:flex;flex-direction:column;padding:10px 10px 10px 11px;gap:6px;overflow:hidden;min-width:0;}
-#sCvs{flex:1;display:block;width:100%;min-height:0;}
-#histWrap{flex-shrink:0;height:20%;min-height:72px;max-height:160px;}
-#hCvs{display:block;width:100%;height:100%;}
-#vecWrap{flex-shrink:0;height:20%;min-height:96px;max-height:190px;}
-#vCvs{display:block;width:100%;height:100%;}
+#splitMain,
+.splitV{
+  background:#0d1722;
+  border:1px solid var(--b1);
+  position:relative;
+}
+#splitMain{
+  cursor:col-resize;
+}
+#splitMain::after{
+  content:'';
+  position:absolute;
+  left:2px; right:2px; top:50%;
+  border-top:1px solid #31485f;
+}
+#rp{
+  min-width:0;
+  overflow:hidden;
+  padding:10px 10px 10px 11px;
+  display:grid;
+  grid-template-rows:minmax(180px, 56%) 6px minmax(110px, 22%) 6px minmax(120px, 1fr);
+  gap:0;
+}
+.mod{
+  min-height:0;
+  min-width:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.modBody{
+  flex:1;
+  min-height:0;
+}
+#specMod{grid-row:1;}
+.splitV{
+  grid-row:2;
+  cursor:row-resize;
+}
+#histMod{grid-row:3;}
+#splitRightBottom{
+  grid-row:4;
+}
+#vecMod{grid-row:5;}
+#sCvs,#hCvs,#vCvs{
+  display:block;
+  width:100%;
+  height:100%;
+}
+.splitV::after{
+  content:'';
+  position:absolute;
+  top:2px; bottom:2px; left:50%;
+  border-left:1px solid #31485f;
+}
 
 #sbar{height:22px;background:var(--panel);border-top:1px solid var(--b1);
   padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
@@ -93,6 +150,7 @@ body{
     <button class="tbtn on" id="btnEbu">EBU R128</button>
     <button class="tbtn" id="btnStream">STREAMING</button>
   </div>
+  <button class="hbtn" id="resetLayoutBtn">LAYOUT</button>
   <button class="hbtn" id="resetBtn">RESET</button>
   <button class="hbtn off" id="startBtn">START</button>
 </div>
@@ -171,13 +229,23 @@ body{
     </div>
   </div>
 
+  <div id="splitMain" title="Drag to resize columns"></div>
+
   <div id="rp">
-    <div class="slbl">Spectrum Analyzer — Real-time FFT</div>
-    <canvas id="sCvs"></canvas>
-    <div class="slbl">Loudness History — Short-term LUFS</div>
-    <div id="histWrap"><canvas id="hCvs"></canvas></div>
-    <div class="slbl">Vectorscope — Correlation <span id="corrVal">—</span></div>
-    <div id="vecWrap"><canvas id="vCvs"></canvas></div>
+    <div class="mod" id="specMod">
+      <div class="slbl">Spectrum Analyzer — Real-time FFT</div>
+      <div class="modBody"><canvas id="sCvs"></canvas></div>
+    </div>
+    <div class="splitV" id="splitRightTop" title="Drag to resize spectrum/history"></div>
+    <div class="mod" id="histMod">
+      <div class="slbl">Loudness History — Short-term LUFS</div>
+      <div class="modBody"><canvas id="hCvs"></canvas></div>
+    </div>
+    <div class="splitV" id="splitRightBottom" title="Drag to resize history/vectorscope"></div>
+    <div class="mod" id="vecMod">
+      <div class="slbl">Vectorscope — Correlation <span id="corrVal">—</span></div>
+      <div class="modBody"><canvas id="vCvs"></canvas></div>
+    </div>
   </div>
 
 </div>
@@ -194,6 +262,7 @@ body{
 <script src="./src/runtime.js"></script>
 <script src="./src/ui/status.js"></script>
 <script src="./src/ui/readouts.js"></script>
+<script src="./src/ui/layout.js"></script>
 <script src="./src/renderers/loudness.js"></script>
 <script src="./src/renderers/spectrum.js"></script>
 <script src="./src/renderers/loudness-history.js"></script>
