@@ -95,7 +95,9 @@
     const BW = 32;
     const GAP = 10;
     const TH = H - PT - PB;
-    const MX = PL + 8;
+    const barsBlockW = BW + GAP + BW;
+    const mxOffset = Math.max(8, (W - PL - barsBlockW) / 2);
+    const MX = PL + mxOffset;
     const SX = MX + BW + GAP;
 
     function vY(v) {
@@ -113,26 +115,39 @@
     ctx.textAlign = 'right';
     for (const t of TICKS) {
       const y = vY(t.v);
-      ctx.strokeStyle = t.clip ? th.meters.clipLine : t.maj ? th.meters.tickLineMaj : th.meters.tickLineDim;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(PL, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
+      if (t.clip) {
+        // 0 dB clip / zero lines are drawn after bars so they are not covered by the bar panel fill.
+      } else {
+        ctx.strokeStyle = t.maj ? th.meters.tickLineMaj : th.meters.tickLineDim;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(PL, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
       if (t.maj) {
         ctx.fillStyle = t.clip ? th.meters.clipLabel : th.meters.labelDim;
         ctx.fillText(t.lb, PL - 4, y + 3);
       }
     }
 
-    ctx.strokeStyle = th.meters.zeroLine;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(PL, vY(0));
-    ctx.lineTo(W, vY(0));
-    ctx.stroke();
+    /** Full-scale vertical gradient: color at each Y depends only on dB, not peak value (avoids threshold flicker). */
+    function createMeterBarGradient() {
+      const g = ctx.createLinearGradient(0, PT, 0, PT + TH);
+      const tClipHi = 0;
+      const tClipLo = 1 - mFrac(-6);
+      const tMid = 1 - mFrac(-18);
+      const tQuiet = 1;
+      const tClipMid = tClipHi + (tClipLo - tClipHi) * 0.35;
+      g.addColorStop(tClipHi, th.meters.clipFillTop);
+      g.addColorStop(tClipMid, th.meters.clipFillMid);
+      g.addColorStop(tClipLo, th.meters.warnFill);
+      g.addColorStop(tMid, th.meters.okFill);
+      g.addColorStop(tQuiet, th.meters.badFill);
+      return g;
+    }
 
-    function drawBar(bx, val) {
+    function drawBar(bx, val, barGradient) {
       ctx.fillStyle = th.canvas.panel;
       ctx.fillRect(bx, PT, BW, TH);
       if (!isFinite(val)) return;
@@ -140,19 +155,7 @@
       const fr = mFrac(val);
       const bH = fr * TH;
       const bY = PT + TH - bH;
-      const g = ctx.createLinearGradient(bx, bY, bx, PT + TH);
-      if (val >= -6) {
-        g.addColorStop(0, th.meters.clipFillTop);
-        g.addColorStop(0.35, th.meters.clipFillMid);
-        g.addColorStop(1, th.meters.okFill);
-      } else if (val >= -18) {
-        g.addColorStop(0, th.meters.warnFill);
-        g.addColorStop(1, th.meters.okFill);
-      } else {
-        g.addColorStop(0, th.meters.okFill);
-        g.addColorStop(1, th.meters.badFill);
-      }
-      ctx.fillStyle = g;
+      ctx.fillStyle = barGradient;
       ctx.fillRect(bx, bY, BW, bH);
 
       const ec = val >= -6 ? th.meters.barOutlineBad : val >= -18 ? th.meters.barOutlineWarn : th.meters.barOutlineOk;
@@ -172,8 +175,27 @@
     }
     if (now > phR.t) phR.v = -Infinity;
 
-    drawBar(MX, spL);
-    drawBar(SX, spR);
+    const barGradient = createMeterBarGradient();
+    drawBar(MX, spL, barGradient);
+    drawBar(SX, spR, barGradient);
+
+    const y0 = vY(0);
+    ctx.strokeStyle = th.meters.clipLine;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(MX, y0);
+    ctx.lineTo(MX + BW, y0);
+    ctx.moveTo(SX, y0);
+    ctx.lineTo(SX + BW, y0);
+    ctx.stroke();
+    ctx.strokeStyle = th.meters.zeroLine;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(MX, y0);
+    ctx.lineTo(MX + BW, y0);
+    ctx.moveTo(SX, y0);
+    ctx.lineTo(SX + BW, y0);
+    ctx.stroke();
 
     function phLine(bx, phv) {
       if (!isFinite(phv)) return;
@@ -195,8 +217,10 @@
       ctx.strokeStyle = th.meters.peakLineWarn;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(PL, y);
-      ctx.lineTo(W - 2, y);
+      ctx.moveTo(MX, y);
+      ctx.lineTo(MX + BW, y);
+      ctx.moveTo(SX, y);
+      ctx.lineTo(SX + BW, y);
       ctx.stroke();
     }
 

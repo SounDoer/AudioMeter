@@ -16,7 +16,23 @@
       const mc = document.getElementById('mCvs');
       if (mc && AM.renderers.meters) AM.renderers.meters.drawMeters(mc);
 
-      for (const id of ['sCvs', 'hCvs', 'vCvs']) {
+      const hc = document.getElementById('hCvs');
+      if (hc && AM.renderers.history) {
+        AM.renderers.history.drawHistory(hc);
+      } else if (hc) {
+        const dpr = window.devicePixelRatio || 1;
+        const W = hc.offsetWidth;
+        const H = hc.offsetHeight;
+        if (W && H) {
+          hc.width = Math.round(W * dpr);
+          hc.height = Math.round(H * dpr);
+          const ctx = hc.getContext('2d');
+          ctx.fillStyle = th.canvas.bg;
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+
+      for (const id of ['sCvs', 'vCvs']) {
         const cvs = document.getElementById(id);
         if (!cvs) continue;
         const dpr = window.devicePixelRatio || 1;

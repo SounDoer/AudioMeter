@@ -12,6 +12,14 @@
   --color-readout-bg:#0a1420;--color-readout-border:#1a2d42;
   --color-readout-ok:#0f8;--color-readout-warn:#fc4;--color-readout-bad:#f55;
   --color-splitter-bg:#0d1722;--color-splitter-line:#357;
+  /* Gap between module title (.slbl) and content below; all .mod sections use this. */
+  --mod-title-gap:3px;
+  /* History graph top inset; must stay in sync with PADT in drawHistory (loudness.js). */
+  --loudness-history-pad-top:28px;
+  /* Loudness right readout grid: equal cells, shared min width, panel min = 3 cols + 2 gaps. */
+  --loudness-readout-gap:5px;
+  --loudness-readout-cell-min:86px;
+  --loudness-readout-panel-min:calc(3 * var(--loudness-readout-cell-min) + 2 * var(--loudness-readout-gap));
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{
@@ -62,11 +70,30 @@ body{
   padding:10px 11px;gap:8px;overflow:hidden;
   min-width:0;
 }
-.slbl{font-size:var(--size-section-label);font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--color-section-label);flex-shrink:0;}
+.slbl{font-size:var(--size-section-label);font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--color-section-label);flex-shrink:0;line-height:1.15;}
+.corrLbl{
+  font-size:var(--size-section-label);
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--color-section-label);
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  flex-shrink:0;
+  margin-top:-2px;
+}
 #mWrap,#vWrap{flex:1;min-height:0;}
 #mCvs{display:block;width:100%;height:100%;}
 
-#rdouts{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+/* padding-top set in drawHistory to match PADT (plot area top). */
+#rdouts{box-sizing:border-box;display:flex;flex-direction:column;gap:var(--loudness-readout-gap);min-width:var(--loudness-readout-panel-min);width:100%;padding-top:0;}
+#rdouts .metricRow:not(.row3){
+  gap:var(--loudness-readout-gap);
+  grid-template-columns:repeat(3,minmax(var(--loudness-readout-cell-min),1fr));
+}
+#rdouts .rdout{min-width:0;display:flex;flex-direction:column;}
+#rdouts .rl{overflow-wrap:anywhere;word-break:break-word;}
 .metricRow{display:grid;gap:5px;}
 .metricRow.row3{grid-template-columns:1fr 1fr;}
 .metricRow:not(.row3){grid-template-columns:1fr 1fr 1fr;}
@@ -108,7 +135,7 @@ body{
   overflow:hidden;
   display:flex;
   flex-direction:column;
-  gap:6px;
+  gap:var(--mod-title-gap);
 }
 .modBody{
   flex:1;
@@ -126,13 +153,15 @@ body{
   height:100%;
 }
 .loudRow{
-  flex:1;
+  flex:0 0 auto;
   min-height:0;
   display:grid;
-  grid-template-columns:minmax(280px, 1fr) minmax(210px, 250px);
-  gap:8px;
+  grid-template-columns:minmax(200px, 1fr) minmax(var(--loudness-readout-panel-min), 0.42fr);
+  gap:6px;
+  align-items:start;
 }
-#hWrap{min-height:0;}
+#loudMod .loudRow .modBody{flex:0 0 auto;height:auto;min-height:0;}
+#hWrap{min-width:0;min-height:0;}
 .splitV::after{
   content:'';
   position:absolute;

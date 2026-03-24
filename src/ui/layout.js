@@ -114,13 +114,22 @@
     return { a: na, b: nb };
   }
 
+  function getVerticalInnerHeight(model) {
+    const root = model.root;
+    const cs = getComputedStyle(root);
+    const padTop = Number.parseFloat(cs.paddingTop) || 0;
+    const padBottom = Number.parseFloat(cs.paddingBottom) || 0;
+    const rowGap = Number.parseFloat(cs.rowGap) || 0;
+    const rowCount = model.items.length + model.splits.length;
+    return root.clientHeight - padTop - padBottom - rowGap * Math.max(0, rowCount - 1);
+  }
+
   function applyVerticalLayout(model) {
     if (!model) return;
     const { root, items } = model;
 
-    const totalH = root.clientHeight;
     const splitCount = items.length - 1;
-    const innerH = totalH - splitCount * SPLIT_PX;
+    const innerH = getVerticalInnerHeight(model) - splitCount * SPLIT_PX;
     if (innerH <= 0) return;
 
     let minSum = 0;
@@ -236,8 +245,7 @@
     const startB = px[splitIdx + 1];
     const minA = items[splitIdx].min;
     const minB = items[splitIdx + 1].min;
-    const totalH = root.clientHeight;
-    const innerH = totalH - (items.length - 1) * SPLIT_PX;
+    const innerH = getVerticalInnerHeight(model) - (items.length - 1) * SPLIT_PX;
 
     function onMove(ev) {
       const dy = ev.clientY - startY;
