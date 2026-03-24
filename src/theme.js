@@ -58,7 +58,7 @@
     },
     light: {
       palette: {
-        bg: '#f5f8fc',
+        bg: '#edf2f7',
         panel: '#ffffff',
         border1: '#c7d2de',
         border2: '#b1c0cf',
@@ -229,10 +229,10 @@
         timeLabelBg: '#e0eaf5',
       },
       vectorscope: {
-        bg: '#f4f8fd',
+        bg: '#edf2f7',
         grid: '#c7d6e5',
-        axis: '#5b7490',
-        trace: '#1b8ea3',
+        axis: '#c7d6e5',
+        trace: '#10976f',
         center: '#2d68cf',
         border: '#c6d5e4',
         text: '#5b7490',

@@ -71,9 +71,11 @@
     // X = Side = (L - R) / sqrt(2)
     // Y = Mid  = (L + R) / sqrt(2)
     // 这样 pure mono (L=R) 会显示为竖线，更符合直觉。
-    ctx.globalCompositeOperation = 'lighter';
+    const isLightMode = th.uiMode === 'light';
+    // Additive blending looks great on dark UI but washes out traces on light UI.
+    ctx.globalCompositeOperation = isLightMode ? 'source-over' : 'lighter';
     ctx.strokeStyle = th.vectorscope.trace;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = isLightMode ? 1.2 : 1;
     ctx.beginPath();
     let started = false;
     let sumLR = 0;
