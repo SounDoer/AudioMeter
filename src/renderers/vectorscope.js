@@ -2,6 +2,10 @@
   const AM = window.AM || (window.AM = {});
   const th = AM.theme;
   AM.renderers = AM.renderers || {};
+  let liveLeft = null;
+  let liveRight = null;
+  let lastTraceHistHead = -1;
+  const TRACE_STEP = 12;
 
   function drawVectorscope(cvs, anL, anR) {
     const dpr = window.devicePixelRatio || 1;
@@ -51,11 +55,11 @@
     ctx.lineTo(cx + scale, cy + scale);
     ctx.stroke();
 
-    const SS = AM.state.getDisplayState ? AM.state.getDisplayState() : AM.state.S;
-    const frozenTrace = SS && SS.vectorscopeTrace;
+    const visualSnap = AM.state.getDisplayVisualSnapshot ? AM.state.getDisplayVisualSnapshot() : null;
+    const frozenTrace = visualSnap && visualSnap.vectorscopeTrace;
     const N = Math.min(anL.frequencyBinCount, anR.frequencyBinCount);
-    const left = frozenTrace ? null : new Float32Array(N);
-    const right = frozenTrace ? null : new Float32Array(N);
+    const left = frozenTrace ? null : (liveLeft && liveLeft.length === N ? liveLeft : (liveLeft = new Float32Array(N)));
+    const right = frozenTrace ? null : (liveRight && liveRight.length === N ? liveRight : (liveRight = new Float32Array(N)));
     if (left && right) {
       anL.getFloatTimeDomainData(left);
       anR.getFloatTimeDomainData(right);
@@ -116,8 +120,28 @@
     // correlation coefficient in [-1, 1]
     const den = Math.sqrt(sumL2 * sumR2);
     const corr = den > 1e-9 ? Math.max(-1, Math.min(1, sumLR / den)) : 0;
-    if (!frozenTrace) AM.state.S.correlation = corr;
-    const shownCorr = isFinite(SS.correlation) ? SS.correlation : corr;
+    if (!frozenTrace) {
+      AM.state.S.correlation = corr;
+      if (AM.state.histCount > 0) {
+        const curHead = AM.state.histHead;
+        if (curHead !== lastTraceHistHead) {
+          lastTraceHistHead = curHead;
+          const pointCount = Math.floor((N - 1) / TRACE_STEP) + 1;
+          const trace = new Float32Array(pointCount * 2);
+          let p = 0;
+          for (let i = 0; i < N; i += TRACE_STEP) {
+            const l = Math.max(-1, Math.min(1, left[i]));
+            const r = Math.max(-1, Math.min(1, right[i]));
+            trace[p++] = (l - r) * INV_SQRT2;
+            trace[p++] = (l + r) * INV_SQRT2;
+          }
+          if (AM.state.setVectorscopeSnapshotForLatest) AM.state.setVectorscopeSnapshotForLatest(trace, corr);
+        }
+      }
+    }
+    const shownCorr = frozenTrace
+      ? (visualSnap && isFinite(visualSnap.correlation) ? visualSnap.correlation : corr)
+      : corr;
     const corrEl = document.getElementById('corrVal');
     if (corrEl) {
       corrEl.textContent = shownCorr.toFixed(2);

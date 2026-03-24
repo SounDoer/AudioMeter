@@ -14,8 +14,6 @@
     samplePeakL: -Infinity,
     samplePeakR: -Infinity,
     correlation: 0,
-    spectrumCurve: null,
-    vectorscopeTrace: null,
     mMax: -Infinity,
     stMax: -Infinity,
     target: -23,
@@ -26,9 +24,15 @@
   const histBuf = new Float32Array(HIST_MAX).fill(-Infinity);
   const mHistBuf = new Float32Array(HIST_MAX).fill(-Infinity);
   const histSnapshots = new Array(HIST_MAX).fill(null);
+  const spectrumSnapRing = new Array(HIST_MAX).fill(null);
+  const vectorscopeSnapRing = new Array(HIST_MAX).fill(null);
+  const vectorscopeCorrRing = new Float32Array(HIST_MAX).fill(0);
   let frozenHistBuf = null;
   let frozenMHistBuf = null;
   let frozenSnapshots = null;
+  let frozenSpectrumSnapRing = null;
+  let frozenVectorscopeSnapRing = null;
+  let frozenVectorscopeCorrRing = null;
   let frozenHistHead = 0;
   let frozenHistCount = 0;
   let histHead = 0;
@@ -48,6 +52,9 @@
     histBuf.fill(-Infinity);
     mHistBuf.fill(-Infinity);
     histSnapshots.fill(null);
+    spectrumSnapRing.fill(null);
+    vectorscopeSnapRing.fill(null);
+    vectorscopeCorrRing.fill(0);
     histHead = 0;
     histCount = 0;
     selectedHistOffset = -1;
@@ -55,6 +62,9 @@
     frozenHistBuf = null;
     frozenMHistBuf = null;
     frozenSnapshots = null;
+    frozenSpectrumSnapRing = null;
+    frozenVectorscopeSnapRing = null;
+    frozenVectorscopeCorrRing = null;
     frozenHistHead = 0;
     frozenHistCount = 0;
   }
@@ -74,6 +84,9 @@
       frozenHistBuf = new Float32Array(histBuf);
       frozenMHistBuf = new Float32Array(mHistBuf);
       frozenSnapshots = histSnapshots.slice();
+      frozenSpectrumSnapRing = spectrumSnapRing.slice();
+      frozenVectorscopeSnapRing = vectorscopeSnapRing.slice();
+      frozenVectorscopeCorrRing = new Float32Array(vectorscopeCorrRing);
       frozenHistHead = histHead;
       frozenHistCount = histCount;
     }
@@ -89,6 +102,9 @@
     frozenHistBuf = null;
     frozenMHistBuf = null;
     frozenSnapshots = null;
+    frozenSpectrumSnapRing = null;
+    frozenVectorscopeSnapRing = null;
+    frozenVectorscopeCorrRing = null;
     frozenHistHead = 0;
     frozenHistCount = 0;
   }
@@ -123,6 +139,41 @@
     };
   }
 
+  function getLatestHistIndex() {
+    if (histCount < 1) return -1;
+    return (histHead - 1 + HIST_MAX) % HIST_MAX;
+  }
+
+  function setSpectrumSnapshotForLatest(curve) {
+    const idx = getLatestHistIndex();
+    if (idx < 0) return;
+    spectrumSnapRing[idx] = curve || null;
+  }
+
+  function setVectorscopeSnapshotForLatest(trace, corr) {
+    const idx = getLatestHistIndex();
+    if (idx < 0) return;
+    vectorscopeSnapRing[idx] = trace || null;
+    vectorscopeCorrRing[idx] = isFinite(corr) ? corr : 0;
+  }
+
+  function getDisplayVisualSnapshot() {
+    if (selectedHistOffset < 0) return null;
+    const useFrozen = !!(frozenHistBuf && frozenMHistBuf);
+    const head = useFrozen ? frozenHistHead : histHead;
+    const count = useFrozen ? frozenHistCount : histCount;
+    if (count < 1) return null;
+    const idx = (head - 1 - selectedHistOffset + HIST_MAX) % HIST_MAX;
+    const specRing = useFrozen ? frozenSpectrumSnapRing : spectrumSnapRing;
+    const vecRing = useFrozen ? frozenVectorscopeSnapRing : vectorscopeSnapRing;
+    const corrRing = useFrozen ? frozenVectorscopeCorrRing : vectorscopeCorrRing;
+    return {
+      spectrumCurve: (specRing && specRing[idx]) || null,
+      vectorscopeTrace: (vecRing && vecRing[idx]) || null,
+      correlation: corrRing ? corrRing[idx] : 0,
+    };
+  }
+
   AM.state = {
     S,
     HIST_MAX,
@@ -145,6 +196,9 @@
     getSelectedSnapshot,
     getDisplayState,
     getDisplayHistory,
+    setSpectrumSnapshotForLatest,
+    setVectorscopeSnapshotForLatest,
+    getDisplayVisualSnapshot,
   };
 })();
 

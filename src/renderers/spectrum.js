@@ -6,6 +6,9 @@
   let spkData = null;
   let spkAge = null;
   let spkW = 0;
+  let liveFdt = null;
+  let lastSnapHistHead = -1;
+  const SNAP_POINTS = 192;
   const DBMIN = -100;
   const DBMAX = 0;
 
@@ -32,11 +35,13 @@
     const CW = W - PADL - PADR;
     const CH = H - PADT - PADB;
 
-    const SS = AM.state.getDisplayState ? AM.state.getDisplayState() : AM.state.S;
-    const frozenCurve = SS && SS.spectrumCurve;
+    const visualSnap = AM.state.getDisplayVisualSnapshot ? AM.state.getDisplayVisualSnapshot() : null;
+    const frozenCurve = visualSnap && visualSnap.spectrumCurve;
     const SR = analyser.context.sampleRate;
     const BL = analyser.frequencyBinCount;
-    const fdt = frozenCurve ? null : new Float32Array(BL);
+    const fdt = frozenCurve
+      ? null
+      : (liveFdt && liveFdt.length === BL ? liveFdt : (liveFdt = new Float32Array(BL)));
     if (fdt) analyser.getFloatFrequencyData(fdt);
 
     const LOG20 = Math.log10(20);
@@ -152,6 +157,19 @@
       ctx.strokeStyle = th.spectrum.strokeAge;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+
+    if (!frozenCurve && AM.state.histCount > 0) {
+      const curHead = AM.state.histHead;
+      if (curHead !== lastSnapHistHead) {
+        lastSnapHistHead = curHead;
+        const snap = new Float32Array(SNAP_POINTS);
+        for (let i = 0; i < SNAP_POINTS; i++) {
+          const px = Math.round((i / Math.max(1, SNAP_POINTS - 1)) * Math.max(0, CW - 1));
+          snap[i] = spkData[px];
+        }
+        if (AM.state.setSpectrumSnapshotForLatest) AM.state.setSpectrumSnapshotForLatest(snap);
+      }
     }
 
     ctx.strokeStyle = th.spectrum.border;
