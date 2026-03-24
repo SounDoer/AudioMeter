@@ -28,6 +28,7 @@
 
   let spBufL = new Float32Array(0);
   let spBufR = new Float32Array(0);
+  let gradCache = { h: 0, grad: null };
 
   function mFrac(v) {
     return Math.max(0, Math.min(1, (v - MMIN) / MRNG));
@@ -138,6 +139,7 @@
 
     /** Full-scale vertical gradient: color at each Y depends only on dB, not peak value (avoids threshold flicker). */
     function createMeterBarGradient() {
+      if (gradCache.grad && gradCache.h === TH) return gradCache.grad;
       const g = ctx.createLinearGradient(0, PT, 0, PT + TH);
       const tClipHi = 0;
       const tClipLo = 1 - mFrac(-6);
@@ -149,6 +151,7 @@
       g.addColorStop(tClipLo, th.meters.warnFill);
       g.addColorStop(tMid, th.meters.okFill);
       g.addColorStop(tQuiet, th.meters.badFill);
+      gradCache = { h: TH, grad: g };
       return g;
     }
 

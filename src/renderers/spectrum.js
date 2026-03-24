@@ -6,11 +6,25 @@
   let spkData = null;
   let spkAge = null;
   let spkW = 0;
+  let curveDb = null;
+  let curveMask = null;
   let liveFdt = null;
   let lastSnapHistHead = -1;
   const SNAP_POINTS = 192;
   const DBMIN = -100;
   const DBMAX = 0;
+  const FREQ_LABELS = [
+    [20, '20'],
+    [50, '50'],
+    [100, '100'],
+    [200, '200'],
+    [500, '500'],
+    [1000, '1k'],
+    [2000, '2k'],
+    [5000, '5k'],
+    [10000, '10k'],
+    [20000, '20k'],
+  ];
 
   function drawSpectrum(cvs, analyser) {
     const dpr = window.devicePixelRatio || 1;
@@ -59,6 +73,8 @@
     if (!spkData || spkW !== CW) {
       spkData = new Float32Array(CW).fill(DBMIN);
       spkAge = new Float32Array(CW).fill(0);
+      curveDb = new Float32Array(CW).fill(DBMIN);
+      curveMask = new Uint8Array(CW).fill(0);
       spkW = CW;
     }
 
@@ -66,12 +82,12 @@
     ctx.fillRect(0, 0, W, H);
 
     const fGrid = [20, 30, 40, 50, 70, 100, 150, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 5000, 7000, 10000, 15000, 20000];
-    const fLbls = { 20: '20', 50: '50', 100: '100', 200: '200', 500: '500', 1000: '1k', 2000: '2k', 5000: '5k', 10000: '10k', 20000: '20k' };
 
     for (const f of fGrid) {
       const x = fToX(f);
       if (x < PADL || x > PADL + CW) continue;
-      ctx.strokeStyle = f in fLbls ? th.spectrum.gridMaj : th.spectrum.gridDim;
+      const isMajor = f === 20 || f === 50 || f === 100 || f === 200 || f === 500 || f === 1000 || f === 2000 || f === 5000 || f === 10000 || f === 20000;
+      ctx.strokeStyle = isMajor ? th.spectrum.gridMaj : th.spectrum.gridDim;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(x, PADT);
@@ -89,7 +105,8 @@
       ctx.stroke();
     }
 
-    const pts = [];
+    curveMask.fill(0);
+    let validCount = 0;
     for (let px = 0; px < CW; px++) {
       const frac = px / CW;
       const freq = Math.pow(10, LOG20 + frac * (LOG20K - LOG20));
@@ -106,7 +123,9 @@
         }
       }
       maxDb = Math.max(DBMIN, Math.min(DBMAX, maxDb));
-      pts.push({ px, db: maxDb });
+      curveDb[px] = maxDb;
+      curveMask[px] = 1;
+      validCount++;
 
       if (frozenCurve) {
         spkData[px] = maxDb;
@@ -119,12 +138,23 @@
       }
     }
 
-    if (pts.length > 1) {
+    if (validCount > 1) {
       // filled area
+      let start = 0;
+      while (start < CW && !curveMask[start]) start++;
+      let end = CW - 1;
+      while (end >= 0 && !curveMask[end]) end--;
+      if (start > end) {
+        ctx.restore();
+        return;
+      }
       ctx.beginPath();
-      ctx.moveTo(PADL + pts[0].px, PADT + CH);
-      for (const p of pts) ctx.lineTo(PADL + p.px, dToY(p.db));
-      ctx.lineTo(PADL + pts[pts.length - 1].px, PADT + CH);
+      ctx.moveTo(PADL + start, PADT + CH);
+      for (let px = start; px <= end; px++) {
+        if (!curveMask[px]) continue;
+        ctx.lineTo(PADL + px, dToY(curveDb[px]));
+      }
+      ctx.lineTo(PADL + end, PADT + CH);
       ctx.closePath();
 
       const gf = ctx.createLinearGradient(0, PADT, 0, PADT + CH);
@@ -137,8 +167,11 @@
 
       // outline + trail
       ctx.beginPath();
-      ctx.moveTo(PADL + pts[0].px, dToY(pts[0].db));
-      for (const p of pts) ctx.lineTo(PADL + p.px, dToY(p.db));
+      ctx.moveTo(PADL + start, dToY(curveDb[start]));
+      for (let px = start; px <= end; px++) {
+        if (!curveMask[px]) continue;
+        ctx.lineTo(PADL + px, dToY(curveDb[px]));
+      }
       ctx.strokeStyle = th.spectrum.stroke;
       ctx.lineWidth = 1.5;
       ctx.stroke();
@@ -179,8 +212,8 @@
     ctx.font = '9px ' + th.fonts.condensed;
     ctx.fillStyle = th.spectrum.labelText;
     ctx.textAlign = 'center';
-    for (const [f, lbl] of Object.entries(fLbls)) {
-      const x = fToX(Number(f));
+    for (const [f, lbl] of FREQ_LABELS) {
+      const x = fToX(f);
       if (x >= PADL && x <= PADL + CW) ctx.fillText(lbl, x, H - 4);
     }
 

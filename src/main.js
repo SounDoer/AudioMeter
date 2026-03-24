@@ -8,6 +8,7 @@
     const resetBtn = document.getElementById('resetBtn');
     const themeBtn = document.getElementById('themeBtn');
 
+    let lastStartMode = '';
     const updateThemeBtn = () => {
       if (!themeBtn || !AM.theme) return;
       const mode = AM.theme.uiMode === 'light' ? 'LIGHT' : 'DARK';
@@ -15,12 +16,18 @@
     };
     const updateStartButton = () => {
       if (!startBtn) return;
+      let mode = 'start';
       if (AM.state && AM.state.selectedHistOffset >= 0) {
+        mode = 'live';
+      } else if (AM.state && AM.state.S && AM.state.S.running) {
+        mode = 'stop';
+      }
+      if (mode === lastStartMode) return;
+      lastStartMode = mode;
+      if (mode === 'live') {
         startBtn.textContent = 'LIVE';
         startBtn.className = 'hbtn on';
-        return;
-      }
-      if (AM.state && AM.state.S && AM.state.S.running) {
+      } else if (mode === 'stop') {
         startBtn.textContent = 'STOP';
         startBtn.className = 'hbtn on';
       } else {

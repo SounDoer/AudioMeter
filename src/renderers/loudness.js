@@ -2,6 +2,15 @@
   const AM = window.AM || (window.AM = {});
   const th = AM.theme;
   AM.renderers = AM.renderers || {};
+  let layoutSyncTick = 0;
+  let histBgCache = {
+    w: 0,
+    h: 0,
+    padt: 0,
+    target: 0,
+    skin: '',
+    canvas: null,
+  };
 
   function getHistoryPadT() {
     try {
@@ -26,9 +35,14 @@
     }
     const hw = document.getElementById('hWrap');
     if (hw && rdEl) {
-      void rdEl.offsetHeight;
-      const rh = Math.round(rdEl.getBoundingClientRect().height);
-      if (rh > 0) hw.style.height = rh + 'px';
+      layoutSyncTick++;
+      if (layoutSyncTick % 12 === 0) {
+        const rh = Math.round(rdEl.getBoundingClientRect().height);
+        if (rh > 0) {
+          const nextH = rh + 'px';
+          if (hw.style.height !== nextH) hw.style.height = nextH;
+        }
+      }
     }
 
     const W = cvs.offsetWidth;
@@ -75,28 +89,75 @@
       return PADT + (1 - (dd - DBMIN) / DBRNG) * CH;
     }
 
-    ctx.fillStyle = th.history.bg;
-    ctx.fillRect(0, 0, W, H);
+    const skinKey =
+      th.history.bg +
+      '|' +
+      th.history.grid +
+      '|' +
+      th.history.gridTarget +
+      '|' +
+      th.history.gridZero +
+      '|' +
+      th.history.targetLine +
+      '|' +
+      th.history.labelText;
+    if (
+      !histBgCache.canvas ||
+      histBgCache.w !== W ||
+      histBgCache.h !== H ||
+      histBgCache.padt !== PADT ||
+      Math.abs(histBgCache.target - tgt) > 0.001 ||
+      histBgCache.skin !== skinKey
+    ) {
+      const bg = document.createElement('canvas');
+      bg.width = Math.max(1, Math.round(W));
+      bg.height = Math.max(1, Math.round(H));
+      const bctx = bg.getContext('2d');
+      bctx.fillStyle = th.history.bg;
+      bctx.fillRect(0, 0, W, H);
 
-    for (const d of [-60, -48, -36, -24, -18, -12, -6, 0, 3]) {
-      const y = dToY(d);
-      ctx.strokeStyle = Math.abs(d - tgt) < 0.1 ? th.history.gridTarget : d === 0 ? th.history.gridZero : th.history.grid;
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(PADL, y);
-      ctx.lineTo(PADL + CW, y);
-      ctx.stroke();
+      for (const d of [-60, -48, -36, -24, -18, -12, -6, 0, 3]) {
+        const y = dToY(d);
+        bctx.strokeStyle = Math.abs(d - tgt) < 0.1 ? th.history.gridTarget : d === 0 ? th.history.gridZero : th.history.grid;
+        bctx.lineWidth = 0.5;
+        bctx.beginPath();
+        bctx.moveTo(PADL, y);
+        bctx.lineTo(PADL + CW, y);
+        bctx.stroke();
+      }
+
+      bctx.strokeStyle = th.history.targetLine;
+      bctx.lineWidth = 1;
+      bctx.setLineDash([4, 3]);
+      bctx.beginPath();
+      bctx.moveTo(PADL, dToY(tgt));
+      bctx.lineTo(PADL + CW, dToY(tgt));
+      bctx.stroke();
+      bctx.setLineDash([]);
+
+      bctx.strokeStyle = th.history.grid;
+      bctx.lineWidth = 1;
+      bctx.strokeRect(PADL, PADT, CW, CH);
+
+      bctx.font = '8px ' + th.fonts.mono;
+      bctx.textAlign = 'right';
+      for (const d of [-48, -36, -24, -18, -12, -6, 0]) {
+        const y = dToY(d);
+        if (y < PADT || y > PADT + CH) continue;
+        bctx.fillStyle = th.history.labelText;
+        bctx.fillText(d.toString(), PADL - 4, y + 3);
+      }
+
+      histBgCache = {
+        w: W,
+        h: H,
+        padt: PADT,
+        target: tgt,
+        skin: skinKey,
+        canvas: bg,
+      };
     }
-
-    // Target line
-    ctx.strokeStyle = th.history.targetLine;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(PADL, dToY(tgt));
-    ctx.lineTo(PADL + CW, dToY(tgt));
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.drawImage(histBgCache.canvas, 0, 0);
 
     // History graph line
     if (histCount > 1) {
@@ -126,11 +187,20 @@
         ctx.fillText(lbl, PADL + px, H - 4);
       }
 
+      const drawN = Math.min(n, Math.max(2, Math.round(CW * 1.5)));
+      const idxStep = Math.max(1, Math.ceil(n / drawN));
       const pts = [];
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < n; i += idxStep) {
         const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
         const v = histBuf[idx];
         const px = (i / (n - 1)) * CW;
+        if (isFinite(v)) pts.push({ px, v });
+      }
+      if ((n - 1) % idxStep !== 0) {
+        const i = n - 1;
+        const idx = (histHead - 1 + AM.state.HIST_MAX) % AM.state.HIST_MAX;
+        const v = histBuf[idx];
+        const px = CW;
         if (isFinite(v)) pts.push({ px, v });
       }
 
@@ -156,10 +226,17 @@
       }
 
       const mPts = [];
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < n; i += idxStep) {
         const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
         const v = mHistBuf[idx];
         const px = (i / (n - 1)) * CW;
+        if (isFinite(v)) mPts.push({ px, v });
+      }
+      if ((n - 1) % idxStep !== 0) {
+        const i = n - 1;
+        const idx = (histHead - 1 + AM.state.HIST_MAX) % AM.state.HIST_MAX;
+        const v = mHistBuf[idx];
+        const px = CW;
         if (isFinite(v)) mPts.push({ px, v });
       }
       if (mPts.length > 1) {
@@ -200,19 +277,6 @@
         ctx.stroke();
         ctx.setLineDash([]);
       }
-    }
-
-    ctx.strokeStyle = th.history.grid;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(PADL, PADT, CW, CH);
-
-    ctx.font = '8px ' + th.fonts.mono;
-    ctx.textAlign = 'right';
-    for (const d of [-48, -36, -24, -18, -12, -6, 0]) {
-      const y = dToY(d);
-      if (y < PADT || y > PADT + CH) continue;
-      ctx.fillStyle = th.history.labelText;
-      ctx.fillText(d.toString(), PADL - 4, y + 3);
     }
 
     ctx.restore();

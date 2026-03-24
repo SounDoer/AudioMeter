@@ -6,6 +6,8 @@
   let liveRight = null;
   let lastTraceHistHead = -1;
   const TRACE_STEP = 12;
+  const LIVE_TARGET_POINTS = 320;
+  const FROZEN_TARGET_POINTS = 320;
 
   function drawVectorscope(cvs, anL, anR) {
     const dpr = window.devicePixelRatio || 1;
@@ -79,7 +81,9 @@
     let sumR2 = 0;
     const INV_SQRT2 = 0.7071067811865476;
     if (frozenTrace && frozenTrace.length > 1) {
-      for (let i = 0; i + 1 < frozenTrace.length; i += 2) {
+      const frozenPointCount = Math.floor(frozenTrace.length / 2);
+      const frozenStride = Math.max(1, Math.floor(frozenPointCount / FROZEN_TARGET_POINTS));
+      for (let i = 0; i + 1 < frozenTrace.length; i += 2 * frozenStride) {
         const side = frozenTrace[i];
         const mid = frozenTrace[i + 1];
         const x = cx + side * scale;
@@ -92,7 +96,9 @@
         }
       }
     } else {
-      for (let i = 0; i < N; i += 2) {
+      const baseStep = 2;
+      const dynamicStep = Math.max(baseStep, Math.floor(N / LIVE_TARGET_POINTS));
+      for (let i = 0; i < N; i += dynamicStep) {
         const l = Math.max(-1, Math.min(1, left[i]));
         const r = Math.max(-1, Math.min(1, right[i]));
         const side = (l - r) * INV_SQRT2;
