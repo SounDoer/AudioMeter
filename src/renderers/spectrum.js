@@ -6,6 +6,8 @@
   let spkData = null;
   let spkAge = null;
   let spkW = 0;
+  const DBMIN = -100;
+  const DBMAX = 0;
 
   function drawSpectrum(cvs, analyser) {
     const dpr = window.devicePixelRatio || 1;
@@ -30,16 +32,15 @@
     const CW = W - PADL - PADR;
     const CH = H - PADT - PADB;
 
+    const SS = AM.state.getDisplayState ? AM.state.getDisplayState() : AM.state.S;
+    const frozenCurve = SS && SS.spectrumCurve;
     const SR = analyser.context.sampleRate;
     const BL = analyser.frequencyBinCount;
-    const fdt = new Float32Array(BL);
-    analyser.getFloatFrequencyData(fdt);
+    const fdt = frozenCurve ? null : new Float32Array(BL);
+    if (fdt) analyser.getFloatFrequencyData(fdt);
 
     const LOG20 = Math.log10(20);
     const LOG20K = Math.log10(20000);
-    const DBMIN = -100;
-    const DBMAX = 0;
-
     function fToX(f) {
       return PADL + ((Math.log10(Math.max(20, f)) - LOG20) / (LOG20K - LOG20)) * CW;
     }
@@ -88,17 +89,24 @@
       const frac = px / CW;
       const freq = Math.pow(10, LOG20 + frac * (LOG20K - LOG20));
       const bin = fToBin(freq);
-      if (bin <= 0 || bin >= BL) continue;
-
-      const span = Math.max(1, Math.round(bin * 0.015));
       let maxDb = DBMIN;
-      for (let b = Math.max(1, bin - span); b <= Math.min(BL - 1, bin + span); b++) {
-        if (fdt[b] > maxDb) maxDb = fdt[b];
+      if (frozenCurve && frozenCurve.length > 0) {
+        const idx = Math.round(frac * (frozenCurve.length - 1));
+        maxDb = frozenCurve[idx];
+      } else {
+        if (bin <= 0 || bin >= BL) continue;
+        const span = Math.max(1, Math.round(bin * 0.015));
+        for (let b = Math.max(1, bin - span); b <= Math.min(BL - 1, bin + span); b++) {
+          if (fdt[b] > maxDb) maxDb = fdt[b];
+        }
       }
       maxDb = Math.max(DBMIN, Math.min(DBMAX, maxDb));
       pts.push({ px, db: maxDb });
 
-      if (maxDb > spkData[px]) {
+      if (frozenCurve) {
+        spkData[px] = maxDb;
+        spkAge[px] = 0;
+      } else if (maxDb > spkData[px]) {
         spkData[px] = maxDb;
         spkAge[px] = 0;
       } else if (++spkAge[px] > 120) {

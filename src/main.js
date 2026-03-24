@@ -13,6 +13,23 @@
       const mode = AM.theme.uiMode === 'light' ? 'LIGHT' : 'DARK';
       themeBtn.textContent = 'THEME ' + mode;
     };
+    const updateStartButton = () => {
+      if (!startBtn) return;
+      if (AM.state && AM.state.selectedHistOffset >= 0) {
+        startBtn.textContent = 'LIVE';
+        startBtn.className = 'hbtn on';
+        return;
+      }
+      if (AM.state && AM.state.S && AM.state.S.running) {
+        startBtn.textContent = 'STOP';
+        startBtn.className = 'hbtn on';
+      } else {
+        startBtn.textContent = 'START';
+        startBtn.className = 'hbtn off';
+      }
+    };
+    AM.ui = AM.ui || {};
+    AM.ui.updateStartButton = updateStartButton;
 
     if (btnEbu) btnEbu.addEventListener('click', () => AM.audio.setTgt('ebu'));
     if (btnStream) btnStream.addEventListener('click', () => AM.audio.setTgt('stream'));
@@ -25,6 +42,7 @@
       });
       updateThemeBtn();
     }
+    updateStartButton();
   }
 
   function bootstrap() {
@@ -32,6 +50,9 @@
     bindUi();
     if (AM.layout && AM.layout.init) AM.layout.init();
     AM.renderLoop.initStatic();
+    if (AM.renderers.history && AM.renderers.history.bindHistoryPointer) {
+      AM.renderers.history.bindHistoryPointer(document.getElementById('hCvs'));
+    }
   }
 
   bootstrap();

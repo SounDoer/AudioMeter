@@ -111,6 +111,72 @@ registerProcessor('loudness-meter',LoudnessMeter);
     if (tgtVal) tgtVal.textContent = S.target;
   }
 
+  function captureSpectrumCurve(analyser) {
+    if (!analyser) return null;
+    const BL = analyser.frequencyBinCount;
+    if (!BL) return null;
+    const fdt = new Float32Array(BL);
+    analyser.getFloatFrequencyData(fdt);
+
+    const SR = analyser.context.sampleRate;
+    const LOG20 = Math.log10(20);
+    const LOG20K = Math.log10(20000);
+    const DBMIN = -100;
+    const DBMAX = 0;
+    const N = 192;
+    const out = new Float32Array(N);
+
+    for (let i = 0; i < N; i++) {
+      const frac = i / Math.max(1, N - 1);
+      const freq = Math.pow(10, LOG20 + frac * (LOG20K - LOG20));
+      const bin = Math.round((freq / (SR / 2)) * BL);
+      if (bin <= 0 || bin >= BL) {
+        out[i] = DBMIN;
+        continue;
+      }
+      const span = Math.max(1, Math.round(bin * 0.015));
+      let maxDb = DBMIN;
+      for (let b = Math.max(1, bin - span); b <= Math.min(BL - 1, bin + span); b++) {
+        if (fdt[b] > maxDb) maxDb = fdt[b];
+      }
+      out[i] = Math.max(DBMIN, Math.min(DBMAX, maxDb));
+    }
+    return out;
+  }
+
+  function captureVectorscopeTrace(anL, anR) {
+    if (!anL || !anR) return null;
+    const N = Math.min(anL.frequencyBinCount, anR.frequencyBinCount);
+    if (!N) return null;
+    const left = new Float32Array(N);
+    const right = new Float32Array(N);
+    anL.getFloatTimeDomainData(left);
+    anR.getFloatTimeDomainData(right);
+
+    const points = [];
+    let sumLR = 0;
+    let sumL2 = 0;
+    let sumR2 = 0;
+    const INV_SQRT2 = 0.7071067811865476;
+    const STEP = 8;
+    for (let i = 0; i < N; i += STEP) {
+      const l = Math.max(-1, Math.min(1, left[i]));
+      const r = Math.max(-1, Math.min(1, right[i]));
+      const side = (l - r) * INV_SQRT2;
+      const mid = (l + r) * INV_SQRT2;
+      points.push(side, mid);
+      sumLR += l * r;
+      sumL2 += l * l;
+      sumR2 += r * r;
+    }
+    const den = Math.sqrt(sumL2 * sumR2);
+    const corr = den > 1e-9 ? Math.max(-1, Math.min(1, sumLR / den)) : 0;
+    return {
+      points: new Float32Array(points),
+      corr,
+    };
+  }
+
   async function initAudio() {
     AM.ui.setSt('Requesting microphone...', 'warn');
 
@@ -143,9 +209,34 @@ registerProcessor('loudness-meter',LoudnessMeter);
 
       if (isFinite(d.momentary) && d.momentary > S.mMax) S.mMax = d.momentary;
       if (isFinite(d.shortTerm) && d.shortTerm > S.stMax) S.stMax = d.shortTerm;
+      const spectrumCurve = captureSpectrumCurve(AM.runtime.ansr);
+      if (spectrumCurve) S.spectrumCurve = spectrumCurve;
+      const vecTrace = captureVectorscopeTrace(AM.runtime.vAnL, AM.runtime.vAnR);
+      if (vecTrace) {
+        S.vectorscopeTrace = vecTrace.points;
+        S.correlation = vecTrace.corr;
+      }
       AM.state.histPush(
         isFinite(d.shortTerm) ? d.shortTerm : -Infinity,
-        isFinite(d.momentary) ? d.momentary : -Infinity
+        isFinite(d.momentary) ? d.momentary : -Infinity,
+        {
+          momentary: S.momentary,
+          shortTerm: S.shortTerm,
+          integrated: S.integrated,
+          lra: S.lra,
+          truePeak: S.truePeak,
+          truePeakL: S.truePeakL,
+          truePeakR: S.truePeakR,
+          truePeakMax: S.truePeakMax,
+          samplePeak: S.samplePeak,
+          samplePeakL: S.samplePeakL,
+          samplePeakR: S.samplePeakR,
+          correlation: S.correlation,
+          spectrumCurve: S.spectrumCurve,
+          vectorscopeTrace: S.vectorscopeTrace,
+          mMax: S.mMax,
+          stMax: S.stMax,
+        }
       );
     };
 
@@ -210,9 +301,15 @@ registerProcessor('loudness-meter',LoudnessMeter);
     S.truePeakR = -Infinity;
     S.truePeakMax = -Infinity;
     S.samplePeak = -Infinity;
+    S.samplePeakL = -Infinity;
+    S.samplePeakR = -Infinity;
     S.lra = 0;
     S.mMax = -Infinity;
     S.stMax = -Infinity;
+    S.correlation = 0;
+    S.spectrumCurve = null;
+    S.vectorscopeTrace = null;
+    if (AM.state.clearSelectedHistory) AM.state.clearSelectedHistory();
 
     AM.ui.setSt('Stopped — click START to resume', '');
     AM.ui.setSt2('');
@@ -221,6 +318,11 @@ registerProcessor('loudness-meter',LoudnessMeter);
   async function doToggle() {
     const btn = document.getElementById('startBtn');
     if (!btn) return;
+    if (AM.state.selectedHistOffset >= 0) {
+      AM.state.clearSelectedHistory();
+      if (AM.ui && AM.ui.updateStartButton) AM.ui.updateStartButton();
+      return;
+    }
 
     if (!S.running) {
       btn.textContent = '…';
@@ -256,8 +358,13 @@ registerProcessor('loudness-meter',LoudnessMeter);
     S.truePeakR = -Infinity;
     S.truePeakMax = -Infinity;
     S.samplePeak = -Infinity;
+    S.samplePeakL = -Infinity;
+    S.samplePeakR = -Infinity;
     S.mMax = -Infinity;
     S.stMax = -Infinity;
+    S.correlation = 0;
+    S.spectrumCurve = null;
+    S.vectorscopeTrace = null;
 
     if (AM.renderers.meters && AM.renderers.meters.resetPeakHold) AM.renderers.meters.resetPeakHold();
     AM.state.resetHistory();

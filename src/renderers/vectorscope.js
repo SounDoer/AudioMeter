@@ -51,11 +51,15 @@
     ctx.lineTo(cx + scale, cy + scale);
     ctx.stroke();
 
+    const SS = AM.state.getDisplayState ? AM.state.getDisplayState() : AM.state.S;
+    const frozenTrace = SS && SS.vectorscopeTrace;
     const N = Math.min(anL.frequencyBinCount, anR.frequencyBinCount);
-    const left = new Float32Array(N);
-    const right = new Float32Array(N);
-    anL.getFloatTimeDomainData(left);
-    anR.getFloatTimeDomainData(right);
+    const left = frozenTrace ? null : new Float32Array(N);
+    const right = frozenTrace ? null : new Float32Array(N);
+    if (left && right) {
+      anL.getFloatTimeDomainData(left);
+      anR.getFloatTimeDomainData(right);
+    }
 
     // Vectorscope in M/S view:
     // X = Side = (L - R) / sqrt(2)
@@ -70,22 +74,37 @@
     let sumL2 = 0;
     let sumR2 = 0;
     const INV_SQRT2 = 0.7071067811865476;
-    for (let i = 0; i < N; i += 2) {
-      const l = Math.max(-1, Math.min(1, left[i]));
-      const r = Math.max(-1, Math.min(1, right[i]));
-      const side = (l - r) * INV_SQRT2;
-      const mid = (l + r) * INV_SQRT2;
-      const x = cx + side * scale;
-      const y = cy - mid * scale;
-      if (!started) {
-        ctx.moveTo(x, y);
-        started = true;
-      } else {
-        ctx.lineTo(x, y);
+    if (frozenTrace && frozenTrace.length > 1) {
+      for (let i = 0; i + 1 < frozenTrace.length; i += 2) {
+        const side = frozenTrace[i];
+        const mid = frozenTrace[i + 1];
+        const x = cx + side * scale;
+        const y = cy - mid * scale;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
       }
-      sumLR += l * r;
-      sumL2 += l * l;
-      sumR2 += r * r;
+    } else {
+      for (let i = 0; i < N; i += 2) {
+        const l = Math.max(-1, Math.min(1, left[i]));
+        const r = Math.max(-1, Math.min(1, right[i]));
+        const side = (l - r) * INV_SQRT2;
+        const mid = (l + r) * INV_SQRT2;
+        const x = cx + side * scale;
+        const y = cy - mid * scale;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+        sumLR += l * r;
+        sumL2 += l * l;
+        sumR2 += r * r;
+      }
     }
     ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
@@ -97,10 +116,12 @@
     // correlation coefficient in [-1, 1]
     const den = Math.sqrt(sumL2 * sumR2);
     const corr = den > 1e-9 ? Math.max(-1, Math.min(1, sumLR / den)) : 0;
+    if (!frozenTrace) AM.state.S.correlation = corr;
+    const shownCorr = isFinite(SS.correlation) ? SS.correlation : corr;
     const corrEl = document.getElementById('corrVal');
     if (corrEl) {
-      corrEl.textContent = corr.toFixed(2);
-      corrEl.style.color = corr < -0.2 ? th.vectorscope.corrBad : corr < 0.2 ? th.vectorscope.corrWarn : th.vectorscope.corrGood;
+      corrEl.textContent = shownCorr.toFixed(2);
+      corrEl.style.color = shownCorr < -0.2 ? th.vectorscope.corrBad : shownCorr < 0.2 ? th.vectorscope.corrWarn : th.vectorscope.corrGood;
     }
 
     // corner labels
@@ -110,7 +131,7 @@
     ctx.fillText('S−  M+', PAD + 2, PAD + 10);
     ctx.fillText('S+  M−', PAD + 2, PAD + 20);
     ctx.textAlign = 'right';
-    ctx.fillText('Corr ' + corr.toFixed(2), W - PAD - 2, PAD + 10);
+    ctx.fillText('Corr ' + shownCorr.toFixed(2), W - PAD - 2, PAD + 10);
 
     ctx.restore();
   }

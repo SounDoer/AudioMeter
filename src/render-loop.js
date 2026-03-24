@@ -59,7 +59,6 @@
 
     function frame() {
       raf = requestAnimationFrame(frame);
-
       if (AM.renderers.meters) AM.renderers.meters.drawMeters(mc);
 
       if (AM.runtime.ansr) {
@@ -78,6 +77,7 @@
         AM.renderers.vectorscope.clearVectorscope(vc);
       }
       if (AM.ui.updateReadouts) AM.ui.updateReadouts();
+      if (AM.ui.updateStartButton) AM.ui.updateStartButton();
     }
 
     frame();

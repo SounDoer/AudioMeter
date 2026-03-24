@@ -48,6 +48,8 @@
     tpMax = -Infinity;
     AM.state.S.truePeakMax = -Infinity;
     AM.state.S.samplePeak = -Infinity;
+    AM.state.S.samplePeakL = -Infinity;
+    AM.state.S.samplePeakR = -Infinity;
   }
 
   function drawMeters(cvs) {
@@ -66,6 +68,7 @@
     ctx.scale(dpr, dpr);
 
     const S = AM.state.S;
+    const SS = AM.state.getDisplayState ? AM.state.getDisplayState() : S;
     const anL = AM.runtime && AM.runtime.vAnL;
     const anR = AM.runtime && AM.runtime.vAnR;
 
@@ -84,6 +87,8 @@
 
     const samplePeakNow = Math.max(spL, spR);
     S.samplePeak = samplePeakNow;
+    S.samplePeakL = spL;
+    S.samplePeakR = spR;
     const truePeakNow = Math.max(S.truePeak, S.truePeakL, S.truePeakR);
     if (isFinite(truePeakNow) && truePeakNow > tpMax) tpMax = truePeakNow;
     if (isFinite(truePeakNow) && truePeakNow > S.truePeakMax) S.truePeakMax = truePeakNow;
@@ -175,9 +180,12 @@
     }
     if (now > phR.t) phR.v = -Infinity;
 
+    const shownSpL = isFinite(SS.samplePeakL) ? SS.samplePeakL : spL;
+    const shownSpR = isFinite(SS.samplePeakR) ? SS.samplePeakR : spR;
+
     const barGradient = createMeterBarGradient();
-    drawBar(MX, spL, barGradient);
-    drawBar(SX, spR, barGradient);
+    drawBar(MX, shownSpL, barGradient);
+    drawBar(SX, shownSpR, barGradient);
 
     const y0 = vY(0);
     ctx.strokeStyle = th.meters.clipLine;
@@ -212,8 +220,9 @@
     phLine(MX, phL.v);
     phLine(SX, phR.v);
 
-    if (isFinite(tpMax)) {
-      const y = vY(tpMax);
+    const shownTpMax = isFinite(SS.truePeakMax) ? SS.truePeakMax : tpMax;
+    if (isFinite(shownTpMax)) {
+      const y = vY(shownTpMax);
       ctx.strokeStyle = th.meters.peakLineWarn;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -230,16 +239,17 @@
     ctx.fillText('L', MX + BW / 2, H - 8);
     ctx.fillText('R', SX + BW / 2, H - 8);
 
-    ctx.fillStyle = isFinite(spL) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText(fmtV(spL), MX + BW / 2, H - 1);
-    ctx.fillStyle = isFinite(spR) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText(fmtV(spR), SX + BW / 2, H - 1);
+    ctx.fillStyle = isFinite(shownSpL) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText(fmtV(shownSpL), MX + BW / 2, H - 1);
+    ctx.fillStyle = isFinite(shownSpR) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText(fmtV(shownSpR), SX + BW / 2, H - 1);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = isFinite(samplePeakNow) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText('SP ' + fmtV(samplePeakNow), PL, PT + 9);
-    ctx.fillStyle = isFinite(tpMax) ? th.meters.smallText : th.meters.smallDimText;
-    ctx.fillText('TP MAX ' + fmtV(tpMax), PL + 46, PT + 9);
+    const shownSamplePeak = SS.samplePeak;
+    ctx.fillStyle = isFinite(shownSamplePeak) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText('SP ' + fmtV(shownSamplePeak), PL, PT + 9);
+    ctx.fillStyle = isFinite(shownTpMax) ? th.meters.smallText : th.meters.smallDimText;
+    ctx.fillText('TP MAX ' + fmtV(shownTpMax), PL + 46, PT + 9);
 
     ctx.restore();
   }

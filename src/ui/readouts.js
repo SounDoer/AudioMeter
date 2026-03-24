@@ -10,15 +10,15 @@
   };
 
   AM.ui.updateReadouts = function updateReadouts() {
-    const S = AM.state.S;
-    const M = S.momentary;
-    const ST = S.shortTerm;
-    const I = S.integrated;
-    const MMAX = S.mMax;
-    const STMAX = S.stMax;
-    const LRA = S.lra;
-    const TP = S.truePeak;
-    const TPM = S.truePeakMax;
+    const SS = AM.state.getDisplayState ? AM.state.getDisplayState() : AM.state.S;
+    const M = SS.momentary;
+    const ST = SS.shortTerm;
+    const I = SS.integrated;
+    const MMAX = SS.mMax;
+    const STMAX = SS.stMax;
+    const LRA = SS.lra;
+    const TP = SS.truePeak;
+    const TPM = SS.truePeakMax;
 
     const PSR = isFinite(TP) && isFinite(ST) ? TP - ST : -Infinity;
     const PLR = isFinite(TPM) && isFinite(I) ? TPM - I : -Infinity;

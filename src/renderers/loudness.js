@@ -45,10 +45,20 @@
     ctx.scale(dpr, dpr);
 
     const S = AM.state.S;
+    const displayState = AM.state.getDisplayState ? AM.state.getDisplayState() : S;
     const tgt = S.target;
-    const histBuf = AM.state.histBuf;
-    const histHead = AM.state.histHead;
-    const histCount = AM.state.histCount;
+    const histView = AM.state.getDisplayHistory
+      ? AM.state.getDisplayHistory()
+      : {
+          histBuf: AM.state.histBuf,
+          mHistBuf: AM.state.mHistBuf,
+          histHead: AM.state.histHead,
+          histCount: AM.state.histCount,
+        };
+    const histBuf = histView.histBuf;
+    const mHistBuf = histView.mHistBuf;
+    const histHead = histView.histHead;
+    const histCount = histView.histCount;
 
     const PADL = 42;
     const PADR = 6;
@@ -146,7 +156,6 @@
       }
 
       const mPts = [];
-      const mHistBuf = AM.state.mHistBuf;
       for (let i = 0; i < n; i++) {
         const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
         const v = mHistBuf[idx];
@@ -162,8 +171,8 @@
         ctx.stroke();
       }
 
-      if (isFinite(S.integrated)) {
-        const iy = dToY(S.integrated);
+      if (isFinite(displayState.integrated)) {
+        const iy = dToY(displayState.integrated);
         ctx.strokeStyle = th.history.marker;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 4]);
@@ -176,7 +185,20 @@
         ctx.font = '8px ' + th.fonts.mono;
         ctx.fillStyle = th.history.marker;
         ctx.textAlign = 'left';
-        ctx.fillText('INT ' + S.integrated.toFixed(1), PADL + 4, iy - 3);
+        ctx.fillText('INT ' + displayState.integrated.toFixed(1), PADL + 4, iy - 3);
+      }
+
+      const selOffset = AM.state.selectedHistOffset;
+      if (selOffset >= 0) {
+        const sx = PADL + CW - (selOffset / Math.max(1, n - 1)) * CW;
+        ctx.strokeStyle = th.history.marker;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(sx, PADT);
+        ctx.lineTo(sx, PADT + CH);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
     }
 
@@ -196,7 +218,66 @@
     ctx.restore();
   }
 
+  function bindHistoryPointer(cvs) {
+    if (!cvs || cvs.dataset.histBound === '1') return;
+    cvs.dataset.histBound = '1';
+
+    let dragging = false;
+
+    function updateSelectionFromX(clientX) {
+      const rect = cvs.getBoundingClientRect();
+      const PADL = 42;
+      const PADR = 6;
+      const x = clientX - rect.left;
+      const cw = Math.max(1, rect.width - PADL - PADR);
+      const local = Math.max(0, Math.min(cw, x - PADL));
+      const histCount = AM.state.histCount;
+      if (histCount < 1) {
+        if (AM.state.clearSelectedHistory) AM.state.clearSelectedHistory();
+        return;
+      }
+      const n = Math.min(histCount, cw * 4);
+      const fromEnd = ((cw - local) / cw) * Math.max(0, n - 1);
+      if (AM.state.setSelectedHistOffset) AM.state.setSelectedHistOffset(fromEnd);
+    }
+
+    function onPointerDown(ev) {
+      dragging = true;
+      if (cvs.setPointerCapture) {
+        try {
+          cvs.setPointerCapture(ev.pointerId);
+        } catch (_) {}
+      }
+      updateSelectionFromX(ev.clientX);
+    }
+
+    function onPointerMove(ev) {
+      if (!dragging) return;
+      updateSelectionFromX(ev.clientX);
+    }
+
+    function onPointerUp(ev) {
+      dragging = false;
+      if (cvs.releasePointerCapture) {
+        try {
+          cvs.releasePointerCapture(ev.pointerId);
+        } catch (_) {}
+      }
+    }
+
+    function onDblClick() {
+      if (AM.state.clearSelectedHistory) AM.state.clearSelectedHistory();
+    }
+
+    cvs.addEventListener('pointerdown', onPointerDown);
+    cvs.addEventListener('pointermove', onPointerMove);
+    cvs.addEventListener('pointerup', onPointerUp);
+    cvs.addEventListener('pointercancel', onPointerUp);
+    cvs.addEventListener('dblclick', onDblClick);
+  }
+
   AM.renderers.history = {
     drawHistory,
+    bindHistoryPointer,
   };
 })();
