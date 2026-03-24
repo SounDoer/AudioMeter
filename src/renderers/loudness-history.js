@@ -132,7 +132,7 @@
         ctx.beginPath();
         ctx.moveTo(PADL + mPts[0].px, dToY(mPts[0].v));
         for (const p of mPts) ctx.lineTo(PADL + p.px, dToY(p.v));
-        ctx.strokeStyle = '#89b4ff99';
+        ctx.strokeStyle = th.history.secondaryStroke;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
