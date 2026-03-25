@@ -167,7 +167,8 @@ registerProcessor('loudness-meter',LoudnessMeter);
     };
 
     AM.runtime.ansr = AM.runtime.actx.createAnalyser();
-    AM.runtime.ansr.fftSize = 8192;
+    // 更大 FFT → 更窄的 bin（Hz），对数轴上低频段每个 bin 占用的像素更少，减轻“台阶”感
+    AM.runtime.ansr.fftSize = 32768;
     AM.runtime.ansr.smoothingTimeConstant = 0.8;
     AM.runtime.ansr.minDecibels = -100;
     AM.runtime.ansr.maxDecibels = 0;

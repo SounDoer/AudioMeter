@@ -66,8 +66,23 @@
     function dToY(d) {
       return PADT + (1 - (d - DBMIN) / (DBMAX - DBMIN)) * CH;
     }
-    function fToBin(f) {
-      return Math.round((f / (SR / 2)) * BL);
+    /** 连续频率 → FFT 箱下标（非整数）；对数轴上按箱间插值可避免同一箱拉出一条水平线 */
+    function freqToBinIndex(f) {
+      return (f / (SR * 0.5)) * BL;
+    }
+    /** 在相邻 bin 之间按线性幅度插值再转 dB，曲线更平滑且比直接插 dB 更自然 */
+    function interpDbFromBins(fdt, idx) {
+      if (!isFinite(idx) || idx < 0) return DBMIN;
+      const i0 = Math.floor(idx);
+      const i1 = Math.min(i0 + 1, BL - 1);
+      if (i0 < 0) return DBMIN;
+      const t = idx - i0;
+      const db0 = fdt[i0];
+      const db1 = fdt[i1];
+      const m0 = Math.pow(10, db0 / 20);
+      const m1 = Math.pow(10, db1 / 20);
+      const m = m0 * (1 - t) + m1 * t;
+      return 20 * Math.log10(Math.max(1e-15, m));
     }
 
     if (!spkData || spkW !== CW) {
@@ -110,17 +125,14 @@
     for (let px = 0; px < CW; px++) {
       const frac = px / CW;
       const freq = Math.pow(10, LOG20 + frac * (LOG20K - LOG20));
-      const bin = fToBin(freq);
       let maxDb = DBMIN;
       if (frozenCurve && frozenCurve.length > 0) {
         const idx = Math.round(frac * (frozenCurve.length - 1));
         maxDb = frozenCurve[idx];
       } else {
-        if (bin <= 0 || bin >= BL) continue;
-        const span = Math.max(1, Math.round(bin * 0.015));
-        for (let b = Math.max(1, bin - span); b <= Math.min(BL - 1, bin + span); b++) {
-          if (fdt[b] > maxDb) maxDb = fdt[b];
-        }
+        const binIdx = freqToBinIndex(freq);
+        if (binIdx < 1 || binIdx >= BL) continue;
+        maxDb = interpDbFromBins(fdt, binIdx);
       }
       maxDb = Math.max(DBMIN, Math.min(DBMAX, maxDb));
       curveDb[px] = maxDb;
@@ -174,6 +186,8 @@
       }
       ctx.strokeStyle = th.spectrum.stroke;
       ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
       ctx.stroke();
 
       ctx.beginPath();
@@ -189,6 +203,8 @@
       }
       ctx.strokeStyle = th.spectrum.strokeAge;
       ctx.lineWidth = 1;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
       ctx.stroke();
     }
 
