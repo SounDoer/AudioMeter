@@ -73,6 +73,9 @@
     const mHistBuf = histView.mHistBuf;
     const histHead = histView.histHead;
     const histCount = histView.histCount;
+    const showHistST = AM.state.isHistCurveVisible ? AM.state.isHistCurveVisible('st') : true;
+    const showHistM = AM.state.isHistCurveVisible ? AM.state.isHistCurveVisible('m') : true;
+    const showHistInt = AM.state.isHistCurveVisible ? AM.state.isHistCurveVisible('int') : true;
 
     const PADL = 42;
     const PADR = 6;
@@ -224,56 +227,61 @@
         return { iLo, iHi };
       }
 
-      const stTop = [];
-      for (let pxCol = 0; pxCol < CW; pxCol++) {
-        const { iLo, iHi } = columnRange(pxCol);
-        stTop.push(columnMinMax(histBuf, iLo, iHi).vmax);
-      }
       const lastIdx = (histHead - 1 + HMAX) % HMAX;
-      const stRight = adsorb(histBuf[lastIdx]);
 
-      ctx.beginPath();
-      ctx.moveTo(PADL, PADT + CH);
-      for (let pxCol = 0; pxCol < CW; pxCol++) {
-        ctx.lineTo(PADL + pxCol, dToY(stTop[pxCol]));
+      if (showHistST) {
+        const stTop = [];
+        for (let pxCol = 0; pxCol < CW; pxCol++) {
+          const { iLo, iHi } = columnRange(pxCol);
+          stTop.push(columnMinMax(histBuf, iLo, iHi).vmax);
+        }
+        const stRight = adsorb(histBuf[lastIdx]);
+
+        ctx.beginPath();
+        ctx.moveTo(PADL, PADT + CH);
+        for (let pxCol = 0; pxCol < CW; pxCol++) {
+          ctx.lineTo(PADL + pxCol, dToY(stTop[pxCol]));
+        }
+        ctx.lineTo(PADL + CW, dToY(stRight));
+        ctx.lineTo(PADL + CW, PADT + CH);
+        ctx.closePath();
+
+        const gf = ctx.createLinearGradient(0, PADT, 0, PADT + CH);
+        gf.addColorStop(0, th.history.fillGrad1);
+        gf.addColorStop(1, th.history.fillGrad2);
+        ctx.fillStyle = gf;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(PADL, dToY(stTop[0]));
+        for (let pxCol = 1; pxCol < CW; pxCol++) {
+          ctx.lineTo(PADL + pxCol, dToY(stTop[pxCol]));
+        }
+        ctx.lineTo(PADL + CW, dToY(stRight));
+        ctx.strokeStyle = th.history.stroke;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       }
-      ctx.lineTo(PADL + CW, dToY(stRight));
-      ctx.lineTo(PADL + CW, PADT + CH);
-      ctx.closePath();
 
-      const gf = ctx.createLinearGradient(0, PADT, 0, PADT + CH);
-      gf.addColorStop(0, th.history.fillGrad1);
-      gf.addColorStop(1, th.history.fillGrad2);
-      ctx.fillStyle = gf;
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(PADL, dToY(stTop[0]));
-      for (let pxCol = 1; pxCol < CW; pxCol++) {
-        ctx.lineTo(PADL + pxCol, dToY(stTop[pxCol]));
+      if (showHistM) {
+        const mTop = [];
+        for (let pxCol = 0; pxCol < CW; pxCol++) {
+          const { iLo, iHi } = columnRange(pxCol);
+          mTop.push(columnMinMax(mHistBuf, iLo, iHi).vmax);
+        }
+        const mRight = adsorb(mHistBuf[lastIdx]);
+        ctx.beginPath();
+        ctx.moveTo(PADL, dToY(mTop[0]));
+        for (let pxCol = 1; pxCol < CW; pxCol++) {
+          ctx.lineTo(PADL + pxCol, dToY(mTop[pxCol]));
+        }
+        ctx.lineTo(PADL + CW, dToY(mRight));
+        ctx.strokeStyle = th.history.secondaryStroke;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
-      ctx.lineTo(PADL + CW, dToY(stRight));
-      ctx.strokeStyle = th.history.stroke;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
 
-      const mTop = [];
-      for (let pxCol = 0; pxCol < CW; pxCol++) {
-        const { iLo, iHi } = columnRange(pxCol);
-        mTop.push(columnMinMax(mHistBuf, iLo, iHi).vmax);
-      }
-      const mRight = adsorb(mHistBuf[lastIdx]);
-      ctx.beginPath();
-      ctx.moveTo(PADL, dToY(mTop[0]));
-      for (let pxCol = 1; pxCol < CW; pxCol++) {
-        ctx.lineTo(PADL + pxCol, dToY(mTop[pxCol]));
-      }
-      ctx.lineTo(PADL + CW, dToY(mRight));
-      ctx.strokeStyle = th.history.secondaryStroke;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      if (isFinite(displayState.integrated)) {
+      if (showHistInt && isFinite(displayState.integrated)) {
         const iy = dToY(displayState.integrated);
         ctx.strokeStyle = th.history.marker;
         ctx.lineWidth = 1;

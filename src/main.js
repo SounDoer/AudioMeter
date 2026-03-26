@@ -50,6 +50,30 @@
       updateThemeBtn();
     }
     updateStartButton();
+
+    function syncHistToggleUi(btnId, pressed) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.classList.toggle('on', pressed);
+      btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    }
+
+    function bindHistToggles() {
+      const pairs = [
+        ['m', 'histTglM'],
+        ['st', 'histTglST'],
+        ['int', 'histTglInt'],
+      ];
+      for (const [key, id] of pairs) {
+        const btn = document.getElementById(id);
+        if (!btn) continue;
+        btn.addEventListener('click', () => {
+          const on = AM.state.toggleHistCurve(key);
+          syncHistToggleUi(id, on);
+        });
+      }
+    }
+    bindHistToggles();
   }
 
   function bootstrap() {

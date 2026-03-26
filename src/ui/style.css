@@ -106,6 +106,21 @@ body{
 .rdout.c-warn .rv{color:var(--color-readout-warn);}
 .rdout.c-bad  .rv{color:var(--color-readout-bad);}
 
+button.rdout.hist-toggle{
+  font:inherit;color:inherit;text-align:left;width:100%;
+  cursor:pointer;appearance:none;-webkit-appearance:none;
+  transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+button.rdout.hist-toggle.on{
+  border-color:var(--cyan);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--cyan) 35%, transparent), 0 0 16px color-mix(in srgb, var(--cyan) 18%, transparent);
+  background-color:color-mix(in srgb, var(--color-readout-bg) 88%, var(--cyan) 12%);
+}
+button.rdout.hist-toggle:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+}
+
 #splitMain,
 .splitV{
   background:var(--color-splitter-bg);

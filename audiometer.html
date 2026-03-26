@@ -45,21 +45,21 @@
         <div class="modBody" id="hWrap"><canvas id="hCvs"></canvas></div>
         <div id="rdouts">
           <div class="metricRow">
-            <div class="rdout compact">
+            <button type="button" class="rdout compact hist-toggle" id="histTglM" aria-pressed="false" title="切换 Momentary 历史曲线">
               <div class="rl">Momentary</div>
               <div class="rv" id="mVal">—</div>
               <div class="ru">LUFS</div>
-            </div>
-            <div class="rdout compact">
+            </button>
+            <button type="button" class="rdout compact hist-toggle on" id="histTglST" aria-pressed="true" title="切换 Short-term 历史曲线">
               <div class="rl">Short-term</div>
               <div class="rv" id="stVal">—</div>
               <div class="ru">LUFS</div>
-            </div>
-            <div class="rdout compact">
+            </button>
+            <button type="button" class="rdout compact hist-toggle" id="histTglInt" aria-pressed="false" title="切换 Integrated 水平参考与标签">
               <div class="rl">Integrated</div>
               <div class="rv" id="intVal">—</div>
               <div class="ru">LUFS</div>
-            </div>
+            </button>
           </div>
           <div class="metricRow">
             <div class="rdout compact">

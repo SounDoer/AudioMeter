@@ -40,6 +40,19 @@
   let selectedHistOffset = -1;
   let selectedSnapshot = null;
 
+  /** History 曲线：Momentary / Short-term / Integrated（含 INT 水平线）是否显示 */
+  const histCurveVisible = { m: false, st: true, int: false };
+
+  function toggleHistCurve(key) {
+    if (key !== 'm' && key !== 'st' && key !== 'int') return false;
+    histCurveVisible[key] = !histCurveVisible[key];
+    return histCurveVisible[key];
+  }
+
+  function isHistCurveVisible(key) {
+    return !!(key && histCurveVisible[key]);
+  }
+
   function histPush(v, mv, snap) {
     histBuf[histHead] = v;
     mHistBuf[histHead] = mv;
@@ -199,6 +212,9 @@
     setSpectrumSnapshotForLatest,
     setVectorscopeSnapshotForLatest,
     getDisplayVisualSnapshot,
+    histCurveVisible,
+    toggleHistCurve,
+    isHistCurveVisible,
   };
 })();
 
