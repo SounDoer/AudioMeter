@@ -83,6 +83,10 @@
     const DBMIN = -60;
     const DBMAX = 3;
     const DBRNG = DBMAX - DBMIN;
+    // 静音时 worklet 可能会输出“极小但有限”的 LUFS（滤波器残留），
+    // 如果这些值在 -60 附近来回徘徊，会导致 history 折线在底部抖动。
+    // 这里对接近底部的值做“吸附”，保证无信号时显示为稳定的最小直线。
+    const DB_SILENCE_ADSORB = DBMIN + 0.25; // dB
 
     function dToY(d) {
       const dd = Math.max(DBMIN, Math.min(DBMAX, d));
@@ -192,16 +196,18 @@
       const pts = [];
       for (let i = 0; i < n; i += idxStep) {
         const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        const v = histBuf[idx];
+        let v = histBuf[idx];
+        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
         const px = (i / (n - 1)) * CW;
-        if (isFinite(v)) pts.push({ px, v });
+        pts.push({ px, v });
       }
       if ((n - 1) % idxStep !== 0) {
         const i = n - 1;
         const idx = (histHead - 1 + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        const v = histBuf[idx];
+        let v = histBuf[idx];
+        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
         const px = CW;
-        if (isFinite(v)) pts.push({ px, v });
+        pts.push({ px, v });
       }
 
       if (pts.length > 1) {
@@ -228,16 +234,18 @@
       const mPts = [];
       for (let i = 0; i < n; i += idxStep) {
         const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        const v = mHistBuf[idx];
+        let v = mHistBuf[idx];
+        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
         const px = (i / (n - 1)) * CW;
-        if (isFinite(v)) mPts.push({ px, v });
+        mPts.push({ px, v });
       }
       if ((n - 1) % idxStep !== 0) {
         const i = n - 1;
         const idx = (histHead - 1 + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        const v = mHistBuf[idx];
+        let v = mHistBuf[idx];
+        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
         const px = CW;
-        if (isFinite(v)) mPts.push({ px, v });
+        mPts.push({ px, v });
       }
       if (mPts.length > 1) {
         ctx.beginPath();
