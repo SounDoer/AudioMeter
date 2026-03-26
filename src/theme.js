@@ -170,7 +170,8 @@
     },
     light: {
       canvas: {
-        bg: '#f4f8fd',
+        /* Match UI page bg (--bg) so meter/spectrum canvases do not read as a brighter “card”. */
+        bg: '#edf2f7',
         panel: '#e9f0f8',
         border: '#c6d5e4',
       },
@@ -214,7 +215,7 @@
         zeroLabel: '#d84e4e99',
       },
       history: {
-        bg: '#f4f8fd',
+        bg: '#edf2f7',
         grid: '#c7d6e5',
         gridTarget: '#2d68cf2e',
         gridZero: '#d84e4e2e',
