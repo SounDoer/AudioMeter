@@ -191,70 +191,87 @@
         ctx.fillText(lbl, PADL + px, H - 4);
       }
 
-      const drawN = Math.min(n, Math.max(2, Math.round(CW * 1.5)));
-      const idxStep = Math.max(1, Math.ceil(n / drawN));
-      const pts = [];
-      for (let i = 0; i < n; i += idxStep) {
-        const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        let v = histBuf[idx];
-        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
-        const px = (i / (n - 1)) * CW;
-        pts.push({ px, v });
+      // 按「像素列」聚合历史样本（min/max），避免 idxStep 抽样相位随 histHead 变化导致的滚动闪烁。
+      // Momentary 仍用每列聚合后的单条折线（取列内 max），避免 min–max 竖线穿过空白区形成“碎屑”观感。
+      const HMAX = AM.state.HIST_MAX;
+      function bufIdx(i) {
+        return (histHead - n + i + HMAX) % HMAX;
       }
-      if ((n - 1) % idxStep !== 0) {
-        const i = n - 1;
-        const idx = (histHead - 1 + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        let v = histBuf[idx];
-        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
-        const px = CW;
-        pts.push({ px, v });
+      function adsorb(v) {
+        return !isFinite(v) || v <= DB_SILENCE_ADSORB ? DBMIN : v;
       }
-
-      if (pts.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(PADL + pts[0].px, PADT + CH);
-        for (const p of pts) ctx.lineTo(PADL + p.px, dToY(p.v));
-        ctx.lineTo(PADL + pts[pts.length - 1].px, PADT + CH);
-        ctx.closePath();
-
-        const gf = ctx.createLinearGradient(0, PADT, 0, PADT + CH);
-        gf.addColorStop(0, th.history.fillGrad1);
-        gf.addColorStop(1, th.history.fillGrad2);
-        ctx.fillStyle = gf;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(PADL + pts[0].px, dToY(pts[0].v));
-        for (const p of pts) ctx.lineTo(PADL + p.px, dToY(p.v));
-        ctx.strokeStyle = th.history.stroke;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+      function columnMinMax(buf, iLo, iHi) {
+        let vmin = Infinity;
+        let vmax = -Infinity;
+        for (let i = iLo; i <= iHi; i++) {
+          const v = adsorb(buf[bufIdx(i)]);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
+        if (!isFinite(vmin) || !isFinite(vmax)) {
+          vmin = vmax = DBMIN;
+        }
+        return { vmin, vmax };
+      }
+      function columnRange(pxCol) {
+        // 将 n 个历史点均分到 CW 列（与示波器 waveform 的 per-pixel min/max 一致）
+        let iLo = Math.floor((pxCol / CW) * n);
+        let iHi = Math.floor(((pxCol + 1) / CW) * n) - 1;
+        if (iHi < iLo) iHi = iLo;
+        iLo = Math.max(0, Math.min(n - 1, iLo));
+        iHi = Math.max(0, Math.min(n - 1, iHi));
+        if (iHi < iLo) iHi = iLo;
+        return { iLo, iHi };
       }
 
-      const mPts = [];
-      for (let i = 0; i < n; i += idxStep) {
-        const idx = (histHead - n + i + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        let v = mHistBuf[idx];
-        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
-        const px = (i / (n - 1)) * CW;
-        mPts.push({ px, v });
+      const stTop = [];
+      for (let pxCol = 0; pxCol < CW; pxCol++) {
+        const { iLo, iHi } = columnRange(pxCol);
+        stTop.push(columnMinMax(histBuf, iLo, iHi).vmax);
       }
-      if ((n - 1) % idxStep !== 0) {
-        const i = n - 1;
-        const idx = (histHead - 1 + AM.state.HIST_MAX) % AM.state.HIST_MAX;
-        let v = mHistBuf[idx];
-        if (!isFinite(v) || v <= DB_SILENCE_ADSORB) v = DBMIN;
-        const px = CW;
-        mPts.push({ px, v });
+      const lastIdx = (histHead - 1 + HMAX) % HMAX;
+      const stRight = adsorb(histBuf[lastIdx]);
+
+      ctx.beginPath();
+      ctx.moveTo(PADL, PADT + CH);
+      for (let pxCol = 0; pxCol < CW; pxCol++) {
+        ctx.lineTo(PADL + pxCol, dToY(stTop[pxCol]));
       }
-      if (mPts.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(PADL + mPts[0].px, dToY(mPts[0].v));
-        for (const p of mPts) ctx.lineTo(PADL + p.px, dToY(p.v));
-        ctx.strokeStyle = th.history.secondaryStroke;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+      ctx.lineTo(PADL + CW, dToY(stRight));
+      ctx.lineTo(PADL + CW, PADT + CH);
+      ctx.closePath();
+
+      const gf = ctx.createLinearGradient(0, PADT, 0, PADT + CH);
+      gf.addColorStop(0, th.history.fillGrad1);
+      gf.addColorStop(1, th.history.fillGrad2);
+      ctx.fillStyle = gf;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(PADL, dToY(stTop[0]));
+      for (let pxCol = 1; pxCol < CW; pxCol++) {
+        ctx.lineTo(PADL + pxCol, dToY(stTop[pxCol]));
       }
+      ctx.lineTo(PADL + CW, dToY(stRight));
+      ctx.strokeStyle = th.history.stroke;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      const mTop = [];
+      for (let pxCol = 0; pxCol < CW; pxCol++) {
+        const { iLo, iHi } = columnRange(pxCol);
+        mTop.push(columnMinMax(mHistBuf, iLo, iHi).vmax);
+      }
+      const mRight = adsorb(mHistBuf[lastIdx]);
+      ctx.beginPath();
+      ctx.moveTo(PADL, dToY(mTop[0]));
+      for (let pxCol = 1; pxCol < CW; pxCol++) {
+        ctx.lineTo(PADL + pxCol, dToY(mTop[pxCol]));
+      }
+      ctx.lineTo(PADL + CW, dToY(mRight));
+      ctx.strokeStyle = th.history.secondaryStroke;
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       if (isFinite(displayState.integrated)) {
         const iy = dToY(displayState.integrated);
