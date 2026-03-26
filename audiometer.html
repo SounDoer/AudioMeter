@@ -44,56 +44,29 @@
       <div class="loudRow">
         <div class="modBody" id="hWrap"><canvas id="hCvs"></canvas></div>
         <div id="rdouts">
-          <div class="metricRow">
-            <button type="button" class="rdout compact hist-toggle" id="histTglM" aria-pressed="false" title="切换 Momentary 历史曲线">
-              <div class="rl">Momentary</div>
-              <div class="rv" id="mVal">—</div>
-              <div class="ru">LUFS</div>
-            </button>
-            <button type="button" class="rdout compact hist-toggle on" id="histTglST" aria-pressed="true" title="切换 Short-term 历史曲线">
-              <div class="rl">Short-term</div>
-              <div class="rv" id="stVal">—</div>
-              <div class="ru">LUFS</div>
-            </button>
-            <button type="button" class="rdout compact hist-toggle" id="histTglInt" aria-pressed="false" title="切换 Integrated 水平参考与标签">
-              <div class="rl">Integrated</div>
-              <div class="rv" id="intVal">—</div>
-              <div class="ru">LUFS</div>
-            </button>
+          <button type="button" class="rdout compact hist-toggle" id="histTglM" aria-pressed="false" title="切换 Momentary 历史曲线">
+            <span class="rl">Momentary</span><span class="rv" id="mVal">—</span><span class="ru">LUFS</span>
+          </button>
+          <button type="button" class="rdout compact hist-toggle on" id="histTglST" aria-pressed="true" title="切换 Short-term 历史曲线">
+            <span class="rl">Short-term</span><span class="rv" id="stVal">—</span><span class="ru">LUFS</span>
+          </button>
+          <button type="button" class="rdout compact hist-toggle" id="histTglInt" aria-pressed="false" title="切换 Integrated 水平参考与标签">
+            <span class="rl">Integrated</span><span class="rv" id="intVal">—</span><span class="ru">LUFS</span>
+          </button>
+          <div class="rdout compact">
+            <span class="rl">Momentary Max</span><span class="rv" id="mMaxVal">—</span><span class="ru">LUFS</span>
           </div>
-          <div class="metricRow">
-            <div class="rdout compact">
-              <div class="rl">Momentary Max</div>
-              <div class="rv" id="mMaxVal">—</div>
-              <div class="ru">LUFS</div>
-            </div>
-            <div class="rdout compact">
-              <div class="rl">Short-term Max</div>
-              <div class="rv" id="stMaxVal">—</div>
-              <div class="ru">LUFS</div>
-            </div>
-            <div class="rdout compact">
-              <div class="rl">True Peak Max</div>
-              <div class="rv" id="tpMaxVal">—</div>
-              <div class="ru">dBTP</div>
-            </div>
+          <div class="rdout compact">
+            <span class="rl">Short-term Max</span><span class="rv" id="stMaxVal">—</span><span class="ru">LUFS</span>
           </div>
-          <div class="metricRow">
-            <div class="rdout compact">
-              <div class="rl">Loudness Range (LRA)</div>
-              <div class="rv" id="lraVal">—</div>
-              <div class="ru">LU</div>
-            </div>
-            <div class="rdout compact">
-              <div class="rl">Dynamics (PSR)</div>
-              <div class="rv" id="psrVal">—</div>
-              <div class="ru">dB</div>
-            </div>
-            <div class="rdout compact">
-              <div class="rl">Avg. Dynamics (PLR)</div>
-              <div class="rv" id="plrVal">—</div>
-              <div class="ru">dB</div>
-            </div>
+          <div class="rdout compact">
+            <span class="rl">Loudness Range (LRA)</span><span class="rv" id="lraVal">—</span><span class="ru">LU</span>
+          </div>
+          <div class="rdout compact">
+            <span class="rl">Dynamics (PSR)</span><span class="rv" id="psrVal">—</span><span class="ru">dB</span>
+          </div>
+          <div class="rdout compact">
+            <span class="rl">Avg. Dynamics (PLR)</span><span class="rv" id="plrVal">—</span><span class="ru">dB</span>
           </div>
         </div>
       </div>

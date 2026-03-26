@@ -16,10 +16,10 @@
   --mod-title-gap:3px;
   /* History graph top inset; must stay in sync with PADT in drawHistory (loudness.js). */
   --loudness-history-pad-top:28px;
-  /* Loudness right readout grid: equal cells, shared min width, panel min = 3 cols + 2 gaps. */
-  --loudness-readout-gap:5px;
+  /* Loudness right readout column: vertical stack, single min width. */
+  --loudness-readout-gap:6px;
   --loudness-readout-cell-min:86px;
-  --loudness-readout-panel-min:calc(3 * var(--loudness-readout-cell-min) + 2 * var(--loudness-readout-gap));
+  --loudness-readout-panel-min:236px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{
@@ -88,15 +88,34 @@ body{
 
 /* padding-top set in drawHistory to match PADT (plot area top). */
 #rdouts{box-sizing:border-box;display:flex;flex-direction:column;gap:var(--loudness-readout-gap);min-width:var(--loudness-readout-panel-min);width:100%;padding-top:0;}
-#rdouts .metricRow:not(.row3){
-  gap:var(--loudness-readout-gap);
-  grid-template-columns:repeat(3,minmax(var(--loudness-readout-cell-min),1fr));
+/* Single-line row: label | value | unit */
+#rdouts .rdout{
+  min-width:0;
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(4.5ch,auto) minmax(2.75em,max-content);
+  align-items:center;
+  column-gap:10px;
+  padding:6px 10px;
 }
-#rdouts .rdout{min-width:0;display:flex;flex-direction:column;}
-#rdouts .rl{overflow-wrap:anywhere;word-break:break-word;}
-.metricRow{display:grid;gap:5px;}
-.metricRow.row3{grid-template-columns:1fr 1fr;}
-.metricRow:not(.row3){grid-template-columns:1fr 1fr 1fr;}
+#rdouts .rl{
+  margin-bottom:0;
+  line-height:1.2;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+#rdouts .rv{
+  justify-self:end;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.02em;
+}
+#rdouts .ru{
+  margin-top:0;
+  justify-self:end;
+  text-align:right;
+  white-space:nowrap;
+}
 .rdout{background:var(--color-readout-bg);border:1px solid var(--color-readout-border);border-radius:4px;padding:7px 10px;}
 .rl{font-size:var(--size-readout-label);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--color-readout-label);margin-bottom:3px;line-height:1.2;}
 .rv{font-family:var(--font-mono,'Share Tech Mono'), monospace;font-size:var(--size-readout-value);line-height:1.1;color:var(--color-readout-value);}

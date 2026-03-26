@@ -33,7 +33,6 @@
     setText('intVal', AM.ui.fmtL(I));
     setText('mMaxVal', AM.ui.fmtL(MMAX));
     setText('stMaxVal', AM.ui.fmtL(STMAX));
-    setText('tpMaxVal', AM.ui.fmtL(TPM));
     setText('lraVal', isFinite(LRA) && LRA > 0 ? LRA.toFixed(1) : '—');
     setText('psrVal', AM.ui.fmtP(PSR));
     setText('plrVal', AM.ui.fmtP(PLR));

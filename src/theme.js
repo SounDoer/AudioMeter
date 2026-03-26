@@ -317,9 +317,9 @@
       /* Layout (must match style.css :root; set here so theme init always defines them on <html>) */
       '--mod-title-gap': '3px',
       '--loudness-history-pad-top': '28px',
-      '--loudness-readout-gap': '5px',
+      '--loudness-readout-gap': '6px',
       '--loudness-readout-cell-min': '86px',
-      '--loudness-readout-panel-min': 'calc(3 * var(--loudness-readout-cell-min) + 2 * var(--loudness-readout-gap))',
+      '--loudness-readout-panel-min': '236px',
     };
 
     Object.entries(cssVars).forEach(([key, val]) => root.style.setProperty(key, val));
