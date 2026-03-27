@@ -487,20 +487,26 @@
       if (!AM.state.scaleHistoryWindow) return;
       ev.preventDefault();
       const factor = ev.deltaY < 0 ? 0.85 : 1.18;
-      AM.state.scaleHistoryWindow(factor);
       showHistoryHud(1600);
       const rect = cvs.getBoundingClientRect();
       const PADL = 42;
       const PADR = 6;
       const cw = Math.max(1, rect.width - PADL - PADR);
       const histCount = AM.state.histCount;
+      const histSampleSec = AM.state.HIST_SAMPLE_SEC || 0.1;
+      const currentVisibleSamples = AM.state.getHistoryWindowSamples ? AM.state.getHistoryWindowSamples(histCount) : Math.min(histCount, cw * 4);
+      // Use the current visible span as zoom baseline to avoid "hidden" wheel steps
+      // when configured window is larger than available history.
+      if (AM.state.getHistoryWindowSec && AM.state.setHistoryWindowSec) {
+        const baselineSec = Math.max(histSampleSec, currentVisibleSamples * histSampleSec);
+        AM.state.setHistoryWindowSec(baselineSec * factor);
+      } else {
+        AM.state.scaleHistoryWindow(factor);
+      }
       const n = AM.state.getHistoryWindowSamples ? AM.state.getHistoryWindowSamples(histCount) : Math.min(histCount, cw * 4);
       if (AM.state.setHistoryViewOffsetSamples) {
         const keep = AM.state.getHistoryViewOffsetSamples ? AM.state.getHistoryViewOffsetSamples(histCount, n) : 0;
         AM.state.setHistoryViewOffsetSamples(keep, histCount, n);
-      }
-      if (draggingSelect || AM.state.selectedHistOffset >= 0) {
-        updateSelectionFromX(ev.clientX);
       }
     }
 
