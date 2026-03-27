@@ -103,11 +103,9 @@ registerProcessor('loudness-meter',LoudnessMeter);
   function setTgt(t) {
     S.target = t === 'ebu' ? -23 : -14;
 
-    const btnEbu = document.getElementById('btnEbu');
-    const btnStream = document.getElementById('btnStream');
+    const loudnessStandardSel = document.getElementById('loudnessStandardSel');
     const tgtVal = document.getElementById('tgtVal');
-    if (btnEbu) btnEbu.className = 'tbtn' + (t === 'ebu' ? ' on' : '');
-    if (btnStream) btnStream.className = 'tbtn' + (t === 'stream' ? ' on' : '');
+    if (loudnessStandardSel) loudnessStandardSel.value = t;
     if (tgtVal) tgtVal.textContent = S.target;
   }
 
@@ -270,7 +268,7 @@ registerProcessor('loudness-meter',LoudnessMeter);
     }
   }
 
-  function doReset() {
+  function doClear() {
     if (AM.runtime.wklt) AM.runtime.wklt.port.postMessage('reset');
 
     S.integrated = -Infinity;
@@ -295,7 +293,7 @@ registerProcessor('loudness-meter',LoudnessMeter);
   AM.audio = {
     setTgt,
     doToggle,
-    doReset,
+    doClear,
   };
 })();
 

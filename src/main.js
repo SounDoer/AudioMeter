@@ -2,17 +2,22 @@
   const AM = window.AM || (window.AM = {});
 
   function bindUi() {
-    const btnEbu = document.getElementById('btnEbu');
-    const btnStream = document.getElementById('btnStream');
+    const loudnessStandardSel = document.getElementById('loudnessStandardSel');
     const startBtn = document.getElementById('startBtn');
     const resetBtn = document.getElementById('resetBtn');
-    const themeBtn = document.getElementById('themeBtn');
+    const themeDarkBtn = document.getElementById('themeDarkBtn');
+    const themeLightBtn = document.getElementById('themeLightBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const settingsCloseBtn = document.getElementById('settingsCloseBtn');
 
     let lastStartMode = '';
-    const updateThemeBtn = () => {
-      if (!themeBtn || !AM.theme) return;
-      const mode = AM.theme.uiMode === 'light' ? 'LIGHT' : 'DARK';
-      themeBtn.textContent = 'THEME ' + mode;
+    const updateThemeToggle = () => {
+      if (!themeDarkBtn || !themeLightBtn || !AM.theme) return;
+      const isLight = AM.theme.uiMode === 'light';
+      themeDarkBtn.classList.toggle('on', !isLight);
+      themeLightBtn.classList.toggle('on', isLight);
     };
     const updateStartButton = () => {
       if (!startBtn) return;
@@ -38,17 +43,57 @@
     AM.ui = AM.ui || {};
     AM.ui.updateStartButton = updateStartButton;
 
-    if (btnEbu) btnEbu.addEventListener('click', () => AM.audio.setTgt('ebu'));
-    if (btnStream) btnStream.addEventListener('click', () => AM.audio.setTgt('stream'));
-    if (startBtn) startBtn.addEventListener('click', () => AM.audio.doToggle());
-    if (resetBtn) resetBtn.addEventListener('click', () => AM.audio.doReset());
-    if (themeBtn) {
-      themeBtn.addEventListener('click', () => {
-        if (AM.theme && AM.theme.toggleMode) AM.theme.toggleMode();
-        updateThemeBtn();
+    if (loudnessStandardSel) {
+      loudnessStandardSel.addEventListener('change', () => {
+        AM.audio.setTgt(loudnessStandardSel.value);
       });
-      updateThemeBtn();
     }
+    if (startBtn) startBtn.addEventListener('click', () => AM.audio.doToggle());
+    if (resetBtn) resetBtn.addEventListener('click', () => AM.audio.doClear());
+    if (themeDarkBtn) {
+      themeDarkBtn.addEventListener('click', () => {
+        if (AM.theme && AM.theme.setMode) AM.theme.setMode('dark');
+        updateThemeToggle();
+      });
+    }
+    if (themeLightBtn) {
+      themeLightBtn.addEventListener('click', () => {
+        if (AM.theme && AM.theme.setMode) AM.theme.setMode('light');
+        updateThemeToggle();
+      });
+    }
+    updateThemeToggle();
+
+    function setSettingsOpen(open) {
+      if (!settingsOverlay || !settingsBtn) return;
+      settingsOverlay.classList.toggle('open', open);
+      settingsOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+      settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open && settingsPanel) settingsPanel.focus();
+    }
+    function closeSettings() {
+      setSettingsOpen(false);
+    }
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        setSettingsOpen(!settingsOverlay.classList.contains('open'));
+      });
+    }
+    if (settingsOverlay) {
+      settingsOverlay.addEventListener('click', (e) => {
+        if (e.target === settingsOverlay) closeSettings();
+      });
+    }
+    if (settingsPanel) {
+      settingsPanel.addEventListener('click', (e) => e.stopPropagation());
+    }
+    if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', closeSettings);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && settingsOverlay && settingsOverlay.classList.contains('open')) {
+        closeSettings();
+      }
+    });
+
     updateStartButton();
 
     function syncHistToggleUi(btnId, pressed) {

@@ -12,14 +12,44 @@
 <div id="hdr">
   <div class="logo">AUDIO<span>METER</span></div>
   <div class="hsp"></div>
-  <div class="tgl">
-    <button class="tbtn on" id="btnEbu">EBU R128</button>
-    <button class="tbtn" id="btnStream">STREAMING</button>
-  </div>
-  <button class="hbtn" id="resetLayoutBtn">LAYOUT</button>
-  <button class="hbtn" id="resetBtn">RESET</button>
-  <button class="hbtn" id="themeBtn">THEME DARK</button>
+  <button class="hbtn" id="resetBtn">Clear</button>
   <button class="hbtn off" id="startBtn">START</button>
+  <button class="hbtn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="settingsPanel">SETTINGS</button>
+</div>
+
+<div id="settingsOverlay" class="settings-overlay" aria-hidden="true">
+  <div class="settings-panel" id="settingsPanel" role="dialog" aria-labelledby="settingsTitle" tabindex="-1">
+    <div class="settings-head">
+      <div class="settings-title" id="settingsTitle">SETTINGS</div>
+      <button type="button" class="settings-close" id="settingsCloseBtn" aria-label="Close">×</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-row">
+        <span class="settings-k">Loudness standard</span>
+        <div class="settings-v">
+          <select id="loudnessStandardSel" class="settings-select" aria-label="Loudness standard">
+            <option value="ebu">EBU R128</option>
+            <option value="stream">STREAMING</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-k">Theme</span>
+        <div class="settings-v">
+          <div class="tgl" role="group" aria-label="Theme mode">
+            <button type="button" class="tbtn on" id="themeDarkBtn">DARK</button>
+            <button type="button" class="tbtn" id="themeLightBtn">LIGHT</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-k">Layout</span>
+        <div class="settings-v">
+          <button type="button" class="hbtn" id="resetLayoutBtn">Reset Layout</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="main">
@@ -44,13 +74,13 @@
       <div class="loudRow">
         <div class="modBody" id="hWrap"><canvas id="hCvs"></canvas></div>
         <div id="rdouts">
-          <button type="button" class="rdout compact hist-toggle" id="histTglM" aria-pressed="false" title="切换 Momentary 历史曲线">
+          <button type="button" class="rdout compact hist-toggle" id="histTglM" aria-pressed="false" title="Toggle Momentary history curve">
             <span class="rl">Momentary</span><span class="rv" id="mVal">—</span><span class="ru">LUFS</span>
           </button>
-          <button type="button" class="rdout compact hist-toggle on" id="histTglST" aria-pressed="true" title="切换 Short-term 历史曲线">
+          <button type="button" class="rdout compact hist-toggle on" id="histTglST" aria-pressed="true" title="Toggle Short-term history curve">
             <span class="rl">Short-term</span><span class="rv" id="stVal">—</span><span class="ru">LUFS</span>
           </button>
-          <button type="button" class="rdout compact hist-toggle" id="histTglInt" aria-pressed="false" title="切换 Integrated 水平参考与标签">
+          <button type="button" class="rdout compact hist-toggle" id="histTglInt" aria-pressed="false" title="Toggle Integrated level reference and labels">
             <span class="rl">Integrated</span><span class="rv" id="intVal">—</span><span class="ru">LUFS</span>
           </button>
           <div class="rdout compact">
