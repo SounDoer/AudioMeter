@@ -20,7 +20,13 @@
     running: false,
   };
 
-  const HIST_MAX = 6000;
+  // History ring buffer: 0.1s per sample, 36000 samples ~= 1 hour.
+  const HIST_SAMPLE_SEC = 0.1;
+  const HIST_MAX = 36000;
+  const HIST_WIN_MIN_SEC = 5;
+  const HIST_WIN_MAX_SEC = HIST_MAX * HIST_SAMPLE_SEC;
+  let histWindowSec = 120;
+  let histViewOffsetSamples = 0;
   const histBuf = new Float32Array(HIST_MAX).fill(-Infinity);
   const mHistBuf = new Float32Array(HIST_MAX).fill(-Infinity);
   const histSnapshots = new Array(HIST_MAX).fill(null);
@@ -80,10 +86,63 @@
     frozenVectorscopeCorrRing = null;
     frozenHistHead = 0;
     frozenHistCount = 0;
+    histViewOffsetSamples = 0;
   }
 
   function clamp(v, lo, hi) {
     return Math.max(lo, Math.min(hi, v));
+  }
+
+  function setHistoryWindowSec(sec) {
+    const next = clamp(Number(sec) || histWindowSec, HIST_WIN_MIN_SEC, HIST_WIN_MAX_SEC);
+    histWindowSec = next;
+    return histWindowSec;
+  }
+
+  function scaleHistoryWindow(factor) {
+    const f = Number(factor);
+    if (!isFinite(f) || f <= 0) return histWindowSec;
+    return setHistoryWindowSec(histWindowSec * f);
+  }
+
+  function resetHistoryWindow() {
+    histWindowSec = 120;
+    return histWindowSec;
+  }
+
+  function getHistoryWindowSec() {
+    return histWindowSec;
+  }
+
+  function getHistoryWindowSamples(histCount) {
+    const byWindow = Math.max(1, Math.round(histWindowSec / HIST_SAMPLE_SEC));
+    return Math.max(1, Math.min(Math.max(1, histCount), byWindow));
+  }
+
+  function getMaxHistoryViewOffset(histCount, winSamples) {
+    return Math.max(0, Math.max(0, histCount) - Math.max(1, winSamples));
+  }
+
+  function setHistoryViewOffsetSamples(offset, histCount, winSamples) {
+    const maxOff = getMaxHistoryViewOffset(histCount, winSamples);
+    histViewOffsetSamples = clamp(Math.round(Number(offset) || 0), 0, maxOff);
+    return histViewOffsetSamples;
+  }
+
+  function shiftHistoryViewOffsetSamples(delta, histCount, winSamples) {
+    return setHistoryViewOffsetSamples(histViewOffsetSamples + Number(delta || 0), histCount, winSamples);
+  }
+
+  function resetHistoryViewOffset() {
+    histViewOffsetSamples = 0;
+    return histViewOffsetSamples;
+  }
+
+  function getHistoryViewOffsetSamples(histCount, winSamples) {
+    const maxOff = getMaxHistoryViewOffset(histCount, winSamples);
+    if (histViewOffsetSamples > maxOff) histViewOffsetSamples = maxOff;
+    if (histViewOffsetSamples < 0) histViewOffsetSamples = 0;
+    return histViewOffsetSamples;
   }
 
   function setSelectedHistOffset(offset) {
@@ -212,6 +271,16 @@
     setSpectrumSnapshotForLatest,
     setVectorscopeSnapshotForLatest,
     getDisplayVisualSnapshot,
+    HIST_SAMPLE_SEC,
+    getHistoryWindowSec,
+    getHistoryWindowSamples,
+    setHistoryWindowSec,
+    scaleHistoryWindow,
+    resetHistoryWindow,
+    getHistoryViewOffsetSamples,
+    setHistoryViewOffsetSamples,
+    shiftHistoryViewOffsetSamples,
+    resetHistoryViewOffset,
     histCurveVisible,
     toggleHistCurve,
     isHistCurveVisible,

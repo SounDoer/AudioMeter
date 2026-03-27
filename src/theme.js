@@ -154,6 +154,9 @@
         secondaryStroke: '#89b4ff99',
         labelText: '#2a4060',
         timeLabelBg: '#1e3248',
+        hudBg: '#17324fcc',
+        hudBorder: '#6f9ec266',
+        hudText: '#d5e9fb',
       },
       vectorscope: {
         bg: '#030608',
@@ -228,6 +231,9 @@
         secondaryStroke: '#6f95d699',
         labelText: '#56718d',
         timeLabelBg: '#e0eaf5',
+        hudBg: '#f6f9fccc',
+        hudBorder: '#93abc455',
+        hudText: '#2c4660',
       },
       vectorscope: {
         bg: '#edf2f7',
