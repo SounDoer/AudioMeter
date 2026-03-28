@@ -128,7 +128,8 @@ registerProcessor('loudness-meter',LoudnessMeter);
       AM.ui.setSt2('Loading worklet...');
       await AM.runtime.actx.audioWorklet.addModule('./worklets/loudness-meter.js');
     } catch (errWorklet) {
-      console.warn('Worklet external load failed, fallback to inline WKLT:', errWorklet);
+      const wmsg = errWorklet && errWorklet.message ? String(errWorklet.message) : 'unknown';
+      console.warn('Worklet: external module failed, using inline fallback (' + wmsg + ')');
       AM.ui.setSt2('Worklet inline fallback...');
       const b64 = btoa(unescape(encodeURIComponent(WKLT)));
       await AM.runtime.actx.audioWorklet.addModule('data:application/javascript;base64,' + b64);
@@ -258,7 +259,8 @@ registerProcessor('loudness-meter',LoudnessMeter);
         btn.textContent = 'START';
         btn.className = 'hbtn off';
         AM.ui.setSt('Error: ' + msg, 'err');
-        AM.ui.setSt2(String(err && err.stack ? err.stack : msg));
+        // 不向页面展示完整 stack，避免路径等信息暴露在公网访问场景中
+        AM.ui.setSt2('');
         console.error(err);
       }
     } else {
