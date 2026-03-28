@@ -1,14 +1,134 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0; url=audiometer.html">
 <title>AudioMeter</title>
-<link rel="canonical" href="audiometer.html">
-<script>location.replace("audiometer.html");</script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./src/ui/style.css">
 </head>
 <body>
-<p><a href="audiometer.html">进入 AudioMeter</a></p>
+
+<div id="hdr">
+  <div class="logo">AUDIO<span>METER</span></div>
+  <div class="hsp"></div>
+  <button class="hbtn" id="resetBtn">Clear</button>
+  <button class="hbtn off" id="startBtn">START</button>
+  <button class="hbtn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="settingsPanel">SETTINGS</button>
+</div>
+
+<div id="settingsOverlay" class="settings-overlay" aria-hidden="true">
+  <div class="settings-panel" id="settingsPanel" role="dialog" aria-labelledby="settingsTitle" tabindex="-1">
+    <div class="settings-head">
+      <div class="settings-title" id="settingsTitle">SETTINGS</div>
+      <button type="button" class="settings-close" id="settingsCloseBtn" aria-label="Close">×</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-row">
+        <span class="settings-k">Loudness standard</span>
+        <div class="settings-v">
+          <select id="loudnessStandardSel" class="settings-select" aria-label="Loudness standard">
+            <option value="ebu">EBU R128</option>
+            <option value="stream">STREAMING</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-k">Theme</span>
+        <div class="settings-v">
+          <div class="tgl" role="group" aria-label="Theme mode">
+            <button type="button" class="tbtn on" id="themeDarkBtn">DARK</button>
+            <button type="button" class="tbtn" id="themeLightBtn">LIGHT</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-k">Layout</span>
+        <div class="settings-v">
+          <button type="button" class="hbtn" id="resetLayoutBtn">Reset Layout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="lp">
+    <div class="mod" id="peakMod">
+      <div class="slbl">Peak</div>
+      <div id="mWrap"><canvas id="mCvs"></canvas></div>
+    </div>
+    <div class="splitV" id="splitLeft" title="Drag to resize peak/vectorscope"></div>
+    <div class="mod" id="leftVecMod">
+      <div class="slbl">Vectorscope</div>
+      <div id="vWrap"><canvas id="vCvs"></canvas></div>
+      <div class="corrLbl">Correlation <span id="corrVal">—</span></div>
+    </div>
+  </div>
+
+  <div id="splitMain" title="Drag to resize columns"></div>
+
+  <div id="rp">
+    <div class="mod" id="loudMod">
+      <div class="slbl">Loudness</div>
+      <div class="loudRow">
+        <div class="modBody" id="hWrap"><canvas id="hCvs"></canvas></div>
+        <div id="rdouts">
+          <button type="button" class="rdout compact hist-toggle" id="histTglM" aria-pressed="false" title="Toggle Momentary history curve">
+            <span class="rl">Momentary</span><span class="rv" id="mVal">—</span><span class="ru">LUFS</span>
+          </button>
+          <button type="button" class="rdout compact hist-toggle on" id="histTglST" aria-pressed="true" title="Toggle Short-term history curve">
+            <span class="rl">Short-term</span><span class="rv" id="stVal">—</span><span class="ru">LUFS</span>
+          </button>
+          <button type="button" class="rdout compact hist-toggle" id="histTglInt" aria-pressed="false" title="Toggle Integrated level reference and labels">
+            <span class="rl">Integrated</span><span class="rv" id="intVal">—</span><span class="ru">LUFS</span>
+          </button>
+          <div class="rdout compact">
+            <span class="rl">Momentary Max</span><span class="rv" id="mMaxVal">—</span><span class="ru">LUFS</span>
+          </div>
+          <div class="rdout compact">
+            <span class="rl">Short-term Max</span><span class="rv" id="stMaxVal">—</span><span class="ru">LUFS</span>
+          </div>
+          <div class="rdout compact">
+            <span class="rl">Loudness Range (LRA)</span><span class="rv" id="lraVal">—</span><span class="ru">LU</span>
+          </div>
+          <div class="rdout compact">
+            <span class="rl">Dynamics (PSR)</span><span class="rv" id="psrVal">—</span><span class="ru">dB</span>
+          </div>
+          <div class="rdout compact">
+            <span class="rl">Avg. Dynamics (PLR)</span><span class="rv" id="plrVal">—</span><span class="ru">dB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="splitV" id="splitRightTop" title="Drag to resize loudness/spectrum"></div>
+    <div class="mod" id="specMod">
+      <div class="slbl">Spectrum Analyzer</div>
+      <div class="modBody"><canvas id="sCvs"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="sbar">
+  <span class="st" id="stMsg">Ready — click START to begin monitoring</span>
+  <div class="sdiv"></div>
+  <span class="st" id="stDev"></span>
+</div>
+
+<script src="./src/am-global.js"></script>
+<script src="./src/state.js"></script>
+<script src="./src/theme.js"></script>
+<script src="./src/runtime.js"></script>
+<script src="./src/ui/status.js"></script>
+<script src="./src/ui/readouts.js"></script>
+<script src="./src/ui/layout.js"></script>
+<script src="./src/renderers/peak.js"></script>
+<script src="./src/renderers/spectrum.js"></script>
+<script src="./src/renderers/loudness.js"></script>
+<script src="./src/renderers/vectorscope.js"></script>
+<script src="./src/render-loop.js"></script>
+<script src="./src/audio/controller.js"></script>
+<script src="./src/main.js"></script>
 </body>
 </html>
