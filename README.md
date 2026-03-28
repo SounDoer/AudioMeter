@@ -25,7 +25,7 @@
 
 ## 快速开始
 
-克隆或下载本仓库后，在项目根目录启动任意**静态文件服务**，再打开站点根路径或 `index.html`（模块化界面）。`audiometer.html` 仅作兼容旧链接，会跳转到根路径。
+克隆或下载本仓库后，在项目根目录启动任意**静态文件服务**，再打开站点根路径或 `index.html`（模块化界面）。
 
 ```bash
 # 任选其一
@@ -41,7 +41,6 @@ npx --yes serve .
 
 ```
 index.html               # 模块化页面入口（部署在根路径时地址栏为 /）
-audiometer.html          # 跳转到 ./（兼容旧书签）
 src/
   main.js                # UI 绑定与启动
   audio/controller.js    # 麦克风、AudioContext、Worklet、Analyser
