@@ -282,15 +282,24 @@ export default function App() {
   const onHistoryWheel = (ev) => {
     ev.preventDefault();
     const factor = ev.deltaY < 0 ? 0.85 : 1.18;
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const width = Math.max(1, rect.width - 34);
+    const x = Math.max(0, Math.min(width, ev.clientX - rect.left - 34));
+    const norm = 1 - x / width;
+    const anchorFromEndSamples = effectiveOffsetSamples + norm * Math.max(0, visibleSamples - 1);
     const baselineSec = Math.max(HIST_SAMPLE_SEC, visibleSamples * HIST_SAMPLE_SEC);
     const next = Math.max(5, Math.min(1800, baselineSec * factor));
-    setHistoryWindowSec(next);
     const nextVisibleSamples = Math.max(1, Math.min(Math.max(1, totalSamples), Math.round(next / HIST_SAMPLE_SEC)));
     const nextMaxOffsetSamples = Math.max(0, totalSamples - nextVisibleSamples);
-    setHistoryOffsetSec((off) => {
-      const offSamples = Math.round(Number(off || 0) / HIST_SAMPLE_SEC);
-      return Math.max(0, Math.min(nextMaxOffsetSamples, offSamples)) * HIST_SAMPLE_SEC;
-    });
+    const nextOffsetSamples = Math.max(
+      0,
+      Math.min(
+        nextMaxOffsetSamples,
+        Math.round(anchorFromEndSamples - norm * Math.max(0, nextVisibleSamples - 1))
+      )
+    );
+    setHistoryWindowSec(next);
+    setHistoryOffsetSec(nextOffsetSamples * HIST_SAMPLE_SEC);
   };
   const beginLayoutDrag = (mode, ev) => {
     layoutDragRef.current = { mode, x: ev.clientX, y: ev.clientY, mainLeft, leftTopRatio, rightTopRatio };
