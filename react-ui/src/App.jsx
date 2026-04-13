@@ -4,6 +4,8 @@ const peakScale = ["+6", "0", "-6", "-12", "-24", "-48"];
 const loudnessYScale = ["-9", "-14", "-18", "-23", "-27", "-36"];
 const spectrumYScale = ["0", "-20", "-40", "-60", "-80"];
 const spectrumXScale = ["20", "50", "100", "200", "500", "1k", "2k", "5k", "10k", "20k"];
+const HIST_SAMPLE_SEC = 0.1;
+const HIST_MAX_SAMPLES = 36000;
 
 function PillButton({ children, accent = false, onClick }) {
   const base = "rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200";
@@ -72,6 +74,7 @@ export default function App() {
   const [rightTopRatio, setRightTopRatio] = useState(0.48);
   const dragModeRef = useRef(null);
   const panStartRef = useRef({ x: 0, offset: 0 });
+  const lastRightDownTsRef = useRef(0);
   const layoutDragRef = useRef(null);
   const audioRef = useRef(null);
   const rafRef = useRef(0);
@@ -81,6 +84,7 @@ export default function App() {
   const spectrumSnapRef = useRef([]);
   const vectorSnapRef = useRef([]);
   const corrSnapRef = useRef([]);
+  const audioSnapRef = useRef([]);
   const selectedOffsetRef = useRef(-1);
   const frozenSnapRef = useRef(null);
 
@@ -104,7 +108,7 @@ export default function App() {
         const s = sec % 60;
         ticks.push(`${m}m${s ? `${s}s` : ""}`);
       } else {
-        ticks.push(`-${sec}s`);
+        ticks.push(`${sec}s`);
       }
     }
     return ticks;
@@ -135,16 +139,59 @@ export default function App() {
 
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
   const targetLufs = standard === "ebu" ? -23 : -14;
+  const snapSourceHistory = selectedOffset >= 0 && frozenSnapRef.current ? frozenSnapRef.current : null;
+  const histSourceList = snapSourceHistory ? snapSourceHistory.loudness : loudnessHistRef.current;
   const snapSource = selectedOffset >= 0 && frozenSnapRef.current ? frozenSnapRef.current : null;
   const snapCorrList = snapSource ? snapSource.corr : corrSnapRef.current;
   const snapSpecList = snapSource ? snapSource.spectrum : spectrumSnapRef.current;
   const snapVecList = snapSource ? snapSource.vector : vectorSnapRef.current;
-  const snapIdx = selectedOffset >= 0 ? Math.max(0, snapSpecList.length - 1 - selectedOffset) : -1;
+  const snapAudioList = snapSource ? snapSource.audio : audioSnapRef.current;
+  const selectedHistSteps = selectedOffset >= 0 ? Math.max(0, Math.round(selectedOffset / HIST_SAMPLE_SEC)) : -1;
+  const snapIdx = selectedHistSteps >= 0 ? Math.max(0, snapSpecList.length - 1 - selectedHistSteps) : -1;
+  const audioSnapIdx = selectedHistSteps >= 0 ? Math.max(0, snapAudioList.length - 1 - selectedHistSteps) : -1;
+  const displayAudio = audioSnapIdx >= 0 && snapAudioList[audioSnapIdx] ? snapAudioList[audioSnapIdx] : audio;
   const displaySpectrumPath = snapIdx >= 0 && snapSpecList[snapIdx] ? snapSpecList[snapIdx] : spectrumPath;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
-  const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : audio.correlation;
+  const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : displayAudio.correlation;
   const startMode = selectedOffset >= 0 ? "live" : running ? "stop" : "start";
   const startLabel = startMode === "live" ? "LIVE" : startMode === "stop" ? "STOP" : "START";
+  const totalSamples = histSourceList.length;
+  const availableSec = Math.max(0, totalSamples * HIST_SAMPLE_SEC);
+  const clampedWindowSec = Math.max(5, Math.min(1800, historyWindowSec));
+  const windowSamples = Math.max(1, Math.round(clampedWindowSec / HIST_SAMPLE_SEC));
+  const visibleSamples = Math.max(1, Math.min(Math.max(1, totalSamples), windowSamples));
+  const maxOffsetSamples = Math.max(0, totalSamples - visibleSamples);
+  const effectiveOffsetSamples = Math.max(0, Math.min(maxOffsetSamples, Math.round(historyOffsetSec / HIST_SAMPLE_SEC)));
+  const effectiveOffsetSec = effectiveOffsetSamples * HIST_SAMPLE_SEC;
+
+  const buildHistoryPath = (key) => {
+    if (!histSourceList.length) return "";
+    const total = histSourceList.length;
+    const winSamples = Math.max(2, visibleSamples);
+    const offSamples = Math.max(0, Math.min(Math.max(0, total - 2), effectiveOffsetSamples));
+    const end = Math.max(1, total - offSamples);
+    const start = Math.max(0, end - winSamples);
+    const view = histSourceList.slice(start, end);
+    if (view.length < 2) return "";
+    const toY = (v) => {
+      const clamped = Math.max(-60, Math.min(3, Number.isFinite(v) ? v : -60));
+      return 220 - ((clamped + 60) / 63) * 220;
+    };
+    return view
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${(i / Math.max(1, view.length - 1)) * 600} ${toY(p[key])}`)
+      .join(" ");
+  };
+
+  const displayHistoryPathM = buildHistoryPath("m");
+  const displayHistoryPathST = buildHistoryPath("st");
+  const showSelLine = selectedHistSteps >= effectiveOffsetSamples && selectedHistSteps <= Math.max(0, effectiveOffsetSamples + visibleSamples - 1);
+  const selLineX = Math.max(
+    0,
+    Math.min(
+      600,
+      600 - ((selectedHistSteps - effectiveOffsetSamples) / Math.max(1, visibleSamples - 1)) * 600
+    )
+  );
 
   const clearAll = () => {
     if (audioRef.current?.wklt) {
@@ -157,6 +204,7 @@ export default function App() {
     spectrumSnapRef.current = [];
     vectorSnapRef.current = [];
     corrSnapRef.current = [];
+    audioSnapRef.current = [];
     frozenSnapRef.current = null;
     setSpectrumPath("");
     setVectorPath("");
@@ -190,8 +238,8 @@ export default function App() {
     const width = Math.max(1, rect.width - 34);
     const x = Math.max(0, Math.min(width, clientX - rect.left - 34));
     const normalized = 1 - x / width;
-    const maxSelectable = Math.min(3600 - 1, historyOffsetSec + historyWindowSec);
-    setSelectedOffset(Math.round(normalized * maxSelectable));
+    const fromEndSamples = effectiveOffsetSamples + normalized * Math.max(0, visibleSamples - 1);
+    setSelectedOffset(Math.round(fromEndSamples) * HIST_SAMPLE_SEC);
   };
   const onHistoryPointerDown = (ev) => {
     const rect = ev.currentTarget.getBoundingClientRect();
@@ -199,8 +247,17 @@ export default function App() {
       dragModeRef.current = "select";
       updateSelectionFromClientX(ev.clientX, rect);
     } else if (ev.button === 2) {
+      const nowTs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+      if (nowTs - lastRightDownTsRef.current <= 320) {
+        setHistoryWindowSec(120);
+        setHistoryOffsetSec(0);
+        lastRightDownTsRef.current = 0;
+        return;
+      }
+      lastRightDownTsRef.current = nowTs;
+      if (totalSamples <= visibleSamples) return;
       dragModeRef.current = "pan";
-      panStartRef.current = { x: ev.clientX, offset: historyOffsetSec };
+      panStartRef.current = { x: ev.clientX, offset: effectiveOffsetSec };
     } else return;
     try {
       ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -212,8 +269,8 @@ export default function App() {
     const rect = ev.currentTarget.getBoundingClientRect();
     if (mode === "select") return void updateSelectionFromClientX(ev.clientX, rect);
     const dx = ev.clientX - panStartRef.current.x;
-    const secPerPx = historyWindowSec / Math.max(1, rect.width);
-    const next = Math.max(0, Math.min(3600 - historyWindowSec, panStartRef.current.offset + dx * secPerPx));
+    const secPerPx = (visibleSamples * HIST_SAMPLE_SEC) / Math.max(1, rect.width - 34);
+    const next = Math.max(0, Math.min(maxOffsetSamples * HIST_SAMPLE_SEC, panStartRef.current.offset + dx * secPerPx));
     setHistoryOffsetSec(next);
   };
   const onHistoryPointerUp = (ev) => {
@@ -225,10 +282,14 @@ export default function App() {
   const onHistoryWheel = (ev) => {
     ev.preventDefault();
     const factor = ev.deltaY < 0 ? 0.85 : 1.18;
-    setHistoryWindowSec((prev) => {
-      const next = Math.max(5, Math.min(1800, prev * factor));
-      setHistoryOffsetSec((off) => Math.max(0, Math.min(3600 - next, off)));
-      return next;
+    const baselineSec = Math.max(HIST_SAMPLE_SEC, visibleSamples * HIST_SAMPLE_SEC);
+    const next = Math.max(5, Math.min(1800, baselineSec * factor));
+    setHistoryWindowSec(next);
+    const nextVisibleSamples = Math.max(1, Math.min(Math.max(1, totalSamples), Math.round(next / HIST_SAMPLE_SEC)));
+    const nextMaxOffsetSamples = Math.max(0, totalSamples - nextVisibleSamples);
+    setHistoryOffsetSec((off) => {
+      const offSamples = Math.round(Number(off || 0) / HIST_SAMPLE_SEC);
+      return Math.max(0, Math.min(nextMaxOffsetSamples, offSamples)) * HIST_SAMPLE_SEC;
     });
   };
   const beginLayoutDrag = (mode, ev) => {
@@ -281,9 +342,11 @@ export default function App() {
     selectedOffsetRef.current = selectedOffset;
     if (selectedOffset >= 0 && !frozenSnapRef.current) {
       frozenSnapRef.current = {
+        loudness: [...loudnessHistRef.current],
         spectrum: [...spectrumSnapRef.current],
         vector: [...vectorSnapRef.current],
         corr: [...corrSnapRef.current],
+        audio: [...audioSnapRef.current],
       };
     }
     if (selectedOffset < 0) frozenSnapRef.current = null;
@@ -329,23 +392,28 @@ export default function App() {
           const m = Number.isFinite(d.momentary) ? d.momentary : -Infinity;
           const st = Number.isFinite(d.shortTerm) ? d.shortTerm : -Infinity;
           const next = [...loudnessHistRef.current, { m, st }];
-          if (next.length > 600) next.shift();
+          if (next.length > HIST_MAX_SAMPLES) next.shift();
           loudnessHistRef.current = next;
-          setAudio((prev) => ({
-            ...prev,
-            momentary: m,
-            shortTerm: st,
-            integrated: Number.isFinite(d.integrated) ? d.integrated : prev.integrated,
-            lra: Number.isFinite(d.lra) ? d.lra : prev.lra,
-            tpL: Number.isFinite(d.truePeakL) ? d.truePeakL : prev.tpL,
-            tpR: Number.isFinite(d.truePeakR) ? d.truePeakR : prev.tpR,
-            sampleL: Number.isFinite(d.truePeakL) ? d.truePeakL : prev.sampleL,
-            sampleR: Number.isFinite(d.truePeakR) ? d.truePeakR : prev.sampleR,
-            samplePeak: Number.isFinite(d.truePeak) ? d.truePeak : prev.samplePeak,
-            tpMax: Number.isFinite(d.truePeak) ? Math.max(prev.tpMax, d.truePeak) : prev.tpMax,
-            mMax: Number.isFinite(m) ? Math.max(prev.mMax, m) : prev.mMax,
-            stMax: Number.isFinite(st) ? Math.max(prev.stMax, st) : prev.stMax,
-          }));
+          setAudio((prev) => {
+            const nextAudio = {
+              ...prev,
+              momentary: m,
+              shortTerm: st,
+              integrated: Number.isFinite(d.integrated) ? d.integrated : prev.integrated,
+              lra: Number.isFinite(d.lra) ? d.lra : prev.lra,
+              tpL: Number.isFinite(d.truePeakL) ? d.truePeakL : prev.tpL,
+              tpR: Number.isFinite(d.truePeakR) ? d.truePeakR : prev.tpR,
+              sampleL: Number.isFinite(d.truePeakL) ? d.truePeakL : prev.sampleL,
+              sampleR: Number.isFinite(d.truePeakR) ? d.truePeakR : prev.sampleR,
+              samplePeak: Number.isFinite(d.truePeak) ? d.truePeak : prev.samplePeak,
+              tpMax: Number.isFinite(d.truePeak) ? Math.max(prev.tpMax, d.truePeak) : prev.tpMax,
+              mMax: Number.isFinite(m) ? Math.max(prev.mMax, m) : prev.mMax,
+              stMax: Number.isFinite(st) ? Math.max(prev.stMax, st) : prev.stMax,
+            };
+            audioSnapRef.current.push({ ...nextAudio });
+            if (audioSnapRef.current.length > HIST_MAX_SAMPLES) audioSnapRef.current.shift();
+            return nextAudio;
+          });
         };
 
         const tick = () => {
@@ -377,7 +445,7 @@ export default function App() {
           }
           const vp = vecPts.length ? `M ${vecPts.join(" L ")}` : "";
           vectorSnapRef.current.push(vp);
-          if (vectorSnapRef.current.length > 1200) vectorSnapRef.current.shift();
+          if (vectorSnapRef.current.length > HIST_MAX_SAMPLES) vectorSnapRef.current.shift();
           if (selectedOffsetRef.current < 0 && shouldPaintUi) setVectorPath(vp);
 
           const tpL = maxL > 0 ? 20 * Math.log10(maxL) : -Infinity;
@@ -396,20 +464,14 @@ export default function App() {
             }));
           }
           corrSnapRef.current.push(corr);
-          if (corrSnapRef.current.length > 1200) corrSnapRef.current.shift();
+          if (corrSnapRef.current.length > HIST_MAX_SAMPLES) corrSnapRef.current.shift();
 
           const nextHist = loudnessHistRef.current;
-          if (nextHist.length > 600) nextHist.shift();
+          if (nextHist.length > HIST_MAX_SAMPLES) nextHist.shift();
           histRef.current = nextHist;
-          const toY = (v) => {
-            const clamped = Math.max(-60, Math.min(3, Number.isFinite(v) ? v : -60));
-            return 220 - ((clamped + 60) / 63) * 220;
-          };
-          const mkPath = (key) =>
-            nextHist.map((p, i) => `${i === 0 ? "M" : "L"} ${(i / Math.max(1, nextHist.length - 1)) * 600} ${toY(p[key])}`).join(" ");
           if (selectedOffsetRef.current < 0 && shouldPaintUi) {
-            setHistoryPathM(mkPath("m"));
-            setHistoryPathST(mkPath("st"));
+            setHistoryPathM("");
+            setHistoryPathST("");
           }
 
           // Display-only fix: use log-frequency mapping for x-axis so curve aligns
@@ -438,7 +500,7 @@ export default function App() {
           }
           const sp = pts.length ? `M ${pts.join(" L ")}` : "";
           spectrumSnapRef.current.push(sp);
-          if (spectrumSnapRef.current.length > 1200) spectrumSnapRef.current.shift();
+          if (spectrumSnapRef.current.length > HIST_MAX_SAMPLES) spectrumSnapRef.current.shift();
           if (selectedOffsetRef.current < 0 && shouldPaintUi) setSpectrumPath(sp);
           rafRef.current = requestAnimationFrame(tick);
         };
@@ -483,16 +545,16 @@ export default function App() {
             <article className="rounded-xl bg-gray-800 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm text-gray-400">Peak Meter</div>
-                <div className="text-xs text-gray-300">TP MAX <span className="ml-1 font-semibold text-cyan-300">{fmt(audio.tpMax)} dBTP</span></div>
+                <div className="text-xs text-gray-300">TP MAX <span className="ml-1 font-semibold text-cyan-300">{fmt(displayAudio.tpMax)} dBTP</span></div>
               </div>
               <div className="grid h-[320px] grid-cols-[auto_1fr] gap-3">
                 <div className="flex flex-col justify-between text-xs text-gray-300">{peakScale.map((tick) => <span key={tick}>{tick}</span>)}</div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="relative rounded-lg bg-gray-900 p-2"><div className="meter-gradient absolute inset-x-3 bottom-3 rounded-md" style={{ top: dbToTop(audio.sampleL) }} /><div className="absolute inset-x-2 border-t border-cyan-200/70" style={{ top: dbToTop(audio.tpL) }} /><div className="absolute left-3 right-3 top-3 text-center text-xs text-gray-300">L</div></div>
-                  <div className="relative rounded-lg bg-gray-900 p-2"><div className="meter-gradient absolute inset-x-3 bottom-3 rounded-md" style={{ top: dbToTop(audio.sampleR) }} /><div className="absolute inset-x-2 border-t border-cyan-200/70" style={{ top: dbToTop(audio.tpR) }} /><div className="absolute left-3 right-3 top-3 text-center text-xs text-gray-300">R</div></div>
+                  <div className="relative rounded-lg bg-gray-900 p-2"><div className="meter-gradient absolute inset-x-3 bottom-3 rounded-md" style={{ top: dbToTop(displayAudio.sampleL) }} /><div className="absolute inset-x-2 border-t border-cyan-200/70" style={{ top: dbToTop(displayAudio.tpL) }} /><div className="absolute left-3 right-3 top-3 text-center text-xs text-gray-300">L</div></div>
+                  <div className="relative rounded-lg bg-gray-900 p-2"><div className="meter-gradient absolute inset-x-3 bottom-3 rounded-md" style={{ top: dbToTop(displayAudio.sampleR) }} /><div className="absolute inset-x-2 border-t border-cyan-200/70" style={{ top: dbToTop(displayAudio.tpR) }} /><div className="absolute left-3 right-3 top-3 text-center text-xs text-gray-300">R</div></div>
                 </div>
               </div>
-              <div className="mt-2 flex justify-between text-[10px] text-gray-400"><span>SP {fmt(audio.samplePeak)} dB</span><span>L {fmt(audio.sampleL)}</span><span>R {fmt(audio.sampleR)}</span></div>
+              <div className="mt-2 flex justify-between text-[10px] text-gray-400"><span>SP {fmt(displayAudio.samplePeak)} dB</span><span>L {fmt(displayAudio.sampleL)}</span><span>R {fmt(displayAudio.sampleR)}</span></div>
             </article>
 
             <div
@@ -552,14 +614,14 @@ export default function App() {
                     <div className="spectrum-grid relative h-[232px] rounded-lg bg-gray-900">
                       <div className="pointer-events-none absolute inset-x-3 border-t border-dashed border-amber-400/70" style={{ top: `${((3 - targetLufs) / 63) * 100}%` }} />
                       <svg viewBox="0 0 600 220" className="h-full w-full p-3">
-                        {histCurves.m && <path d={historyPathM || "M 0 220 L 600 220"} fill="none" stroke="#22d3ee" strokeWidth="2.2" />}
-                        {histCurves.st && <path d={historyPathST || "M 0 220 L 600 220"} fill="none" stroke="#007AFF" strokeWidth="2.6" opacity="0.95" />}
+                        {histCurves.m && <path d={displayHistoryPathM || historyPathM || "M 0 220 L 600 220"} fill="none" stroke="#22d3ee" strokeWidth="2.2" />}
+                        {histCurves.st && <path d={displayHistoryPathST || historyPathST || "M 0 220 L 600 220"} fill="none" stroke="#007AFF" strokeWidth="2.6" opacity="0.95" />}
                         {histCurves.int && <path d="M 0 180 C 110 176, 210 170, 300 165 C 410 158, 520 153, 600 150" fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="8 8" />}
-                        {selectedOffset >= 0 && <line x1={Math.max(0, 600 - (selectedOffset / Math.max(1, historyWindowSec + historyOffsetSec)) * 600)} y1="0" x2={Math.max(0, 600 - (selectedOffset / Math.max(1, historyWindowSec + historyOffsetSec)) * 600)} y2="220" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="4 4" />}
+                        {selectedOffset >= 0 && showSelLine && <line x1={selLineX} y1="0" x2={selLineX} y2="220" stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="4 4" />}
                       </svg>
                     </div>
                     <div className="mt-2 grid grid-cols-5 text-[10px] text-gray-400">{historyTimeTicks.map((tick) => <span key={tick} className="text-center">{tick}</span>)}</div>
-                    <div className="mt-1 text-[10px] text-gray-500">Window: {Math.round(historyWindowSec)}s | Offset: {Math.round(historyOffsetSec)}s</div>
+                    <div className="mt-1 text-[10px] text-gray-500">Window: {Math.round(clampedWindowSec)}s | Offset: {Math.round(effectiveOffsetSec)}s</div>
                   </div>
                 </div>
               </article>
