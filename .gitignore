@@ -21,3 +21,6 @@ npm-debug.log*
 
 # Optional local tooling
 node_modules/
+
+# Build output
+react-ui/dist/

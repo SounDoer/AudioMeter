@@ -88,7 +88,7 @@ export default function App() {
     integrated: -Infinity,
     mMax: -Infinity,
     stMax: -Infinity,
-    lra: 0,
+    lra: -Infinity,
     tpL: -Infinity,
     tpR: -Infinity,
     truePeakL: -Infinity,
@@ -149,7 +149,15 @@ export default function App() {
     }
     return ticks;
   }, [historyOffsetSec, historyWindowSec]);
+  const METRIC_NEGATIVE_INFINITY_FLOOR = -200;
+  const METRIC_POSITIVE_INFINITY_CEIL = 200;
   const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
+  const fmtMetric = (v) => {
+    if (!Number.isFinite(v)) return "-";
+    if (v <= METRIC_NEGATIVE_INFINITY_FLOOR) return "-";
+    if (v >= METRIC_POSITIVE_INFINITY_CEIL) return "-";
+    return v.toFixed(1);
+  };
   const fmtSec = (sec) => {
     const s = Math.max(0, Math.round(sec));
     if (s < 60) return `${s}s`;
@@ -166,18 +174,18 @@ export default function App() {
   };
 
   const primaryMetrics = [
-    { label: "Momentary", value: fmt(audio.momentary), unit: "LUFS" },
-    { label: "Short-term", value: fmt(audio.shortTerm), unit: "LUFS" },
-    { label: "Integrated", value: fmt(audio.integrated), unit: "LUFS" },
-    { label: "Momentary Max", value: fmt(audio.mMax), unit: "LUFS" },
-    { label: "Short-term Max", value: fmt(audio.stMax), unit: "LUFS" },
-    { label: "Loudness Range (LRA)", value: fmt(audio.lra), unit: "LU" },
+    { label: "Momentary", value: fmtMetric(audio.momentary), unit: "LUFS" },
+    { label: "Short-term", value: fmtMetric(audio.shortTerm), unit: "LUFS" },
+    { label: "Integrated", value: fmtMetric(audio.integrated), unit: "LUFS" },
+    { label: "Momentary Max", value: fmtMetric(audio.mMax), unit: "LUFS" },
+    { label: "Short-term Max", value: fmtMetric(audio.stMax), unit: "LUFS" },
+    { label: "Loudness Range (LRA)", value: fmtMetric(audio.lra), unit: "LU" },
   ];
   const psr = Number.isFinite(audio.tpMax) && Number.isFinite(audio.shortTerm) ? audio.tpMax - audio.shortTerm : -Infinity;
   const plr = Number.isFinite(audio.tpMax) && Number.isFinite(audio.integrated) ? audio.tpMax - audio.integrated : -Infinity;
   const secondaryMetrics = [
-    { label: "Dynamics (PSR)", value: fmt(psr), unit: "dB" },
-    { label: "Avg. Dynamics (PLR)", value: fmt(plr), unit: "dB" },
+    { label: "Dynamics (PSR)", value: fmtMetric(psr), unit: "dB" },
+    { label: "Avg. Dynamics (PLR)", value: fmtMetric(plr), unit: "dB" },
   ];
 
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -279,7 +287,7 @@ export default function App() {
     setHistoryPathM("");
     setHistoryPathST("");
     setAudio({
-      momentary: -Infinity, shortTerm: -Infinity, integrated: -Infinity, mMax: -Infinity, stMax: -Infinity, lra: 0,
+      momentary: -Infinity, shortTerm: -Infinity, integrated: -Infinity, mMax: -Infinity, stMax: -Infinity, lra: -Infinity,
       tpL: -Infinity,
       tpR: -Infinity,
       truePeakL: -Infinity,
