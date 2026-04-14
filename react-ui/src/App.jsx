@@ -147,6 +147,17 @@ export default function App() {
 
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
   const targetLufs = standard === "ebu" ? -23 : -14;
+  if (selectedOffset < 0) {
+    frozenSnapRef.current = null;
+  } else if (!frozenSnapRef.current) {
+    frozenSnapRef.current = {
+      loudness: [...loudnessHistRef.current],
+      spectrum: [...spectrumSnapRef.current],
+      vector: [...vectorSnapRef.current],
+      corr: [...corrSnapRef.current],
+      audio: [...audioSnapRef.current],
+    };
+  }
   const snapSourceHistory = selectedOffset >= 0 && frozenSnapRef.current ? frozenSnapRef.current : null;
   const histSourceList = snapSourceHistory ? snapSourceHistory.loudness : loudnessHistRef.current;
   const snapSource = selectedOffset >= 0 && frozenSnapRef.current ? frozenSnapRef.current : null;
@@ -189,7 +200,11 @@ export default function App() {
 
   const displayHistoryPathM = buildHistoryPath("m");
   const displayHistoryPathST = buildHistoryPath("st");
-  const showSelLine = selectedHistSteps >= effectiveOffsetSamples && selectedHistSteps <= Math.max(0, effectiveOffsetSamples + visibleSamples - 1);
+  const showSelLine =
+    selectedOffset >= 0 &&
+    totalSamples > 0 &&
+    selectedHistSteps >= 0 &&
+    selectedHistSteps < totalSamples;
   const selLineX = Math.max(
     0,
     Math.min(
@@ -388,16 +403,6 @@ export default function App() {
 
   useEffect(() => {
     selectedOffsetRef.current = selectedOffset;
-    if (selectedOffset >= 0 && !frozenSnapRef.current) {
-      frozenSnapRef.current = {
-        loudness: [...loudnessHistRef.current],
-        spectrum: [...spectrumSnapRef.current],
-        vector: [...vectorSnapRef.current],
-        corr: [...corrSnapRef.current],
-        audio: [...audioSnapRef.current],
-      };
-    }
-    if (selectedOffset < 0) frozenSnapRef.current = null;
   }, [selectedOffset]);
 
   useEffect(() => {
@@ -742,13 +747,11 @@ export default function App() {
                       onPointerUp={onHistoryPointerUp}
                       onPointerCancel={onHistoryPointerUp}
                     >
-                      <div className="pointer-events-none absolute inset-3">
-                        <div
-                          className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
-                          style={{ top: `${peakFromTopFrac(targetLufs) * 100}%` }}
-                        />
-                      </div>
-                      <svg viewBox="0 0 600 220" className="h-full w-full p-3">
+                      <svg
+                        viewBox="0 0 600 220"
+                        preserveAspectRatio="none"
+                        className="relative z-0 h-full w-full p-3"
+                      >
                         {histCurves.m && (
                           <path
                             d={displayHistoryPathM || historyPathM || "M 0 220 L 600 220"}
@@ -766,18 +769,23 @@ export default function App() {
                             opacity={UI_PREFERENCES.charts.loudnessHistory.shortTermOpacity}
                           />
                         )}
+                      </svg>
+                      <div className="pointer-events-none absolute inset-3 z-10">
+                        <div
+                          className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
+                          style={{ top: `${peakFromTopFrac(targetLufs) * 100}%` }}
+                        />
                         {selectedOffset >= 0 && showSelLine && (
-                          <line
-                            x1={selLineX}
-                            y1="0"
-                            x2={selLineX}
-                            y2="220"
-                            stroke="var(--ui-chart-selection)"
-                            strokeWidth={UI_PREFERENCES.charts.loudnessHistory.selectionStrokeWidth}
-                            strokeDasharray="4 4"
+                          <div
+                            className="absolute bottom-0 top-0 border-l border-dashed border-[color:var(--ui-chart-selection)]"
+                            style={{
+                              left: `${(selLineX / 600) * 100}%`,
+                              width: 0,
+                              borderLeftWidth: `${UI_PREFERENCES.charts.loudnessHistory.selectionStrokeWidth}px`,
+                            }}
                           />
                         )}
-                      </svg>
+                      </div>
                     </div>
                     <div className="ui-caption mt-2 grid grid-cols-5">{historyTimeTicks.map((tick) => <span key={tick} className="text-center">{tick}</span>)}</div>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -859,14 +867,20 @@ export default function App() {
                         Snapshot View
                       </div>
                     )}
-                    <svg viewBox="0 0 1000 260" className="h-full w-full p-2">
-                      <path
-                        d={displaySpectrumPath || "M 0 240 L 1000 240"}
-                        fill="none"
-                        stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
-                        strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
-                      />
-                    </svg>
+                    <div className="absolute inset-0 min-h-0 min-w-0 p-2">
+                      <svg
+                        viewBox="0 0 1000 260"
+                        preserveAspectRatio="none"
+                        className="block h-full w-full min-h-0 min-w-0"
+                      >
+                        <path
+                          d={displaySpectrumPath || "M 0 240 L 1000 240"}
+                          fill="none"
+                          stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
+                          strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
+                        />
+                      </svg>
+                    </div>
                   </div>
                   <div className="ui-caption relative mt-2 w-full" style={{ height: "var(--ui-spectrum-freq-row-h)" }}>
                     {FREQ_LABELS.map(([f, lb]) => (

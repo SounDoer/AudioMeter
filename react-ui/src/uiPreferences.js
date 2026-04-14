@@ -1,12 +1,29 @@
 /**
- * 全局 UI 可调参数「单一入口」——改这一份即可试布局 / 字体 / 颜色 / 图表样式。
+ * 全局 UI 可调参数（单文件，不拆包）——保存后热更新；改布局持久化用 Settings → Reset Layout。
  *
- * 主题：`themes.dark` / `themes.light` 下的 `colors`（及可选 `charts`、`spectrumGrid`、
- * `meterGradient` 覆盖）会在 `applyUiPreferencesToDocument(prefs, uiMode)` 时合并进 CSS 变量。
+ * 只改配色/布局数字：可直接跳到 `DARK_THEME_COLORS` / `LIGHT_THEME_COLORS` / `export const UI_PREFERENCES`。
+ * 改「如何把 prefs 写进页面」再看文末 `applyUiPreferencesToDocument`。
  *
- * 注入：`main.jsx` 首屏按 localStorage 的 `uiMode` 调用一次；`App.jsx` 在 `uiMode` 变化时再调用。
+ * ---------- 小白怎么找要改的东西（在本文档内 Ctrl+F 搜关键字）----------
  *
- * 其余说明见各区块注释；`layoutPersistKey` 勿随意改名。
+ * 1) 布局持久化键名           → 搜 `layoutPersistKey`
+ * 2) 整页最大宽、边距、间距   → 搜 `shell` | `splitters` | `header` | `footer` | `articlePadding` | `settingsModal`
+ * 3) 左右栏宽、上下分栏比例   → 搜 `mainColumn` | `leftSplit` | `rightSplit` | `loudnessHistMetrics`
+ * 4) 模块最小高度、纵轴宽度   → 搜 `heightsRem` | `widthsPx`
+ * 5) 全局字体、各级字号       → 搜 `typography`
+ * 6) 圆角                      → 搜 `radii`
+ * 7) 深色 / 浅色「整页配色」   → 搜 `DARK_THEME_COLORS` 或 `LIGHT_THEME_COLORS`
+ * 8) 浅色下单独加深曲线颜色   → 搜 `themes:` 里 `light:` 下的 `charts` / `spectrumGrid`
+ * 9) 图表线宽、默认描边色     → 搜 `charts:`（与主题里覆盖合并）
+ * 10) 谱图底网、表盘渐变      → 搜 `spectrumGrid` | `meterGradient`
+ * 11) 右侧 Metrics 列宽       → 搜 `loudnessMetrics`
+ * 12) 历史窗默认秒数          → 搜 `history`
+ *
+ * 调试技巧：浏览器 DevTools → 选中 `<html>` → 看「Computed」里以 `--ui-` 开头的变量是否已变。
+ *
+ * 主题机制：`applyUiPreferencesToDocument(prefs, uiMode)` 把当前主题的 `colors` 等写入 CSS 变量；
+ * `main.jsx` 首屏按 localStorage 的 `uiMode` 调一次；`App.jsx` 在 `uiMode` 变化时再调。
+ * `layoutPersistKey` 勿随意改名（与已存 localStorage 键一致）。
  */
 function setCssVar(name, value) {
   if (value === undefined || value === null) return;
@@ -25,6 +42,288 @@ export function mergeCharts(base, override) {
 function mergeShallow(base, override) {
   return { ...base, ...(override || {}) };
 }
+
+/** 深色主题：页面/面板/文字/Peak 线/图例/设置弹层等（写入 --ui-color-*） */
+const DARK_THEME_COLORS = {
+  pageBg: "#111827", // 整页最外背景
+  textPrimary: "#f3f4f6", // 主标题、正文高对比字
+  textSecondary: "#d1d5db", // 次要说明
+  textMuted: "#9ca3af", // 再弱一级（小节标题、刻度感）
+  textSubtle: "#6b7280", // Metrics 标签等更淡字
+  panelBg: "#1f2937", // 各模块圆角卡片背景（Peak、History…）
+  panelBgSplitter: "rgba(31, 41, 55, 0.8)", // 可拖拽分割条背景
+  insetBg: "#111827", // 图表深底（spectrum-grid 区域）
+  insetDark: "rgba(3, 7, 18, 0.9)", // Metrics 每行深色条背景
+  borderDefault: "rgba(51, 65, 85, 0.8)", // Metrics 行边框等
+  divider: "#4b5563", // 页脚竖线、矢量轴等
+  brand: "#3b82f6", // 主按钮「选中」、链接强调
+  brandLight: "#60a5fa", // Logo「Meter」高亮
+  brandHover: "#60a5fa", // 主按钮悬停
+  controlBg: "#374151", // 设置里下拉、Close、主题未选中等灰底
+  peakSamplePeak: "rgba(251, 191, 36, 0.95)", // Peak 条上采样峰值横线
+  peakTruePeak: "rgba(207, 250, 254, 0.7)", // True peak 横线
+  tpMaxText: "#67e8f9", // 底部 TP MAX 数值强调色
+  correlation: {
+    bad: "#f87171", // 相关度偏低
+    mid: "#fcd34d", // 相关度中间
+    good: "#6ee7b7", // 相关度良好
+  },
+  loudnessTargetLine: "rgba(251, 191, 36, 0.7)", // History 里目标 LUFS 虚线
+  snapshotRing: "rgba(251, 191, 36, 0.5)", // 时停时 Spectrum/Vector 外圈
+  snapshotBadgeBg: "rgba(251, 191, 36, 0.15)", // 「Snapshot View」徽章底
+  snapshotBadgeText: "#fde68a", // 徽章字色
+  settingsOverlay: "rgba(0, 0, 0, 0.6)", // 设置弹窗背后遮罩
+  settingsRowBg: "rgba(17, 24, 39, 0.7)", // 设置里每一行选项条背景
+  legendHistOnBg: "#374151", // History 图例按钮「开」
+  legendHistOnText: "#f3f4f6",
+  legendHistOffBg: "#111827", // History 图例按钮「关」
+  legendHistOffText: "#9ca3af",
+  targetLabel: "#d1d5db", // 「Target」文字
+  targetValue: "#fcd34d", // 目标 LUFS 数字
+};
+
+/** 浅色主题：语义与 DARK_THEME_COLORS 一一对应，数值为浅底可读配色 */
+const LIGHT_THEME_COLORS = {
+  pageBg: "#e5e7eb",
+  textPrimary: "#111827",
+  textSecondary: "#374151",
+  textMuted: "#6b7280",
+  textSubtle: "#9ca3af",
+  panelBg: "#ffffff",
+  panelBgSplitter: "rgba(209, 213, 219, 0.95)",
+  insetBg: "#f9fafb",
+  insetDark: "rgba(241, 245, 249, 0.98)",
+  borderDefault: "rgba(148, 163, 184, 0.75)",
+  divider: "#d1d5db",
+  brand: "#2563eb",
+  brandLight: "#3b82f6",
+  brandHover: "#1d4ed8",
+  controlBg: "#e5e7eb",
+  peakSamplePeak: "rgba(217, 119, 6, 0.95)",
+  peakTruePeak: "rgba(8, 145, 178, 0.85)",
+  tpMaxText: "#0e7490",
+  correlation: {
+    bad: "#dc2626",
+    mid: "#ca8a04",
+    good: "#15803d",
+  },
+  loudnessTargetLine: "rgba(217, 119, 6, 0.75)",
+  snapshotRing: "rgba(217, 119, 6, 0.45)",
+  snapshotBadgeBg: "rgba(251, 191, 36, 0.25)",
+  snapshotBadgeText: "#92400e",
+  settingsOverlay: "rgba(15, 23, 42, 0.35)",
+  settingsRowBg: "rgba(243, 244, 246, 0.95)",
+  legendHistOnBg: "#e5e7eb",
+  legendHistOnText: "#111827",
+  legendHistOffBg: "#f3f4f6",
+  legendHistOffText: "#6b7280",
+  targetLabel: "#4b5563",
+  targetValue: "#b45309",
+};
+
+export const UI_PREFERENCES = {
+  // 与 Settings 里「布局+主题」一起写入 localStorage；改名会导致旧配置读不到
+  layoutPersistKey: "am.react.layout.v1",
+
+  // 最外层容器：最大宽度、页面边距、主纵向间距（rem）
+  shell: {
+    maxWidthPx: 1600, // 内容区 max-width，再大两侧留白
+    paddingRem: { base: 1, lg: 1.5 }, // 小屏 / lg 以上整页内边距
+    gapRem: { base: 0.75, lg: 1 }, // header、main、footer 之间的缝
+  },
+
+  // 主栏竖条、上下分栏条、History|Metrics 之间竖条宽度（px）
+  splitters: {
+    mainGutterPx: 8, // 左整块 vs 右整块
+    rowGutterPx: 6, // Peak|Vector 或 Loudness 区|Spectrum 之间横条
+    histMetricsGutterPx: 6, // History 与 Metrics 之间竖条
+  },
+
+  // 顶栏 AudioMeter 一行：左右内边距（rem）
+  header: {
+    paddingXRem: 1.25,
+    paddingYRem: 1,
+  },
+
+  // 底栏状态行：左右 / 上下内边距（rem）
+  footer: {
+    paddingXRem: 1,
+    paddingYRem: 0.5,
+  },
+
+  // 各 article 卡片内边距：默认 vs Metrics 略紧（rem）
+  articlePadding: {
+    defaultRem: 1,
+    metricsRem: 0.75,
+  },
+
+  // 设置弹窗：最大宽、内边距、遮罩内边距（rem）
+  settingsModal: {
+    maxWidthRem: 28,
+    paddingRem: 1.25,
+    overlayPaddingRem: 1,
+  },
+
+  // 主布局：左侧「Peak + Vector」一栏的宽度（px）及中间竖条拖拽范围
+  mainColumn: {
+    initialPx: 360, // 默认左栏宽
+    dragMinPx: 280, // 拖窄极限
+    dragMaxPx: 520, // 拖宽极限
+  },
+
+  // 左栏内：Peak Meter 占上方高度比例（0~1），余下给 Vectorscope
+  leftSplit: {
+    initialRatio: 0.56, // 默认：Peak 约 56% 高
+    dragMinRatio: 0.32, // 上下拖动的比例下限
+    dragMaxRatio: 0.72,
+    dragPixelsPerDelta: 500, // 越大同样鼠标位移变化越小（手感更「钝」）
+  },
+
+  // 右栏内：Loudness（History+Metrics）区 vs Spectrum 的上下分割
+  rightSplit: {
+    initialRatio: 0.48, // 默认：上面 Loudness 区约 48% 高
+    dragMinRatio: 0.34,
+    dragMaxRatio: 0.76,
+    dragPixelsPerDelta: 650,
+  },
+
+  // 右栏 Loudness 一行内：History 宽度占行宽比例（0~1），余下给 Metrics
+  loudnessHistMetrics: {
+    initialRatio: 0.64, // 默认 History 约 64%，Metrics 约 36%
+    dragMinRatio: 0.5,
+    dragMaxRatio: 0.88,
+    dragPixelsPerDelta: 720,
+  },
+
+  // 各模块最小高度（rem），防止拖得太扁看不见
+  heightsRem: {
+    peakModuleMin: 12, // Peak 整块
+    historyModuleMin: 10, // Loudness History 整块（含轴与底栏）
+    spectrumModuleMin: 10, // Spectrum 整块
+    historyChartMin: 8, // 仅中间曲线区域最小高
+    spectrumFreqRowRem: 1.25, // Spectrum 下方频率刻度行高
+  },
+
+  // 纵轴刻度列宽度（px）：响度左轴、频谱左轴、Peak 刻度列
+  widthsPx: {
+    loudnessYAxis: 34,
+    spectrumYAxis: 36,
+    peakTickCol: 36,
+  },
+
+  // 全局字体与各档字号（px）；改完看标题、Metrics、脚注是否协调
+  typography: {
+    fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+    sizesPx: {
+      appTitle: 20, // 顶栏 AudioMeter
+      sectionTitle: 14, // 各模块小标题「Peak Meter」等
+      footer: 12, // 底栏状态字
+      body: 14, // 设置弹窗正文
+      small: 12, // 药丸按钮、图例按钮
+      caption: 10, // 时间轴、Window 说明、矢量角标
+      micro: 9, // LUFS / dB 轴最底一行
+      metricValue: 18, // Metrics 中间数字
+      metricLabel: 11, // Metrics 左标签、右单位
+      historyAxis: 10, // 预留：历史纵轴刻度（若与 caption 分开可调）
+      settingsHeading: 16, // Settings 标题
+    },
+    weights: {
+      appTitle: 800,
+      section: 600,
+    },
+  },
+
+  // 圆角：卡片、弹窗、药丸、Metrics 行
+  radii: {
+    card: "0.75rem",
+    modal: "1rem",
+    pill: "9999px",
+    metricRow: "0.375rem",
+  },
+
+  // 深色 / 浅色：各自一套 colors；light 里多写的 charts / spectrumGrid 会与下面全局 charts 等合并
+  themes: {
+    dark: {
+      colors: DARK_THEME_COLORS,
+    },
+    light: {
+      colors: LIGHT_THEME_COLORS,
+      charts: {
+        loudnessHistory: {
+          momentaryStroke: "#0e7490", // 浅底上略加深的 Momentary 线
+          shortTermStroke: "#1d4ed8",
+          selectionStroke: "#c2410c", // 时停竖线 / 选区
+        },
+        vectorscope: {
+          strokeLive: "#0e7490",
+          strokeSnap: "#c2410c",
+        },
+        spectrum: {
+          strokeLive: "#1d4ed8",
+          strokeSnap: "#c2410c",
+        },
+      },
+      spectrumGrid: {
+        verticalLineOpacity: 0.07, // 浅底上网格略明显一点
+        horizontalLineOpacity: 0.05,
+      },
+    },
+  },
+
+  // 深色默认下的曲线：颜色 + 线宽 + 透明度（浅色在 themes.light.charts 里覆盖颜色）
+  charts: {
+    loudnessHistory: {
+      momentaryStroke: "#22d3ee",
+      momentaryStrokeWidth: 2.2,
+      shortTermStroke: "#007AFF",
+      shortTermStrokeWidth: 2.6,
+      shortTermOpacity: 0.95,
+      selectionStrokeWidth: 1.2, // 时停选点竖线
+    },
+    vectorscope: {
+      strokeLive: "#22d3ee", // 实时轨迹
+      strokeSnap: "#f59e0b", // 时停
+      strokeWidth: 1.2,
+      axisOpacity: 0.8, // 轨迹透明度
+    },
+    spectrum: {
+      strokeLive: "#007AFF",
+      strokeSnap: "#f59e0b",
+      strokeWidth: 3,
+    },
+  },
+
+  // History / Spectrum 图底下的淡网格（透明度 + 线距 px）
+  spectrumGrid: {
+    verticalLineOpacity: 0.04,
+    horizontalLineOpacity: 0.03,
+    verticalSpacingPx: 56,
+    horizontalSpacingPx: 34,
+  },
+
+  // Peak 表盘竖向三色渐变（上→中→下）
+  meterGradient: {
+    top: "#ef4444",
+    mid: "#f59e0b",
+    midStopPercent: 40, // 中间色停在渐变高度的百分比
+    bottom: "#22c55e",
+  },
+
+  // 响度历史默认时间窗（秒）；Clear、右键双击重置等与此一致
+  history: {
+    defaultWindowSec: 120,
+  },
+
+  // 右侧 Metrics：数值列宽(ch)、单位列宽(rem)、行高与内边距
+  loudnessMetrics: {
+    valueColumnCh: 7, // 等宽数字列，影响小数点对齐
+    unitColumnRem: 3.5,
+    rowMinHeightRem: 2.125,
+    rowPaddingXRem: 0.625,
+    rowPaddingYRem: 0.375,
+    rowGapRem: 0.5,
+  },
+};
 
 /** 与 App 持久化逻辑一致，用于首屏避免主题闪烁 */
 export function readPersistedUiMode(prefs) {
@@ -181,262 +480,3 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   const sp = charts.spectrum;
   setCssVar("--ui-sp-stroke-w", String(sp.strokeWidth));
 }
-
-const DARK_THEME_COLORS = {
-  pageBg: "#111827",
-  textPrimary: "#f3f4f6",
-  textSecondary: "#d1d5db",
-  textMuted: "#9ca3af",
-  textSubtle: "#6b7280",
-  panelBg: "#1f2937",
-  panelBgSplitter: "rgba(31, 41, 55, 0.8)",
-  insetBg: "#111827",
-  insetDark: "rgba(3, 7, 18, 0.9)",
-  borderDefault: "rgba(51, 65, 85, 0.8)",
-  divider: "#4b5563",
-  brand: "#3b82f6",
-  brandLight: "#60a5fa",
-  brandHover: "#60a5fa",
-  controlBg: "#374151",
-  peakSamplePeak: "rgba(251, 191, 36, 0.95)",
-  peakTruePeak: "rgba(207, 250, 254, 0.7)",
-  tpMaxText: "#67e8f9",
-  correlation: {
-    bad: "#f87171",
-    mid: "#fcd34d",
-    good: "#6ee7b7",
-  },
-  loudnessTargetLine: "rgba(251, 191, 36, 0.7)",
-  snapshotRing: "rgba(251, 191, 36, 0.5)",
-  snapshotBadgeBg: "rgba(251, 191, 36, 0.15)",
-  snapshotBadgeText: "#fde68a",
-  settingsOverlay: "rgba(0, 0, 0, 0.6)",
-  settingsRowBg: "rgba(17, 24, 39, 0.7)",
-  legendHistOnBg: "#374151",
-  legendHistOnText: "#f3f4f6",
-  legendHistOffBg: "#111827",
-  legendHistOffText: "#9ca3af",
-  targetLabel: "#d1d5db",
-  targetValue: "#fcd34d",
-};
-
-const LIGHT_THEME_COLORS = {
-  pageBg: "#e5e7eb",
-  textPrimary: "#111827",
-  textSecondary: "#374151",
-  textMuted: "#6b7280",
-  textSubtle: "#9ca3af",
-  panelBg: "#ffffff",
-  panelBgSplitter: "rgba(209, 213, 219, 0.95)",
-  insetBg: "#f9fafb",
-  insetDark: "rgba(241, 245, 249, 0.98)",
-  borderDefault: "rgba(148, 163, 184, 0.75)",
-  divider: "#d1d5db",
-  brand: "#2563eb",
-  brandLight: "#3b82f6",
-  brandHover: "#1d4ed8",
-  controlBg: "#e5e7eb",
-  peakSamplePeak: "rgba(217, 119, 6, 0.95)",
-  peakTruePeak: "rgba(8, 145, 178, 0.85)",
-  tpMaxText: "#0e7490",
-  correlation: {
-    bad: "#dc2626",
-    mid: "#ca8a04",
-    good: "#15803d",
-  },
-  loudnessTargetLine: "rgba(217, 119, 6, 0.75)",
-  snapshotRing: "rgba(217, 119, 6, 0.45)",
-  snapshotBadgeBg: "rgba(251, 191, 36, 0.25)",
-  snapshotBadgeText: "#92400e",
-  settingsOverlay: "rgba(15, 23, 42, 0.35)",
-  settingsRowBg: "rgba(243, 244, 246, 0.95)",
-  legendHistOnBg: "#e5e7eb",
-  legendHistOnText: "#111827",
-  legendHistOffBg: "#f3f4f6",
-  legendHistOffText: "#6b7280",
-  targetLabel: "#4b5563",
-  targetValue: "#b45309",
-};
-
-export const UI_PREFERENCES = {
-  layoutPersistKey: "am.react.layout.v1",
-
-  themes: {
-    dark: {
-      colors: DARK_THEME_COLORS,
-    },
-    light: {
-      colors: LIGHT_THEME_COLORS,
-      charts: {
-        loudnessHistory: {
-          momentaryStroke: "#0e7490",
-          shortTermStroke: "#1d4ed8",
-          selectionStroke: "#c2410c",
-        },
-        vectorscope: {
-          strokeLive: "#0e7490",
-          strokeSnap: "#c2410c",
-        },
-        spectrum: {
-          strokeLive: "#1d4ed8",
-          strokeSnap: "#c2410c",
-        },
-      },
-      spectrumGrid: {
-        verticalLineOpacity: 0.07,
-        horizontalLineOpacity: 0.05,
-      },
-    },
-  },
-
-  splitters: {
-    mainGutterPx: 8,
-    rowGutterPx: 6,
-    histMetricsGutterPx: 6,
-  },
-
-  shell: {
-    maxWidthPx: 1600,
-    paddingRem: { base: 1, lg: 1.5 },
-    gapRem: { base: 0.75, lg: 1 },
-  },
-
-  typography: {
-    fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-    sizesPx: {
-      appTitle: 20,
-      sectionTitle: 14,
-      footer: 12,
-      body: 14,
-      small: 12,
-      caption: 10,
-      micro: 9,
-      metricValue: 18,
-      metricLabel: 11,
-      historyAxis: 10,
-      settingsHeading: 16,
-    },
-    weights: {
-      appTitle: 800,
-      section: 600,
-    },
-  },
-
-  radii: {
-    card: "0.75rem",
-    modal: "1rem",
-    pill: "9999px",
-    metricRow: "0.375rem",
-  },
-
-  charts: {
-    loudnessHistory: {
-      momentaryStroke: "#22d3ee",
-      momentaryStrokeWidth: 2.2,
-      shortTermStroke: "#007AFF",
-      shortTermStrokeWidth: 2.6,
-      shortTermOpacity: 0.95,
-      selectionStrokeWidth: 1.2,
-    },
-    vectorscope: {
-      strokeLive: "#22d3ee",
-      strokeSnap: "#f59e0b",
-      strokeWidth: 1.2,
-      axisOpacity: 0.8,
-    },
-    spectrum: {
-      strokeLive: "#007AFF",
-      strokeSnap: "#f59e0b",
-      strokeWidth: 3,
-    },
-  },
-
-  spectrumGrid: {
-    verticalLineOpacity: 0.04,
-    horizontalLineOpacity: 0.03,
-    verticalSpacingPx: 56,
-    horizontalSpacingPx: 34,
-  },
-
-  meterGradient: {
-    top: "#ef4444",
-    mid: "#f59e0b",
-    midStopPercent: 40,
-    bottom: "#22c55e",
-  },
-
-  heightsRem: {
-    peakModuleMin: 12,
-    historyModuleMin: 10,
-    spectrumModuleMin: 10,
-    historyChartMin: 8,
-    spectrumFreqRowRem: 1.25,
-  },
-
-  widthsPx: {
-    loudnessYAxis: 34,
-    spectrumYAxis: 36,
-    peakTickCol: 36,
-  },
-
-  mainColumn: {
-    initialPx: 360,
-    dragMinPx: 280,
-    dragMaxPx: 520,
-  },
-
-  leftSplit: {
-    initialRatio: 0.56,
-    dragMinRatio: 0.32,
-    dragMaxRatio: 0.72,
-    dragPixelsPerDelta: 500,
-  },
-
-  rightSplit: {
-    initialRatio: 0.48,
-    dragMinRatio: 0.34,
-    dragMaxRatio: 0.76,
-    dragPixelsPerDelta: 650,
-  },
-
-  loudnessHistMetrics: {
-    initialRatio: 0.64,
-    dragMinRatio: 0.5,
-    dragMaxRatio: 0.88,
-    dragPixelsPerDelta: 720,
-  },
-
-  history: {
-    defaultWindowSec: 120,
-  },
-
-  loudnessMetrics: {
-    valueColumnCh: 7,
-    unitColumnRem: 3.5,
-    rowMinHeightRem: 2.125,
-    rowPaddingXRem: 0.625,
-    rowPaddingYRem: 0.375,
-    rowGapRem: 0.5,
-  },
-
-  settingsModal: {
-    maxWidthRem: 28,
-    paddingRem: 1.25,
-    overlayPaddingRem: 1,
-  },
-
-  header: {
-    paddingXRem: 1.25,
-    paddingYRem: 1,
-  },
-
-  articlePadding: {
-    defaultRem: 1,
-    metricsRem: 0.75,
-  },
-
-  footer: {
-    paddingXRem: 1,
-    paddingYRem: 0.5,
-  },
-};
