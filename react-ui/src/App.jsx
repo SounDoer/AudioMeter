@@ -835,7 +835,7 @@ export default function App() {
             >
               <article className="ui-article ui-min-h-history flex h-full min-w-0 flex-1 flex-col">
                 <div className="ui-section-title ui-section-title-main shrink-0">Loudness History</div>
-                <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-history">
+                <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-chart-x-axis-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-history">
                   <div className="ui-w-loudness-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                     <div className="absolute inset-x-0 top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)]">
                       {historyYAxisTicks.map(({ v, lb }) => {
@@ -929,7 +929,7 @@ export default function App() {
                   </div>
 
                   <div />
-                  <div className="ui-caption relative h-[var(--ui-spectrum-freq-row-h)]">
+                  <div className="ui-caption relative h-[var(--ui-chart-x-axis-row-h)]">
                     <div className="absolute inset-x-[var(--ui-history-svg-pad)] top-0 h-full">
                       {historyTimeTicks.map((tick, i) => {
                         if (i === 0) {
@@ -1011,7 +1011,7 @@ export default function App() {
 
             <article className="ui-article ui-min-h-spectrum flex-1">
               <div className="ui-section-title ui-section-title-main shrink-0">Spectrum Analyzer</div>
-              <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-spectrum">
+              <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-chart-x-axis-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-spectrum">
                 <div className="ui-w-spectrum-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                   <div className="absolute inset-x-0 top-[var(--ui-spectrum-display-top-inset)] bottom-[var(--ui-spectrum-display-bottom-inset)]">
                     {SPEC_Y_TICKS.map(({ v, lb }) => (
@@ -1053,7 +1053,7 @@ export default function App() {
                 </div>
 
                 <div />
-                <div className="ui-caption relative h-[var(--ui-spectrum-freq-row-h)] w-full">
+                <div className="ui-caption relative h-[var(--ui-chart-x-axis-row-h)] w-full">
                   <div className="absolute inset-x-[var(--ui-spectrum-svg-pad)] top-0 h-full">
                     {FREQ_LABELS.map(([f, lb]) => (
                       <span key={f} className="absolute top-0 -translate-x-1/2 whitespace-nowrap" style={{ left: `${freqToXFrac(f) * 100}%` }}>

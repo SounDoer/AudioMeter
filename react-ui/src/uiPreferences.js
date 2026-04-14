@@ -275,7 +275,7 @@ export const UI_PREFERENCES = {
     historyModuleMin: 10, // Loudness History 整块（含轴与底栏）
     spectrumModuleMin: 10, // Spectrum 整块
     historyChartMin: 8, // 仅中间曲线区域最小高
-    spectrumFreqRowRem: 1.25, // Spectrum 下方频率刻度行高
+    chartXAxisRowRem: 0.6, // History / Spectrum 共用横轴刻度行高
   },
 
   // 纵轴刻度列宽度（px）：响度左轴、频谱左轴、Peak 刻度列
@@ -524,7 +524,7 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-min-h-history", `${heightsRem.historyModuleMin}rem`);
   setCssVar("--ui-min-h-spectrum", `${heightsRem.spectrumModuleMin}rem`);
   setCssVar("--ui-min-h-history-chart", `${heightsRem.historyChartMin}rem`);
-  setCssVar("--ui-spectrum-freq-row-h", `${heightsRem.spectrumFreqRowRem}rem`);
+  setCssVar("--ui-chart-x-axis-row-h", `${heightsRem.chartXAxisRowRem}rem`);
 
   setCssVar("--ui-w-loudness-y-axis", `${widthsPx.loudnessYAxis}px`);
   setCssVar("--ui-w-spectrum-y-axis", `${widthsPx.spectrumYAxis}px`);
