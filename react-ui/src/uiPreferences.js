@@ -174,7 +174,7 @@ export const UI_PREFERENCES = {
 
   // 各 article 卡片内边距：默认可分 x/y；Metrics 列表单独控制（rem）
   articlePadding: {
-    defaultXRem: 0.6,
+    defaultXRem: 0.7,
     defaultYRem: 0.5,
     metricsRem: 0, // Metrics 条目列表内边距（标题仍跟随 defaultRem）
     sectionTitleGapRem: 0.4, // 常规模块标题与内容间距
@@ -280,9 +280,9 @@ export const UI_PREFERENCES = {
 
   // 纵轴刻度列宽度（px）：响度左轴、频谱左轴、Peak 刻度列
   widthsPx: {
-    loudnessYAxis: 34,
-    spectrumYAxis: 36,
-    peakTickCol: 36,
+    loudnessYAxis: 24,
+    spectrumYAxis: 24,
+    peakTickCol: 24,
   },
 
   /**
