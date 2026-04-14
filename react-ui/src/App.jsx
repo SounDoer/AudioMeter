@@ -35,7 +35,7 @@ function MetricRow({ label, value, unit, toggleColor, isActive = false, onToggle
   const content = (
     <>
       <span className="ui-metric-label">
-        {toggleColor ? <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ backgroundColor: toggleColor }} /> : null}
+        {toggleColor ? <span className="mr-1.5 inline-block h-[var(--ui-metric-dot-size)] w-[var(--ui-metric-dot-size)] rounded-full align-middle" style={{ backgroundColor: toggleColor }} /> : null}
         {label}
       </span>
       <span className="ui-metric-value" style={{ width: `${valueColumnCh}ch` }}>
@@ -657,7 +657,7 @@ export default function App() {
             Audio<span className="ui-app-title-brand">Meter</span>
           </div>
           <div className="flex-1" />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[var(--ui-header-action-gap)]">
             <PillButton onClick={clearAll}>Clear</PillButton>
             <PillButton accent onClick={onStartClick}>{startLabel}</PillButton>
             <PillButton onClick={() => setSettingsOpen(true)}>Settings</PillButton>
@@ -673,13 +673,13 @@ export default function App() {
             style={{ "--leftTop": `${Math.round(leftTopRatio * 100)}%` }}
           >
             <article className="ui-article ui-min-h-peak min-h-0">
-              <div className="mb-3 shrink-0">
-                <div className="ui-section-title">Peak Meter</div>
+              <div className="shrink-0">
+                <div className="ui-section-title ui-section-title-main shrink-0">Peak Meter</div>
               </div>
-              <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-3 ui-min-h-peak">
+              <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-[var(--ui-panel-inner-gap)] ui-min-h-peak">
                 {/* ??????gauge??top-2 bottom-3?????????????????peakFromTopFrac ??peak.js mFrac ????*/}
                 <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
-                  <div className="absolute inset-x-0 top-2 bottom-3">
+                  <div className="absolute inset-x-0 top-[var(--ui-peak-gauge-top-inset)] bottom-[var(--ui-peak-gauge-bottom-inset)]">
                     {PEAK_TICKS.map(({ v, lb }) => (
                       <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${peakFromTopFrac(v) * 100}%` }}>
                         {lb}
@@ -687,9 +687,9 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-2">
-                    <div className="absolute inset-x-3 bottom-3 top-2">
+                <div className="grid grid-cols-2 gap-[var(--ui-panel-inner-gap)]">
+                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-[var(--ui-meter-card-pad)]">
+                    <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-meter-chart-bottom-inset)] top-[var(--ui-meter-chart-top-inset)]">
                       <div className="meter-gradient absolute inset-x-0 bottom-0 rounded-md" style={{ top: `${peakFromTopFrac(displayAudio.sampleL) * 100}%` }} />
                       {Number.isFinite(displayAudio.samplePeakMaxL) && (
                         <div
@@ -698,12 +698,12 @@ export default function App() {
                         />
                       )}
                     </div>
-                    <div className="absolute left-3 right-3 top-3 text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
+                    <div className="absolute left-[var(--ui-meter-label-inset-x)] right-[var(--ui-meter-label-inset-x)] top-[var(--ui-meter-label-top-inset)] text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
                       L <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleL)}</span>
                     </div>
                   </div>
-                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-2">
-                    <div className="absolute inset-x-3 bottom-3 top-2">
+                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-[var(--ui-meter-card-pad)]">
+                    <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-meter-chart-bottom-inset)] top-[var(--ui-meter-chart-top-inset)]">
                       <div className="meter-gradient absolute inset-x-0 bottom-0 rounded-md" style={{ top: `${peakFromTopFrac(displayAudio.sampleR) * 100}%` }} />
                       {Number.isFinite(displayAudio.samplePeakMaxR) && (
                         <div
@@ -712,13 +712,13 @@ export default function App() {
                         />
                       )}
                     </div>
-                    <div className="absolute left-3 right-3 top-3 text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
+                    <div className="absolute left-[var(--ui-meter-label-inset-x)] right-[var(--ui-meter-label-inset-x)] top-[var(--ui-meter-label-top-inset)] text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
                       R <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleR)}</span>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="mt-2 grid shrink-0 grid-cols-[auto_1fr] gap-3">
+              <div className="mt-[var(--ui-panel-footer-gap)] grid shrink-0 grid-cols-[auto_1fr] gap-[var(--ui-panel-inner-gap)]">
                 <div />
                 <div className="text-right text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-muted)]">
                   TP MAX <span className="font-semibold text-[color:var(--ui-color-tp-max)]">{fmt(displayAudio.tpMax)} dBTP</span>
@@ -735,19 +735,19 @@ export default function App() {
             />
 
             <article className="ui-article ui-min-h-spectrum flex-1">
-              <div className="ui-section-title mb-3 shrink-0">Vectorscope</div>
+              <div className="ui-section-title ui-section-title-main shrink-0">Vectorscope</div>
               <div
                 className={`relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)] ${selectedOffset >= 0 ? "ring-1 ring-[color:var(--ui-color-snapshot-ring)]" : ""}`}
               >
                 {selectedOffset >= 0 && (
                   <div
-                    className="absolute right-2 top-2 rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
+                    className="absolute right-[var(--ui-snapshot-badge-inset)] top-[var(--ui-snapshot-badge-inset)] rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
                     style={{ backgroundColor: "var(--ui-color-snapshot-badge-bg)", color: "var(--ui-color-snapshot-badge-text)" }}
                   >
                     Snapshot View
                   </div>
                 )}
-                <div className="absolute inset-4 z-0 min-h-0 min-w-0 overflow-hidden">
+                <div className="absolute inset-[var(--ui-chart-outer-inset)] z-0 min-h-0 min-w-0 overflow-hidden">
                   <svg
                     className="pointer-events-none absolute inset-0 z-0 block h-full w-full"
                     viewBox="0 0 100 100"
@@ -821,12 +821,12 @@ export default function App() {
                     />
                   </svg>
                 </div>
-                <span className="ui-caption absolute left-2 top-2">L</span>
-                <span className="ui-caption absolute right-2 top-2">R</span>
-                <span className="ui-caption absolute left-2 bottom-2">-1</span>
-                <span className="ui-caption absolute right-2 bottom-2">+1</span>
+                <span className="ui-caption absolute left-[var(--ui-vector-corner-inset)] top-[var(--ui-vector-corner-inset)]">L</span>
+                <span className="ui-caption absolute right-[var(--ui-vector-corner-inset)] top-[var(--ui-vector-corner-inset)]">R</span>
+                <span className="ui-caption absolute left-[var(--ui-vector-corner-inset)] bottom-[var(--ui-vector-corner-inset)]">-1</span>
+                <span className="ui-caption absolute right-[var(--ui-vector-corner-inset)] bottom-[var(--ui-vector-corner-inset)]">+1</span>
               </div>
-              <div className="mt-2 flex shrink-0 items-baseline justify-end gap-2 text-[length:var(--ui-fs-extra)]">
+              <div className="mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-end gap-[var(--ui-inline-value-gap)] text-[length:var(--ui-fs-extra)]">
                 <span className="text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
                 <span className={`font-semibold tabular-nums ${valueClassByCorr(correlation)}`}>{correlation.toFixed(2)}</span>
               </div>
@@ -846,14 +846,14 @@ export default function App() {
             style={{ "--rightTop": `${Math.round(rightTopRatio * 100)}%` }}
           >
             <div
-              className="grid min-h-0 grid-cols-1 gap-4 xl:h-full xl:min-h-0 xl:grid-cols-[var(--hmSplit)_var(--ui-splitter-hm)_minmax(0,1fr)] xl:gap-[var(--ui-splitter-hm)]"
+              className="grid min-h-0 grid-cols-1 gap-[var(--ui-right-section-gap)] xl:h-full xl:min-h-0 xl:grid-cols-[var(--hmSplit)_var(--ui-splitter-hm)_minmax(0,1fr)] xl:gap-[var(--ui-splitter-hm)]"
               style={{ "--hmSplit": `${Math.round(loudnessHistWidthRatio * 100)}%` }}
             >
               <article className="ui-article ui-min-h-history flex h-full min-w-0 flex-1 flex-col">
-                <div className="ui-section-title mb-3 shrink-0">Loudness History</div>
+                <div className="ui-section-title ui-section-title-main shrink-0">Loudness History</div>
                 <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-2 gap-y-2 items-stretch ui-min-h-history">
                   <div className="ui-w-loudness-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
-                    <div className="absolute inset-x-0 top-3 bottom-3">
+                    <div className="absolute inset-x-0 top-[var(--ui-history-axis-inset-y)] bottom-[var(--ui-history-axis-inset-y)]">
                       {historyYAxisTicks.map(({ v, lb }) => {
                         const isTargetTick = v === targetLufs;
                         const tickClass = isTargetTick
@@ -898,7 +898,7 @@ export default function App() {
                     <svg
                       viewBox="0 0 600 220"
                       preserveAspectRatio="none"
-                      className="relative z-0 h-full w-full p-3"
+                      className="relative z-0 h-full w-full p-[var(--ui-history-svg-pad)]"
                     >
                       {histCurves.m && (
                         <path
@@ -918,7 +918,7 @@ export default function App() {
                         />
                       )}
                     </svg>
-                    <div className="pointer-events-none absolute inset-3 z-10">
+                    <div className="pointer-events-none absolute inset-[var(--ui-history-overlay-inset)] z-10">
                       <div
                         className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
                         style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
@@ -934,7 +934,7 @@ export default function App() {
                         />
                       )}
                       {isHistoryHudVisible && (
-                        <div className="absolute bottom-1 right-1 rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-0.5 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
+                        <div className="absolute bottom-[var(--ui-hud-inset)] right-[var(--ui-hud-inset)] rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-0.5 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
                           Window {fmtSec(clampedWindowSec)} | Offset {fmtSec(effectiveOffsetSec)}
                         </div>
                       )}
@@ -976,8 +976,8 @@ export default function App() {
               />
 
               <article className="ui-article ui-article-metrics flex h-full min-h-0 min-w-0 flex-col xl:min-h-0">
-                <div className="ui-section-title mb-2 shrink-0">Loudness Metrics</div>
-                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+                <div className="ui-section-title ui-section-title-metrics shrink-0">Loudness Metrics</div>
+                <div className="ui-metrics-list flex min-h-0 flex-1 flex-col gap-[var(--ui-metrics-list-gap)] overflow-y-auto">
                   {primaryMetrics.map((metric) => {
                     if (metric.label === "Momentary") {
                       const item = historyLegend.find((x) => x.key === "m");
@@ -1021,11 +1021,11 @@ export default function App() {
             />
 
             <article className="ui-article ui-min-h-spectrum flex-1">
-              <div className="ui-section-title mb-3 shrink-0">Spectrum Analyzer</div>
-              <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] gap-2 items-stretch ui-min-h-spectrum">
+              <div className="ui-section-title ui-section-title-main shrink-0">Spectrum Analyzer</div>
+              <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] gap-[var(--ui-axis-chart-gap)] items-stretch ui-min-h-spectrum">
                 <div className="ui-w-spectrum-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                   <div className="relative min-h-0 w-full flex-1">
-                    <div className="absolute inset-x-0 top-2 bottom-2">
+                    <div className="absolute inset-x-0 top-[var(--ui-spectrum-axis-inset-y)] bottom-[var(--ui-spectrum-axis-inset-y)]">
                       {SPEC_Y_TICKS.map(({ v, lb }) => (
                         <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${spectrumDbToTopFrac(v) * 100}%` }}>
                           {lb}
@@ -1033,7 +1033,7 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-                  <div className="ui-axis-label-sub shrink-0 pb-1 text-center">dB</div>
+                  <div className="ui-axis-label-sub shrink-0 pb-[var(--ui-axis-unit-pad-b)] text-center">dB</div>
                 </div>
                 <div className="relative flex min-h-0 min-w-0 flex-col">
                   <div
@@ -1041,13 +1041,13 @@ export default function App() {
                   >
                     {selectedOffset >= 0 && (
                       <div
-                        className="absolute right-2 top-2 rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
+                        className="absolute right-[var(--ui-snapshot-badge-inset)] top-[var(--ui-snapshot-badge-inset)] rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
                         style={{ backgroundColor: "var(--ui-color-snapshot-badge-bg)", color: "var(--ui-color-snapshot-badge-text)" }}
                       >
                         Snapshot View
                       </div>
                     )}
-                    <div className="absolute inset-0 min-h-0 min-w-0 p-2">
+                    <div className="absolute inset-0 min-h-0 min-w-0 p-[var(--ui-spectrum-svg-pad)]">
                       <svg
                         viewBox="0 0 1000 260"
                         preserveAspectRatio="none"
@@ -1062,14 +1062,14 @@ export default function App() {
                       </svg>
                     </div>
                   </div>
-                  <div className="ui-caption relative mt-2 w-full" style={{ height: "var(--ui-spectrum-freq-row-h)" }}>
+                  <div className="ui-caption relative mt-[var(--ui-freq-axis-top-gap)] w-full" style={{ height: "var(--ui-spectrum-freq-row-h)" }}>
                     {FREQ_LABELS.map(([f, lb]) => (
                       <span key={f} className="absolute top-0 -translate-x-1/2 whitespace-nowrap" style={{ left: `${freqToXFrac(f) * 100}%` }}>
                         {lb}
                       </span>
                     ))}
                   </div>
-                  <div className="ui-caption-subtle mt-1">Hz (log)</div>
+                  <div className="ui-caption-subtle mt-[var(--ui-axis-sub-label-gap)]">Hz (log)</div>
                 </div>
               </div>
             </article>
@@ -1088,13 +1088,13 @@ export default function App() {
       {settingsOpen && (
         <div className="ui-settings-overlay">
           <div className="ui-settings-dialog">
-            <div className="mb-5 flex items-center justify-between">
+            <div className="ui-settings-header flex items-center justify-between">
               <h2 className="ui-settings-heading">Settings</h2>
-              <button type="button" className="ui-settings-btn rounded-full px-3 py-1" onClick={() => setSettingsOpen(false)}>
+              <button type="button" className="ui-settings-btn ui-settings-btn-pill" onClick={() => setSettingsOpen(false)}>
                 Close
               </button>
             </div>
-            <div className="flex flex-col gap-4 text-[length:var(--ui-fs-metric-meta)]">
+            <div className="ui-settings-content flex flex-col text-[length:var(--ui-fs-metric-meta)]">
               <div className="ui-settings-row">
                 <span className="ui-settings-label">Loudness standard</span>
                 <select value={standard} onChange={(e) => setStandard(e.target.value)} className="ui-select">
@@ -1104,7 +1104,7 @@ export default function App() {
               </div>
               <div className="ui-settings-row">
                 <span className="ui-settings-label">Theme</span>
-                <div className="flex gap-2">
+                <div className="ui-settings-inline-actions flex">
                   <button type="button" onClick={() => setUiMode("dark")} className={uiMode === "dark" ? "ui-theme-btn-on" : "ui-theme-btn-off"}>
                     Dark
                   </button>
@@ -1115,7 +1115,7 @@ export default function App() {
               </div>
               <div className="ui-settings-row">
                 <span className="ui-settings-label">Layout</span>
-                <button type="button" onClick={resetLayout} className="ui-settings-btn rounded-full px-3 py-1">
+                <button type="button" onClick={resetLayout} className="ui-settings-btn ui-settings-btn-pill">
                   Reset Layout
                 </button>
               </div>

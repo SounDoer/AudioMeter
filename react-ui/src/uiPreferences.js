@@ -78,6 +78,17 @@ const DARK_THEME_COLORS = {
   legendHistOnText: "#f3f4f6",
   legendHistOffBg: "#111827", // History 图例按钮「关」
   legendHistOffText: "#9ca3af",
+  metricRowBg: "rgba(31, 41, 55, 0.28)", // Metrics 普通条目背景（弱化，融入面板）
+  metricRowBorder: "rgba(71, 85, 105, 0.5)", // Metrics 普通条目边框
+  metricRowHoverBg: "rgba(30, 41, 59, 0.42)", // Metrics 按钮 hover 背景
+  metricRowToggleOnBg: "rgba(30, 58, 138, 0.22)", // Metrics 按钮选中背景
+  metricRowToggleOnBorder: "#3b82f6", // Metrics 按钮选中边框
+  metricRowToggleOnGlow: "rgba(59, 130, 246, 0.35)", // Metrics 按钮选中发光
+  metricLabelText: "#94a3b8", // Metrics 名称
+  metricValueText: "#f8fafc", // Metrics 数值
+  metricUnitText: "#cbd5e1", // Metrics 单位
+  metricToggleOnLabelText: "#dbeafe", // Metrics 选中名称
+  metricToggleOnUnitText: "#bfdbfe", // Metrics 选中单位
   targetLabel: "#d1d5db", // 「Target」文字
   targetValue: "#fcd34d", // 目标 LUFS 数字
 };
@@ -117,6 +128,17 @@ const LIGHT_THEME_COLORS = {
   legendHistOnText: "#111827",
   legendHistOffBg: "#f3f4f6",
   legendHistOffText: "#6b7280",
+  metricRowBg: "rgba(255, 255, 255, 0.55)",
+  metricRowBorder: "rgba(148, 163, 184, 0.5)",
+  metricRowHoverBg: "rgba(248, 250, 252, 0.92)",
+  metricRowToggleOnBg: "rgba(219, 234, 254, 0.72)",
+  metricRowToggleOnBorder: "#2563eb",
+  metricRowToggleOnGlow: "rgba(37, 99, 235, 0.25)",
+  metricLabelText: "#64748b",
+  metricValueText: "#0f172a",
+  metricUnitText: "#475569",
+  metricToggleOnLabelText: "#1e40af",
+  metricToggleOnUnitText: "#1d4ed8",
   targetLabel: "#4b5563",
   targetValue: "#b45309",
 };
@@ -128,8 +150,8 @@ export const UI_PREFERENCES = {
   // 最外层容器：最大宽度、页面边距、主纵向间距（rem）
   shell: {
     maxWidthPx: 1600, // 内容区 max-width，再大两侧留白
-    paddingRem: { base: 1, lg: 1.5 }, // 小屏 / lg 以上整页内边距
-    gapRem: { base: 0.75, lg: 1 }, // header、main、footer 之间的缝
+    paddingRem: { base: 0.8, lg: 1.2}, // 小屏 / lg 以上整页内边距
+    gapRem: { base: 0.4, lg: 0.4 }, // header、main、footer 之间的缝
   },
 
   // 主栏竖条、上下分栏条、History|Metrics 之间竖条宽度（px）
@@ -153,8 +175,42 @@ export const UI_PREFERENCES = {
 
   // 各 article 卡片内边距：默认 vs Metrics 略紧（rem）
   articlePadding: {
-    defaultRem: 1,
-    metricsRem: 0.75,
+    defaultRem: 0.6,
+    metricsRem: 0.75, // Metrics 条目列表内边距（标题仍跟随 defaultRem）
+    sectionTitleGapRem: 0.75, // 常规模块标题与内容间距
+    metricsTitleGapRem: 0.5, // Metrics 模块标题与列表间距
+  },
+
+  // 常用细粒度间距（rem）：避免 JSX 里硬编码 mt/gap/pb 导致配置失效
+  spacingRem: {
+    panelFooterGap: 0.5, // 模块主体与底部信息条之间（原 mt-2）
+    metricsListGap: 0.25, // Metrics 条目间距（原 gap-1）
+    axisUnitPadBottom: 0.25, // 纵轴单位文本底部内边距（原 pb-1）
+    axisSubLabelGap: 0.25, // 频轴次级标签与主轴间距（原 mt-1）
+    freqAxisTopGap: 0.5, // 频率刻度轴与图表间距（原 mt-2）
+    headerActionGap: 0.5, // 顶栏右侧按钮间距（原 gap-2）
+    inlineValueGap: 0.5, // 模块内同一行数值组间距（原 gap-2）
+    rightSectionGap: 1, // 右侧上下/左右分区缝隙（原 gap-4）
+    axisChartGap: 0.5, // 轴与图表间距（原 gap-2）
+    panelInnerGap: 0.75, // 模块内中等间距（原 gap-3）
+    metricDotSize: 0.5, // Metrics 可切换条目前的小圆点（原 h-2 w-2）
+    peakGaugeTopInset: 0.5, // Peak 刻度顶部留白（原 top-2）
+    peakGaugeBottomInset: 0.75, // Peak 刻度底部留白（原 bottom-3）
+    meterCardPad: 0.5, // L/R 柱图卡片内边距（原 p-2）
+    meterChartInsetX: 0.75, // L/R 柱图左右内缩（原 inset-x-3）
+    meterChartTopInset: 0.5, // L/R 柱图顶部内缩（原 top-2）
+    meterChartBottomInset: 0.75, // L/R 柱图底部内缩（原 bottom-3）
+    meterLabelInsetX: 0.75, // L/R 标题左右定位（原 left-3/right-3）
+    meterLabelTopInset: 0.75, // L/R 标题顶部定位（原 top-3）
+    snapshotBadgeInset: 0.5, // Snapshot 徽章右上偏移（原 right-2/top-2）
+    chartOuterInset: 1, // Vectorscope 绘图区外边距（原 inset-4）
+    vectorCornerInset: 0.5, // Vectorscope 四角标注偏移（原 left/right/top/bottom-2）
+    historyAxisInsetY: 0.75, // History 左轴上下内缩（原 top-3/bottom-3）
+    historySvgPad: 0.75, // History 主图 SVG 内边距（原 p-3）
+    historyOverlayInset: 0.75, // History 覆盖层内边距（原 inset-3）
+    hudInset: 0.25, // History HUD 角落偏移（原 bottom-1/right-1）
+    spectrumAxisInsetY: 0.5, // Spectrum 左轴上下内缩（原 top-2/bottom-2）
+    spectrumSvgPad: 0.5, // Spectrum 主图 SVG 内边距（原 p-2）
   },
 
   // 设置弹窗：最大宽、内边距、遮罩内边距（rem）
@@ -162,6 +218,11 @@ export const UI_PREFERENCES = {
     maxWidthRem: 28,
     paddingRem: 1.25,
     overlayPaddingRem: 1,
+    headerGapRem: 1.25, // Settings 标题行与内容区间距（原 mb-5）
+    contentGapRem: 1, // Settings 各配置行垂直间距（原 gap-4）
+    inlineGapRem: 0.5, // Theme 按钮组横向间距（原 gap-2）
+    actionPadXRem: 0.75, // Close/Reset 按钮水平内边距（原 px-3）
+    actionPadYRem: 0.25, // Close/Reset 按钮垂直内边距（原 py-1）
   },
 
   // 主布局：左侧「Peak + Vector」一栏的宽度（px）及中间竖条拖拽范围
@@ -181,7 +242,7 @@ export const UI_PREFERENCES = {
 
   // 右栏内：Loudness（History+Metrics）区 vs Spectrum 的上下分割
   rightSplit: {
-    initialRatio: 0.48, // 默认：上面 Loudness 区约 48% 高
+    initialRatio: 0.5, // 默认：上面 Loudness 区约 48% 高
     dragMinRatio: 0.34,
     dragMaxRatio: 0.76,
     dragPixelsPerDelta: 650,
@@ -189,7 +250,7 @@ export const UI_PREFERENCES = {
 
   // 右栏 Loudness 一行内：History 宽度占行宽比例（0~1），余下给 Metrics
   loudnessHistMetrics: {
-    initialRatio: 0.64, // 默认 History 约 64%，Metrics 约 36%
+    initialRatio: 0.65, // 默认 History 约 64%，Metrics 约 36%
     dragMinRatio: 0.5,
     dragMaxRatio: 0.88,
     dragPixelsPerDelta: 720,
@@ -220,7 +281,7 @@ export const UI_PREFERENCES = {
     fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     sizesPx: {
       title: 20, // 顶栏大标题
-      section: 16, // 各模块标题、Settings 标题
+      section: 12, // 各模块标题、Settings 标题
       axisValue: 12, // 坐标轴刻度数字、时间轴刻度
       axisUnit: 11, // 坐标轴单位（LUFS / dB / Hz）
       extraValue: 13, // TP MAX / Correlation / Target 等模块补充信息
@@ -322,7 +383,7 @@ export const UI_PREFERENCES = {
   loudnessMetrics: {
     valueColumnCh: 7, // 等宽数字列，影响小数点对齐
     unitColumnRem: 3.5,
-    rowMinHeightRem: 2.125,
+    rowMinHeightRem: 2.5,
     rowPaddingXRem: 0.625,
     rowPaddingYRem: 0.375,
     rowGapRem: 0.5,
@@ -402,6 +463,17 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-color-legend-on-text", colors.legendHistOnText);
   setCssVar("--ui-color-legend-off-bg", colors.legendHistOffBg);
   setCssVar("--ui-color-legend-off-text", colors.legendHistOffText);
+  setCssVar("--ui-color-metric-row-bg", colors.metricRowBg);
+  setCssVar("--ui-color-metric-row-border", colors.metricRowBorder);
+  setCssVar("--ui-color-metric-row-hover-bg", colors.metricRowHoverBg);
+  setCssVar("--ui-color-metric-row-toggle-on-bg", colors.metricRowToggleOnBg);
+  setCssVar("--ui-color-metric-row-toggle-on-border", colors.metricRowToggleOnBorder);
+  setCssVar("--ui-color-metric-row-toggle-on-glow", colors.metricRowToggleOnGlow);
+  setCssVar("--ui-color-metric-label", colors.metricLabelText);
+  setCssVar("--ui-color-metric-value", colors.metricValueText);
+  setCssVar("--ui-color-metric-unit", colors.metricUnitText);
+  setCssVar("--ui-color-metric-toggle-on-label", colors.metricToggleOnLabelText);
+  setCssVar("--ui-color-metric-toggle-on-unit", colors.metricToggleOnUnitText);
   setCssVar("--ui-color-target-label", colors.targetLabel);
   setCssVar("--ui-color-target-value", colors.targetValue);
 
@@ -461,6 +533,38 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   const a = prefs.articlePadding;
   setCssVar("--ui-article-pad", `${a.defaultRem}rem`);
   setCssVar("--ui-article-pad-metrics", `${a.metricsRem}rem`);
+  setCssVar("--ui-section-title-gap", `${a.sectionTitleGapRem}rem`);
+  setCssVar("--ui-metrics-title-gap", `${a.metricsTitleGapRem}rem`);
+
+  const sp = prefs.spacingRem;
+  setCssVar("--ui-panel-footer-gap", `${sp.panelFooterGap}rem`);
+  setCssVar("--ui-metrics-list-gap", `${sp.metricsListGap}rem`);
+  setCssVar("--ui-axis-unit-pad-b", `${sp.axisUnitPadBottom}rem`);
+  setCssVar("--ui-axis-sub-label-gap", `${sp.axisSubLabelGap}rem`);
+  setCssVar("--ui-freq-axis-top-gap", `${sp.freqAxisTopGap}rem`);
+  setCssVar("--ui-header-action-gap", `${sp.headerActionGap}rem`);
+  setCssVar("--ui-inline-value-gap", `${sp.inlineValueGap}rem`);
+  setCssVar("--ui-right-section-gap", `${sp.rightSectionGap}rem`);
+  setCssVar("--ui-axis-chart-gap", `${sp.axisChartGap}rem`);
+  setCssVar("--ui-panel-inner-gap", `${sp.panelInnerGap}rem`);
+  setCssVar("--ui-metric-dot-size", `${sp.metricDotSize}rem`);
+  setCssVar("--ui-peak-gauge-top-inset", `${sp.peakGaugeTopInset}rem`);
+  setCssVar("--ui-peak-gauge-bottom-inset", `${sp.peakGaugeBottomInset}rem`);
+  setCssVar("--ui-meter-card-pad", `${sp.meterCardPad}rem`);
+  setCssVar("--ui-meter-chart-inset-x", `${sp.meterChartInsetX}rem`);
+  setCssVar("--ui-meter-chart-top-inset", `${sp.meterChartTopInset}rem`);
+  setCssVar("--ui-meter-chart-bottom-inset", `${sp.meterChartBottomInset}rem`);
+  setCssVar("--ui-meter-label-inset-x", `${sp.meterLabelInsetX}rem`);
+  setCssVar("--ui-meter-label-top-inset", `${sp.meterLabelTopInset}rem`);
+  setCssVar("--ui-snapshot-badge-inset", `${sp.snapshotBadgeInset}rem`);
+  setCssVar("--ui-chart-outer-inset", `${sp.chartOuterInset}rem`);
+  setCssVar("--ui-vector-corner-inset", `${sp.vectorCornerInset}rem`);
+  setCssVar("--ui-history-axis-inset-y", `${sp.historyAxisInsetY}rem`);
+  setCssVar("--ui-history-svg-pad", `${sp.historySvgPad}rem`);
+  setCssVar("--ui-history-overlay-inset", `${sp.historyOverlayInset}rem`);
+  setCssVar("--ui-hud-inset", `${sp.hudInset}rem`);
+  setCssVar("--ui-spectrum-axis-inset-y", `${sp.spectrumAxisInsetY}rem`);
+  setCssVar("--ui-spectrum-svg-pad", `${sp.spectrumSvgPad}rem`);
 
   const f = prefs.footer;
   setCssVar("--ui-footer-pad-x", `${f.paddingXRem}rem`);
@@ -470,6 +574,11 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-settings-modal-max-w", `${sm.maxWidthRem}rem`);
   setCssVar("--ui-settings-modal-pad", `${sm.paddingRem}rem`);
   setCssVar("--ui-settings-overlay-pad", `${sm.overlayPaddingRem}rem`);
+  setCssVar("--ui-settings-header-gap", `${sm.headerGapRem}rem`);
+  setCssVar("--ui-settings-content-gap", `${sm.contentGapRem}rem`);
+  setCssVar("--ui-settings-inline-gap", `${sm.inlineGapRem}rem`);
+  setCssVar("--ui-settings-action-pad-x", `${sm.actionPadXRem}rem`);
+  setCssVar("--ui-settings-action-pad-y", `${sm.actionPadYRem}rem`);
 
   const lh = charts.loudnessHistory;
   setCssVar("--ui-lh-stroke-m-w", String(lh.momentaryStrokeWidth));
@@ -481,6 +590,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-vs-stroke-w", String(vs.strokeWidth));
   setCssVar("--ui-vs-axis-op", String(vs.axisOpacity));
 
-  const sp = charts.spectrum;
-  setCssVar("--ui-sp-stroke-w", String(sp.strokeWidth));
+  const spectrum = charts.spectrum;
+  setCssVar("--ui-sp-stroke-w", String(spectrum.strokeWidth));
 }
