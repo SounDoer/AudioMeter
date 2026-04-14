@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   peakFromTopFrac,
+  LOUDNESS_DB_MAX,
+  LOUDNESS_DB_MIN,
+  loudnessFromTopFrac,
   loudnessHistY,
   spectrumDbToYViewBox,
   spectrumDbToTopFrac,
@@ -13,6 +16,7 @@ import {
 import { UI_PREFERENCES, applyUiPreferencesToDocument, mergeCharts, readPersistedUiMode } from "./uiPreferences";
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
+const HISTORY_TIME_TICK_STEPS = 4;
 
 function PillButton({ children, accent = false, onClick }) {
   return (
@@ -56,6 +60,8 @@ export default function App() {
   const [selectedOffset, setSelectedOffset] = useState(-1);
   const [historyWindowSec, setHistoryWindowSec] = useState(UI_PREFERENCES.history.defaultWindowSec);
   const [historyOffsetSec, setHistoryOffsetSec] = useState(0);
+  const [historyHudUntilTs, setHistoryHudUntilTs] = useState(0);
+  const [historyHudHold, setHistoryHudHold] = useState(false);
   const [status, setStatus] = useState("Ready - click Start to begin monitoring");
   const [status2, setStatus2] = useState("Input: System default microphone");
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
@@ -85,7 +91,7 @@ export default function App() {
   const [mainLeft, setMainLeft] = useState(UI_PREFERENCES.mainColumn.initialPx);
   const [leftTopRatio, setLeftTopRatio] = useState(UI_PREFERENCES.leftSplit.initialRatio);
   const [rightTopRatio, setRightTopRatio] = useState(UI_PREFERENCES.rightSplit.initialRatio);
-  /** History ‰∏?Metrics Ê®™Âê?Â??Â?≤Ôº?History Â??Âç†Ë°?ÂÆΩÁ??‰ªΩÈ¢ùÔº?Â?∂‰Ω?Áª?MetricsÔº?*/
+  /** History ??Metrics ?????????History ???????????????????Metrics??*/
   const [loudnessHistWidthRatio, setLoudnessHistWidthRatio] = useState(UI_PREFERENCES.loudnessHistMetrics.initialRatio);
   const dragModeRef = useRef(null);
   const panStartRef = useRef({ x: 0, offset: 0 });
@@ -113,13 +119,10 @@ export default function App() {
     ];
   }, [uiMode]);
   const historyTimeTicks = useMemo(() => {
-    const steps = 4;
     const ticks = [];
-    for (let i = 0; i <= steps; i++) {
-      const sec = Math.round(historyOffsetSec + (historyWindowSec * (steps - i)) / steps);
-      if (i === steps) {
-        ticks.push("Now");
-      } else if (sec >= 60) {
+    for (let i = 0; i <= HISTORY_TIME_TICK_STEPS; i++) {
+      const sec = Math.round(historyOffsetSec + (historyWindowSec * (HISTORY_TIME_TICK_STEPS - i)) / HISTORY_TIME_TICK_STEPS);
+      if (sec >= 60) {
         const m = Math.floor(sec / 60);
         const s = sec % 60;
         ticks.push(`${m}m${s ? `${s}s` : ""}`);
@@ -130,6 +133,20 @@ export default function App() {
     return ticks;
   }, [historyOffsetSec, historyWindowSec]);
   const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
+  const fmtSec = (sec) => {
+    const s = Math.max(0, Math.round(sec));
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    return `${m}m${rs ? `${rs}s` : ""}`;
+  };
+  const showHistoryHud = (ms = 1600) => {
+    setHistoryHudUntilTs(Date.now() + Math.max(200, ms));
+  };
+  const holdHistoryHud = (on) => {
+    setHistoryHudHold(Boolean(on));
+    if (on) showHistoryHud(2200);
+  };
 
   const primaryMetrics = [
     { label: "Momentary", value: fmt(audio.momentary), unit: "LUFS" },
@@ -148,6 +165,12 @@ export default function App() {
 
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
   const targetLufs = standard === "ebu" ? -23 : -14;
+  const historyYAxisTicks = useMemo(() => {
+    const out = [...LOUDNESS_TICKS];
+    if (!out.some((t) => t.v === targetLufs)) out.push({ v: targetLufs, lb: String(targetLufs) });
+    out.sort((a, b) => b.v - a.v);
+    return out;
+  }, [targetLufs]);
   if (selectedOffset < 0) {
     frozenSnapRef.current = null;
   } else if (!frozenSnapRef.current) {
@@ -206,6 +229,7 @@ export default function App() {
     totalSamples > 0 &&
     selectedHistSteps >= 0 &&
     selectedHistSteps < totalSamples;
+  const isHistoryHudVisible = historyHudHold || historyHudUntilTs > Date.now();
   const selLineX = Math.max(
     0,
     Math.min(
@@ -266,7 +290,7 @@ export default function App() {
     }
     setRunning(true);
   };
-  /** rect ‰∏?history Ê?≤Á∫øÂ?∫Â??Ôº?‰∏çÂê´Â∑¶‰æ?LUFS Â?ªÂ∫¶„?Å‰∏çÂê´Â∫?È?®Ê?∂È?¥ËΩ¥‰∏?Ê??È?ÆË°?Ôº?*/
+  /** rect ??history ???????????????LUFS ????????????????????????????*/
   const updateSelectionFromClientX = (clientX, rect) => {
     const width = Math.max(1, rect.width);
     const x = Math.max(0, Math.min(width, clientX - rect.left));
@@ -278,12 +302,16 @@ export default function App() {
     const rect = ev.currentTarget.getBoundingClientRect();
     if (ev.button === 0) {
       dragModeRef.current = "select";
+      holdHistoryHud(true);
+      showHistoryHud(1600);
       updateSelectionFromClientX(ev.clientX, rect);
     } else if (ev.button === 2) {
       const nowTs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
       if (nowTs - lastRightDownTsRef.current <= 320) {
         setHistoryWindowSec(UI_PREFERENCES.history.defaultWindowSec);
         setHistoryOffsetSec(0);
+        holdHistoryHud(false);
+        showHistoryHud(1200);
         lastRightDownTsRef.current = 0;
         return;
       }
@@ -291,6 +319,8 @@ export default function App() {
       if (totalSamples <= visibleSamples) return;
       dragModeRef.current = "pan";
       panStartRef.current = { x: ev.clientX, offset: effectiveOffsetSec };
+      holdHistoryHud(true);
+      showHistoryHud(1600);
     } else return;
     try {
       ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -300,20 +330,27 @@ export default function App() {
     const mode = dragModeRef.current;
     if (!mode) return;
     const rect = ev.currentTarget.getBoundingClientRect();
-    if (mode === "select") return void updateSelectionFromClientX(ev.clientX, rect);
+    if (mode === "select") {
+      showHistoryHud(1600);
+      return void updateSelectionFromClientX(ev.clientX, rect);
+    }
     const dx = ev.clientX - panStartRef.current.x;
     const secPerPx = (visibleSamples * HIST_SAMPLE_SEC) / Math.max(1, rect.width);
     const next = Math.max(0, Math.min(maxOffsetSamples * HIST_SAMPLE_SEC, panStartRef.current.offset + dx * secPerPx));
     setHistoryOffsetSec(next);
+    showHistoryHud(1600);
   };
   const onHistoryPointerUp = (ev) => {
     dragModeRef.current = null;
+    holdHistoryHud(false);
+    showHistoryHud(900);
     try {
       ev.currentTarget.releasePointerCapture(ev.pointerId);
     } catch (_) {}
   };
   const onHistoryWheel = (ev) => {
     ev.preventDefault();
+    showHistoryHud(1600);
     const factor = ev.deltaY < 0 ? 0.85 : 1.18;
     const rect = ev.currentTarget.getBoundingClientRect();
     const width = Math.max(1, rect.width);
@@ -334,6 +371,14 @@ export default function App() {
     setHistoryWindowSec(next);
     setHistoryOffsetSec(nextOffsetSamples * HIST_SAMPLE_SEC);
   };
+
+  useEffect(() => {
+    if (historyHudHold) return;
+    const remain = historyHudUntilTs - Date.now();
+    if (remain <= 0) return;
+    const t = setTimeout(() => setHistoryHudUntilTs(0), remain + 24);
+    return () => clearTimeout(t);
+  }, [historyHudUntilTs, historyHudHold]);
   const beginLayoutDrag = (mode, ev) => {
     layoutDragRef.current = {
       mode,
@@ -615,8 +660,8 @@ export default function App() {
                 <div className="ui-section-title">Peak Meter</div>
               </div>
               <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-3 ui-min-h-peak">
-                {/* ‰∏?Ë°®Á??gaugeÔº?top-2 bottom-3Ôº?Âê?È´?Âê?ÂÅèÁßªÔº?Â?ªÂ∫¶Á?® peakFromTopFrac ‰∏?peak.js mFrac ‰∏?Ë??*/}
-                <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
+                {/* ??????gauge??top-2 bottom-3?????????????????peakFromTopFrac ??peak.js mFrac ????*/}
+                <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                   <div className="absolute inset-x-0 top-2 bottom-3">
                     {PEAK_TICKS.map(({ v, lb }) => (
                       <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${peakFromTopFrac(v) * 100}%` }}>
@@ -635,9 +680,8 @@ export default function App() {
                           style={{ top: `${peakFromTopFrac(displayAudio.samplePeakMaxL) * 100}%` }}
                         />
                       )}
-                      <div className="ui-border-peak-true absolute inset-x-0 z-[6] border-t" style={{ top: `${peakFromTopFrac(displayAudio.tpL) * 100}%` }} />
                     </div>
-                    <div className="absolute left-3 right-3 top-3 text-center text-xs text-[color:var(--ui-color-text-secondary)]">
+                    <div className="absolute left-3 right-3 top-3 text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
                       L <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleL)}</span>
                     </div>
                   </div>
@@ -650,16 +694,18 @@ export default function App() {
                           style={{ top: `${peakFromTopFrac(displayAudio.samplePeakMaxR) * 100}%` }}
                         />
                       )}
-                      <div className="ui-border-peak-true absolute inset-x-0 z-[6] border-t" style={{ top: `${peakFromTopFrac(displayAudio.tpR) * 100}%` }} />
                     </div>
-                    <div className="absolute left-3 right-3 top-3 text-center text-xs text-[color:var(--ui-color-text-secondary)]">
+                    <div className="absolute left-3 right-3 top-3 text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
                       R <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleR)}</span>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="mt-2 shrink-0 text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-muted)]">
-                TP MAX <span className="font-semibold text-[color:var(--ui-color-tp-max)]">{fmt(displayAudio.tpMax)} dBTP</span>
+              <div className="mt-2 grid shrink-0 grid-cols-[auto_1fr] gap-3">
+                <div />
+                <div className="text-right text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-muted)]">
+                  TP MAX <span className="font-semibold text-[color:var(--ui-color-tp-max)]">{fmt(displayAudio.tpMax)} dBTP</span>
+                </div>
               </div>
             </article>
 
@@ -788,90 +834,133 @@ export default function App() {
             >
               <article className="ui-article ui-min-h-history flex h-full min-w-0 flex-1 flex-col">
                 <div className="ui-section-title mb-3 shrink-0">Loudness History</div>
-                <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] gap-2 items-stretch ui-min-h-history">
-                  <div className="ui-w-loudness-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
-                    <div className="relative min-h-0 w-full flex-1">
-                      <div className="absolute inset-x-0 top-3 bottom-3">
-                        {LOUDNESS_TICKS.map(({ v, lb }) => (
-                          <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${peakFromTopFrac(v) * 100}%` }}>
+                <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-2 gap-y-2 items-stretch ui-min-h-history">
+                  <div className="ui-w-loudness-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
+                    <div className="absolute inset-x-0 top-3 bottom-3">
+                      {historyYAxisTicks.map(({ v, lb }) => {
+                        const isTargetTick = v === targetLufs;
+                        const tickClass = isTargetTick
+                          ? "absolute right-0 leading-none font-semibold text-[color:var(--ui-color-target-value)]"
+                          : "absolute right-0 leading-none";
+                        if (v === LOUDNESS_DB_MAX) {
+                          return (
+                            <span key={v} className={`${tickClass} top-0`}>
+                              {lb}
+                            </span>
+                          );
+                        }
+                        if (v === LOUDNESS_DB_MIN) {
+                          return (
+                            <span key={v} className={`${tickClass} bottom-0`}>
+                              {lb}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span key={v} className={`${tickClass} -translate-y-1/2`} style={{ top: `${loudnessFromTopFrac(v) * 100}%` }}>
                             {lb}
                           </span>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                    <div className="ui-axis-label-sub shrink-0 pb-0.5 text-center">LUFS</div>
                   </div>
-                  <div className="relative flex min-h-0 min-w-0 flex-col">
-                    <div
-                      className="spectrum-grid ui-inset-chart relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)]"
-                      onContextMenu={(e) => e.preventDefault()}
-                      onDoubleClick={() => setSelectedOffset(-1)}
-                      onWheel={onHistoryWheel}
-                      onPointerDown={onHistoryPointerDown}
-                      onPointerMove={onHistoryPointerMove}
-                      onPointerUp={onHistoryPointerUp}
-                      onPointerCancel={onHistoryPointerUp}
+                  <div
+                    className="spectrum-grid ui-inset-chart relative min-h-0 min-w-0 rounded-lg bg-[var(--ui-color-inset-bg)]"
+                    onContextMenu={(e) => e.preventDefault()}
+                      onDoubleClick={() => {
+                        setSelectedOffset(-1);
+                        holdHistoryHud(false);
+                        showHistoryHud(1200);
+                      }}
+                    onWheel={onHistoryWheel}
+                    onPointerDown={onHistoryPointerDown}
+                    onPointerMove={onHistoryPointerMove}
+                    onPointerUp={onHistoryPointerUp}
+                    onPointerCancel={onHistoryPointerUp}
+                  >
+                    <svg
+                      viewBox="0 0 600 220"
+                      preserveAspectRatio="none"
+                      className="relative z-0 h-full w-full p-3"
                     >
-                      <svg
-                        viewBox="0 0 600 220"
-                        preserveAspectRatio="none"
-                        className="relative z-0 h-full w-full p-3"
-                      >
-                        {histCurves.m && (
-                          <path
-                            d={displayHistoryPathM || historyPathM || "M 0 220 L 600 220"}
-                            fill="none"
-                            stroke="var(--ui-chart-momentary)"
-                            strokeWidth={UI_PREFERENCES.charts.loudnessHistory.momentaryStrokeWidth}
-                          />
-                        )}
-                        {histCurves.st && (
-                          <path
-                            d={displayHistoryPathST || historyPathST || "M 0 220 L 600 220"}
-                            fill="none"
-                            stroke="var(--ui-chart-shortterm)"
-                            strokeWidth={UI_PREFERENCES.charts.loudnessHistory.shortTermStrokeWidth}
-                            opacity={UI_PREFERENCES.charts.loudnessHistory.shortTermOpacity}
-                          />
-                        )}
-                      </svg>
-                      <div className="pointer-events-none absolute inset-3 z-10">
-                        <div
-                          className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
-                          style={{ top: `${peakFromTopFrac(targetLufs) * 100}%` }}
+                      {histCurves.m && (
+                        <path
+                          d={displayHistoryPathM || historyPathM || "M 0 220 L 600 220"}
+                          fill="none"
+                          stroke="var(--ui-chart-momentary)"
+                          strokeWidth={UI_PREFERENCES.charts.loudnessHistory.momentaryStrokeWidth}
                         />
-                        {selectedOffset >= 0 && showSelLine && (
-                          <div
-                            className="absolute bottom-0 top-0 border-l border-dashed border-[color:var(--ui-chart-selection)]"
-                            style={{
-                              left: `${(selLineX / 600) * 100}%`,
-                              width: 0,
-                              borderLeftWidth: `${UI_PREFERENCES.charts.loudnessHistory.selectionStrokeWidth}px`,
-                            }}
-                          />
-                        )}
-                      </div>
+                      )}
+                      {histCurves.st && (
+                        <path
+                          d={displayHistoryPathST || historyPathST || "M 0 220 L 600 220"}
+                          fill="none"
+                          stroke="var(--ui-chart-shortterm)"
+                          strokeWidth={UI_PREFERENCES.charts.loudnessHistory.shortTermStrokeWidth}
+                          opacity={UI_PREFERENCES.charts.loudnessHistory.shortTermOpacity}
+                        />
+                      )}
+                    </svg>
+                    <div className="pointer-events-none absolute inset-3 z-10">
+                      <div
+                        className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
+                        style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
+                      />
+                      {selectedOffset >= 0 && showSelLine && (
+                        <div
+                          className="absolute bottom-0 top-0 border-l border-dashed border-[color:var(--ui-chart-selection)]"
+                          style={{
+                            left: `${(selLineX / 600) * 100}%`,
+                            width: 0,
+                            borderLeftWidth: `${UI_PREFERENCES.charts.loudnessHistory.selectionStrokeWidth}px`,
+                          }}
+                        />
+                      )}
+                      {isHistoryHudVisible && (
+                        <div className="absolute bottom-1 right-1 rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-0.5 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
+                          Window {fmtSec(clampedWindowSec)} | Offset {fmtSec(effectiveOffsetSec)}
+                        </div>
+                      )}
                     </div>
-                    <div className="ui-caption mt-2 grid grid-cols-5">{historyTimeTicks.map((tick) => <span key={tick} className="text-center">{tick}</span>)}</div>
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                      <div className="ui-caption-subtle">Window: {Math.round(clampedWindowSec)}s | Offset: {Math.round(effectiveOffsetSec)}s</div>
-                      <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-                        <span className="text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-target-label)]">
-                          Target <span className="ml-1 font-semibold text-[color:var(--ui-color-target-value)]">{targetLufs} LUFS</span>
+                  </div>
+
+                  <div className="ui-axis-label-sub self-center text-center">LUFS</div>
+                  <div className="ui-caption relative h-[var(--ui-spectrum-freq-row-h)]">
+                    {historyTimeTicks.map((tick, i) => {
+                      if (i === 0) {
+                        return <span key={`${i}-${tick}`} className="absolute left-0 top-0 text-left">{tick}</span>;
+                      }
+                      if (i === HISTORY_TIME_TICK_STEPS) {
+                        return <span key={`${i}-${tick}`} className="absolute right-0 top-0 text-right">{tick}</span>;
+                      }
+                      return (
+                        <span
+                          key={`${i}-${tick}`}
+                          className="absolute top-0 -translate-x-1/2 text-center"
+                          style={{ left: `${(i / HISTORY_TIME_TICK_STEPS) * 100}%` }}
+                        >
+                          {tick}
                         </span>
-                        {historyLegend.map((item) => (
-                          <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => toggleCurve(item.key)}
-                            className={histCurves[item.key] ? "ui-legend-on" : "ui-legend-off"}
-                          >
-                            <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                      );
+                    })}
+                  </div>
+
+                  <div />
+                  <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
+                    <span className="text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-target-label)]">
+                      Target <span className="ml-1 font-semibold text-[color:var(--ui-color-target-value)]">{targetLufs} LUFS</span>
+                    </span>
+                    {historyLegend.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => toggleCurve(item.key)}
+                        className={histCurves[item.key] ? "ui-legend-on" : "ui-legend-off"}
+                      >
+                        <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        {item.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </article>

@@ -22,9 +22,20 @@ export function peakFromTopFrac(v) {
   return 1 - peakFrac(v);
 }
 
+/** Loudness History 独立坐标：-64～0 dB（更贴近常见 LUFS 读数刻度） */
+export const LOUDNESS_DB_MIN = -64;
+export const LOUDNESS_DB_MAX = 0;
+const LOUDNESS_DB_RNG = LOUDNESS_DB_MAX - LOUDNESS_DB_MIN;
+
+/** Loudness：从顶部向下的归一化位置，-3 dB → 0，-64 dB → 1 */
+export function loudnessFromTopFrac(v) {
+  const c = Math.max(LOUDNESS_DB_MIN, Math.min(LOUDNESS_DB_MAX, Number.isFinite(v) ? v : LOUDNESS_DB_MIN));
+  return 1 - (c - LOUDNESS_DB_MIN) / LOUDNESS_DB_RNG;
+}
+
 /** Loudness History SVG viewBox 高度 220 时的 y（与 App buildHistoryPath 一致） */
 export function loudnessHistY(v, viewH = 220) {
-  return viewH * peakFromTopFrac(v);
+  return viewH * loudnessFromTopFrac(v);
 }
 
 /** Spectrum：viewBox 1000×260，与 spectrum 路径生成 `y = 260 - ((d+100)/100)*240` 一致 */
@@ -68,12 +79,15 @@ export const PEAK_TICKS = [
 
 /** Loudness History 左侧刻度（dB 值落在 -60～+3 内方可与曲线对齐） */
 export const LOUDNESS_TICKS = [
-  { v: -9, lb: "-9" },
-  { v: -14, lb: "-14" },
+  { v: 0, lb: "0" },
+  { v: -6, lb: "-6" },
+  { v: -12, lb: "-12" },
   { v: -18, lb: "-18" },
-  { v: -23, lb: "-23" },
   { v: -27, lb: "-27" },
   { v: -36, lb: "-36" },
+  { v: -45, lb: "-45" },
+  { v: -54, lb: "-54" },
+  { v: -63, lb: "-63" },
 ];
 
 /** Spectrum 左侧 dB 刻度（-100～0） */
