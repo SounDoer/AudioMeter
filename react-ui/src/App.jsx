@@ -212,6 +212,7 @@ export default function App() {
   const displayAudio = audioSnapIdx >= 0 && snapAudioList[audioSnapIdx] ? snapAudioList[audioSnapIdx] : audio;
   const displaySpectrumPath = snapIdx >= 0 && snapSpecList[snapIdx] ? snapSpecList[snapIdx] : spectrumPath;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
+  const hasHistoryData = histSourceList.some((p) => Number.isFinite(p?.m) || Number.isFinite(p?.st));
   const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.charts.vectorscope.gridDiagInsetPct ?? 0));
   const vsGridDiagFar = 100 - vsGridDiagInset;
   const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : displayAudio.correlation;
@@ -838,6 +839,7 @@ export default function App() {
                   <div className="ui-w-loudness-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                     <div className="absolute inset-x-0 top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)]">
                       {historyYAxisTicks.map(({ v, lb }) => {
+                        if (v === targetLufs && !hasHistoryData) return null;
                         const isTargetTick = v === targetLufs;
                         const tickClass = isTargetTick
                           ? "absolute right-0 leading-none font-semibold text-[color:var(--ui-color-target-value)]"
@@ -883,17 +885,17 @@ export default function App() {
                       preserveAspectRatio="none"
                       className="relative z-0 h-full w-full px-[var(--ui-history-svg-pad)] pt-[var(--ui-history-display-top-inset)] pb-[var(--ui-history-display-bottom-inset)]"
                     >
-                      {histCurves.m && (
+                      {histCurves.m && displayHistoryPathM && (
                         <path
-                          d={displayHistoryPathM || historyPathM || "M 0 220 L 600 220"}
+                          d={displayHistoryPathM}
                           fill="none"
                           stroke="var(--ui-chart-momentary)"
                           strokeWidth={UI_PREFERENCES.charts.loudnessHistory.momentaryStrokeWidth}
                         />
                       )}
-                      {histCurves.st && (
+                      {histCurves.st && displayHistoryPathST && (
                         <path
-                          d={displayHistoryPathST || historyPathST || "M 0 220 L 600 220"}
+                          d={displayHistoryPathST}
                           fill="none"
                           stroke="var(--ui-chart-shortterm)"
                           strokeWidth={UI_PREFERENCES.charts.loudnessHistory.shortTermStrokeWidth}
@@ -902,10 +904,12 @@ export default function App() {
                       )}
                     </svg>
                     <div className="pointer-events-none absolute inset-x-[var(--ui-history-svg-pad)] top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)] z-10">
-                      <div
-                        className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
-                        style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
-                      />
+                      {hasHistoryData ? (
+                        <div
+                          className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
+                          style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
+                        />
+                      ) : null}
                       {selectedOffset >= 0 && showSelLine && (
                         <div
                           className="absolute bottom-0 top-0 border-l border-dashed border-[color:var(--ui-chart-selection)]"
@@ -1035,12 +1039,14 @@ export default function App() {
                         preserveAspectRatio="none"
                         className="block h-full w-full min-h-0 min-w-0"
                       >
-                        <path
-                          d={displaySpectrumPath || "M 0 240 L 1000 240"}
-                          fill="none"
-                          stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
-                          strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
-                        />
+                        {displaySpectrumPath ? (
+                          <path
+                            d={displaySpectrumPath}
+                            fill="none"
+                            stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
+                            strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
+                          />
+                        ) : null}
                       </svg>
                     </div>
                   </div>
