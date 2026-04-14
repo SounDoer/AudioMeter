@@ -10,7 +10,7 @@
  * 2) 整页最大宽、边距、间距   → 搜 `shell` | `splitters` | `header` | `footer` | `articlePadding` | `settingsModal`
  * 3) 左右栏宽、上下分栏比例   → 搜 `mainColumn` | `leftSplit` | `rightSplit` | `loudnessHistMetrics`
  * 4) 模块最小高度、纵轴宽度   → 搜 `heightsRem` | `widthsPx`
- * 5) 全局字体、各级字号       → 搜 `typography`
+ * 5) 全局字体、字号九档       → 搜 `typography`（title / section / axisValue / axisUnit / extraValue / metricMeta / metricValue / action / status）
  * 6) 圆角                      → 搜 `radii`
  * 7) 深色 / 浅色「整页配色」   → 搜 `DARK_THEME_COLORS` 或 `LIGHT_THEME_COLORS`
  * 8) 浅色下单独加深曲线颜色   → 搜 `themes:` 里 `light:` 下的 `charts` / `spectrumGrid`
@@ -142,7 +142,7 @@ export const UI_PREFERENCES = {
   // 顶栏 AudioMeter 一行：左右内边距（rem）
   header: {
     paddingXRem: 1.25,
-    paddingYRem: 1,
+    paddingYRem: 0.75,
   },
 
   // 底栏状态行：左右 / 上下内边距（rem）
@@ -211,21 +211,23 @@ export const UI_PREFERENCES = {
     peakTickCol: 36,
   },
 
-  // 全局字体与各档字号（px）；改完看标题、Metrics、脚注是否协调
+  /**
+   * 字号九档（px）：按语义分层，避免同一字号混用在不同行为上。
+   * 1) title 2) section 3) axisValue 4) axisUnit 5) extraValue
+   * 6) metricMeta 7) metricValue 8) action 9) status
+   */
   typography: {
     fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     sizesPx: {
-      appTitle: 20, // 顶栏 AudioMeter
-      sectionTitle: 14, // 各模块小标题「Peak Meter」等
-      footer: 12, // 底栏状态字
-      body: 14, // 设置弹窗正文
-      small: 12, // 药丸按钮、图例按钮
-      caption: 10, // 时间轴、Window 说明、矢量角标
-      micro: 9, // LUFS / dB 轴最底一行
-      metricValue: 18, // Metrics 中间数字
-      metricLabel: 11, // Metrics 左标签、右单位
-      historyAxis: 10, // 预留：历史纵轴刻度（若与 caption 分开可调）
-      settingsHeading: 16, // Settings 标题
+      title: 20, // 顶栏大标题
+      section: 16, // 各模块标题、Settings 标题
+      axisValue: 12, // 坐标轴刻度数字、时间轴刻度
+      axisUnit: 11, // 坐标轴单位（LUFS / dB / Hz）
+      extraValue: 13, // TP MAX / Correlation / Target 等模块补充信息
+      metricMeta: 14, // Loudness Metrics 参数名与单位；Settings 条目文本
+      metricValue: 18, // Loudness Metrics 数值
+      action: 14, // Start/Clear/Settings、图例药丸、Snapshot 徽章等按钮/操作文案
+      status: 12, // 底部状态栏
     },
     weights: {
       appTitle: 800,
@@ -356,16 +358,16 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("color-scheme", m);
 
   const s = typography.sizesPx;
-  setCssVar("--ui-fs-app-title", `${s.appTitle}px`);
-  setCssVar("--ui-fs-section", `${s.sectionTitle}px`);
-  setCssVar("--ui-fs-footer", `${s.footer}px`);
-  setCssVar("--ui-fs-body", `${s.body}px`);
-  setCssVar("--ui-fs-small", `${s.small}px`);
-  setCssVar("--ui-fs-caption", `${s.caption}px`);
-  setCssVar("--ui-fs-micro", `${s.micro}px`);
+  setCssVar("--ui-fs-app-title", `${s.title}px`);
+  setCssVar("--ui-fs-section", `${s.section}px`);
+  setCssVar("--ui-fs-settings-heading", `${s.section}px`);
+  setCssVar("--ui-fs-axis-value", `${s.axisValue}px`);
+  setCssVar("--ui-fs-axis-unit", `${s.axisUnit}px`);
+  setCssVar("--ui-fs-extra", `${s.extraValue}px`);
+  setCssVar("--ui-fs-metric-meta", `${s.metricMeta}px`);
   setCssVar("--ui-fs-metric-value", `${s.metricValue}px`);
-  setCssVar("--ui-fs-metric-label", `${s.metricLabel}px`);
-  setCssVar("--ui-fs-settings-heading", `${s.settingsHeading}px`);
+  setCssVar("--ui-fs-action", `${s.action}px`);
+  setCssVar("--ui-fs-status", `${s.status}px`);
   setCssVar("--ui-fw-app-title", String(typography.weights.appTitle));
   setCssVar("--ui-fw-section", String(typography.weights.section));
 

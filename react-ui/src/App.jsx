@@ -85,7 +85,7 @@ export default function App() {
   const [mainLeft, setMainLeft] = useState(UI_PREFERENCES.mainColumn.initialPx);
   const [leftTopRatio, setLeftTopRatio] = useState(UI_PREFERENCES.leftSplit.initialRatio);
   const [rightTopRatio, setRightTopRatio] = useState(UI_PREFERENCES.rightSplit.initialRatio);
-  /** History ‰∏é Metrics Ê®™ÂêëÂàÜÂâ≤ÔºöHistory ÂàóÂç†Ë°åÂÆΩÁöÑ‰ªΩÈ¢ùÔºàÂÖ∂‰ΩôÁªô MetricsÔºâ */
+  /** History ‰∏?Metrics Ê®™Âê?Â??Â?≤Ôº?History Â??Âç†Ë°?ÂÆΩÁ??‰ªΩÈ¢ùÔº?Â?∂‰Ω?Áª?MetricsÔº?*/
   const [loudnessHistWidthRatio, setLoudnessHistWidthRatio] = useState(UI_PREFERENCES.loudnessHistMetrics.initialRatio);
   const dragModeRef = useRef(null);
   const panStartRef = useRef({ x: 0, offset: 0 });
@@ -129,7 +129,7 @@ export default function App() {
     }
     return ticks;
   }, [historyOffsetSec, historyWindowSec]);
-  const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "‚Äî");
+  const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
 
   const primaryMetrics = [
     { label: "Momentary", value: fmt(audio.momentary), unit: "LUFS" },
@@ -266,7 +266,7 @@ export default function App() {
     }
     setRunning(true);
   };
-  /** rect ‰∏∫ history Êõ≤Á∫øÂå∫ÂüüÔºà‰∏çÂê´Â∑¶‰æß LUFS ÂàªÂ∫¶„ÄÅ‰∏çÂê´Â∫ïÈÉ®Êó∂Èó¥ËΩ¥‰∏éÊåâÈíÆË°åÔºâ */
+  /** rect ‰∏?history Ê?≤Á∫øÂ?∫Â??Ôº?‰∏çÂê´Â∑¶‰æ?LUFS Â?ªÂ∫¶„?Å‰∏çÂê´Â∫?È?®Ê?∂È?¥ËΩ¥‰∏?Ê??È?ÆË°?Ôº?*/
   const updateSelectionFromClientX = (clientX, rect) => {
     const width = Math.max(1, rect.width);
     const x = Math.max(0, Math.min(width, clientX - rect.left));
@@ -615,8 +615,8 @@ export default function App() {
                 <div className="ui-section-title">Peak Meter</div>
               </div>
               <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-3 ui-min-h-peak">
-                {/* ‰∏éË°®Áõò gaugeÔºàtop-2 bottom-3ÔºâÂêåÈ´òÂêåÂÅèÁßªÔºåÂàªÂ∫¶Áî® peakFromTopFrac ‰∏é peak.js mFrac ‰∏ÄËá¥ */}
-                <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-xs text-[color:var(--ui-color-text-secondary)]">
+                {/* ‰∏?Ë°®Á??gaugeÔº?top-2 bottom-3Ôº?Âê?È´?Âê?ÂÅèÁßªÔº?Â?ªÂ∫¶Á?® peakFromTopFrac ‰∏?peak.js mFrac ‰∏?Ë??*/}
+                <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
                   <div className="absolute inset-x-0 top-2 bottom-3">
                     {PEAK_TICKS.map(({ v, lb }) => (
                       <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${peakFromTopFrac(v) * 100}%` }}>
@@ -658,7 +658,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <div className="ui-caption mt-2 shrink-0">
+              <div className="mt-2 shrink-0 text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-muted)]">
                 TP MAX <span className="font-semibold text-[color:var(--ui-color-tp-max)]">{fmt(displayAudio.tpMax)} dBTP</span>
               </div>
             </article>
@@ -678,7 +678,7 @@ export default function App() {
               >
                 {selectedOffset >= 0 && (
                   <div
-                    className="absolute right-2 top-2 rounded px-2 py-0.5 text-[length:var(--ui-fs-caption)]"
+                    className="absolute right-2 top-2 rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
                     style={{ backgroundColor: "var(--ui-color-snapshot-badge-bg)", color: "var(--ui-color-snapshot-badge-text)" }}
                   >
                     Snapshot View
@@ -763,9 +763,9 @@ export default function App() {
                 <span className="ui-caption absolute left-2 bottom-2">-1</span>
                 <span className="ui-caption absolute right-2 bottom-2">+1</span>
               </div>
-              <div className="mt-2 flex shrink-0 items-baseline justify-end gap-2">
-                <span className="ui-caption text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
-                <span className={`ui-caption font-semibold tabular-nums ${valueClassByCorr(correlation)}`}>{correlation.toFixed(2)}</span>
+              <div className="mt-2 flex shrink-0 items-baseline justify-end gap-2 text-[length:var(--ui-fs-extra)]">
+                <span className="text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
+                <span className={`font-semibold tabular-nums ${valueClassByCorr(correlation)}`}>{correlation.toFixed(2)}</span>
               </div>
             </article>
           </section>
@@ -789,7 +789,7 @@ export default function App() {
               <article className="ui-article ui-min-h-history flex h-full min-w-0 flex-1 flex-col">
                 <div className="ui-section-title mb-3 shrink-0">Loudness History</div>
                 <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] gap-2 items-stretch ui-min-h-history">
-                  <div className="ui-w-loudness-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-caption)] text-[color:var(--ui-color-text-muted)]">
+                  <div className="ui-w-loudness-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                     <div className="relative min-h-0 w-full flex-1">
                       <div className="absolute inset-x-0 top-3 bottom-3">
                         {LOUDNESS_TICKS.map(({ v, lb }) => (
@@ -856,7 +856,7 @@ export default function App() {
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                       <div className="ui-caption-subtle">Window: {Math.round(clampedWindowSec)}s | Offset: {Math.round(effectiveOffsetSec)}s</div>
                       <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-                        <span className="text-[length:var(--ui-fs-small)] text-[color:var(--ui-color-target-label)]">
+                        <span className="text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-target-label)]">
                           Target <span className="ml-1 font-semibold text-[color:var(--ui-color-target-value)]">{targetLufs} LUFS</span>
                         </span>
                         {historyLegend.map((item) => (
@@ -908,7 +908,7 @@ export default function App() {
             <article className="ui-article ui-min-h-spectrum flex-1">
               <div className="ui-section-title mb-3 shrink-0">Spectrum Analyzer</div>
               <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] gap-2 items-stretch ui-min-h-spectrum">
-                <div className="ui-w-spectrum-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-caption)] text-[color:var(--ui-color-text-muted)]">
+                <div className="ui-w-spectrum-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
                   <div className="relative min-h-0 w-full flex-1">
                     <div className="absolute inset-x-0 top-2 bottom-2">
                       {SPEC_Y_TICKS.map(({ v, lb }) => (
@@ -926,7 +926,7 @@ export default function App() {
                   >
                     {selectedOffset >= 0 && (
                       <div
-                        className="absolute right-2 top-2 rounded px-2 py-0.5 text-[length:var(--ui-fs-caption)]"
+                        className="absolute right-2 top-2 rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
                         style={{ backgroundColor: "var(--ui-color-snapshot-badge-bg)", color: "var(--ui-color-snapshot-badge-text)" }}
                       >
                         Snapshot View
@@ -979,7 +979,7 @@ export default function App() {
                 Close
               </button>
             </div>
-            <div className="flex flex-col gap-4 text-[length:var(--ui-fs-body)]">
+            <div className="flex flex-col gap-4 text-[length:var(--ui-fs-metric-meta)]">
               <div className="ui-settings-row">
                 <span className="ui-settings-label">Loudness standard</span>
                 <select value={standard} onChange={(e) => setStandard(e.target.value)} className="ui-select">

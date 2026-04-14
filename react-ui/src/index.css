@@ -128,7 +128,7 @@ body {
   border-radius: var(--ui-radius-card);
   background-color: var(--ui-color-panel-bg);
   padding: var(--ui-footer-pad-y) var(--ui-footer-pad-x);
-  font-size: var(--ui-fs-footer);
+  font-size: var(--ui-fs-status);
   color: var(--ui-color-text-secondary);
 }
 
@@ -190,22 +190,22 @@ body {
 }
 
 .ui-axis-label {
-  font-size: var(--ui-fs-caption);
+  font-size: var(--ui-fs-axis-unit);
   color: var(--ui-color-text-muted);
 }
 
 .ui-axis-label-sub {
-  font-size: var(--ui-fs-micro);
+  font-size: var(--ui-fs-axis-unit);
   color: var(--ui-color-text-subtle);
 }
 
 .ui-caption {
-  font-size: var(--ui-fs-caption);
+  font-size: var(--ui-fs-axis-value);
   color: var(--ui-color-text-muted);
 }
 
 .ui-caption-subtle {
-  font-size: var(--ui-fs-caption);
+  font-size: var(--ui-fs-axis-value);
   color: var(--ui-color-text-subtle);
 }
 
@@ -227,7 +227,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-  font-size: var(--ui-fs-metric-label);
+  font-size: var(--ui-fs-metric-meta);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -249,7 +249,7 @@ body {
 .ui-metric-unit {
   flex-shrink: 0;
   text-align: right;
-  font-size: var(--ui-fs-metric-label);
+  font-size: var(--ui-fs-metric-meta);
   font-weight: 500;
   text-transform: uppercase;
   line-height: 1;
@@ -259,7 +259,7 @@ body {
 .ui-pill {
   border-radius: var(--ui-radius-pill);
   padding: 0.5rem 1rem;
-  font-size: var(--ui-fs-small);
+  font-size: var(--ui-fs-action);
   font-weight: 600;
   transition: background-color 0.2s, color 0.2s;
 }
@@ -315,7 +315,7 @@ body {
   border-radius: var(--ui-radius-card);
   background: var(--ui-color-settings-row-bg);
   padding: 0.75rem;
-  font-size: var(--ui-fs-body);
+  font-size: var(--ui-fs-metric-meta);
 }
 
 .ui-settings-label {
@@ -327,7 +327,7 @@ body {
   border-radius: var(--ui-radius-card);
   background-color: var(--ui-color-control-bg);
   padding: 0.25rem 0.5rem;
-  font-size: var(--ui-fs-small);
+  font-size: var(--ui-fs-metric-meta);
   color: var(--ui-color-text-primary);
 }
 
@@ -372,7 +372,7 @@ body {
 .ui-legend-on {
   border-radius: var(--ui-radius-pill);
   padding: 0.25rem 0.75rem;
-  font-size: var(--ui-fs-small);
+  font-size: var(--ui-fs-action);
   font-weight: 500;
   transition: background-color 0.15s, color 0.15s;
   background-color: var(--ui-color-legend-on-bg);
@@ -382,7 +382,7 @@ body {
 .ui-legend-off {
   border-radius: var(--ui-radius-pill);
   padding: 0.25rem 0.75rem;
-  font-size: var(--ui-fs-small);
+  font-size: var(--ui-fs-action);
   font-weight: 500;
   transition: background-color 0.15s, color 0.15s;
   background-color: var(--ui-color-legend-off-bg);
