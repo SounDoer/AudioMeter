@@ -101,6 +101,7 @@ export default function App() {
   const corrSnapRef = useRef([]);
   const audioSnapRef = useRef([]);
   const selectedOffsetRef = useRef(-1);
+  const uiModeRef = useRef(uiMode);
   const frozenSnapRef = useRef(null);
 
   const historyLegend = useMemo(() => {
@@ -398,6 +399,10 @@ export default function App() {
   }, [mainLeft, leftTopRatio, rightTopRatio, loudnessHistWidthRatio, standard, uiMode]);
 
   useEffect(() => {
+    uiModeRef.current = uiMode;
+  }, [uiMode]);
+
+  useEffect(() => {
     applyUiPreferencesToDocument(UI_PREFERENCES, uiMode);
   }, [uiMode]);
 
@@ -485,13 +490,15 @@ export default function App() {
           }
           const vecPts = [];
           const invSqrt2 = 0.7071067811865476;
+          const vsCharts = mergeCharts(UI_PREFERENCES.charts, UI_PREFERENCES.themes[uiModeRef.current === "light" ? "light" : "dark"]?.charts).vectorscope;
+          const plotRadius = Math.max(1, Number(vsCharts.plotRadius) || 96);
           for (let i = 0; i < bufL.length; i += 6) {
             const l = Math.max(-1, Math.min(1, bufL[i]));
             const r = Math.max(-1, Math.min(1, bufR[i]));
             const side = (r - l) * invSqrt2;
             const mid = (l + r) * invSqrt2;
-            const x = 130 + side * 96;
-            const y = 130 - mid * 96;
+            const x = 130 + side * plotRadius;
+            const y = 130 - mid * plotRadius;
             vecPts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
           }
           const vp = vecPts.length ? `M ${vecPts.join(" L ")}` : "";
@@ -677,30 +684,88 @@ export default function App() {
                     Snapshot View
                   </div>
                 )}
-                <div className="absolute inset-4 rounded-full border border-[color:var(--ui-color-divider)]" />
-                <div className="absolute left-1/2 top-4 bottom-4 w-px -translate-x-1/2 bg-[color:var(--ui-color-divider)]" />
-                <div className="absolute top-1/2 left-4 right-4 h-px -translate-y-1/2 bg-[color:var(--ui-color-divider)]" />
-                <svg viewBox="0 0 260 260" className="absolute inset-0 h-full w-full p-4">
-                  <path
-                    d={displayVectorPath || "M 130 130 L 130 130"}
-                    fill="none"
-                    stroke={selectedOffset >= 0 ? "var(--ui-chart-vectorscope-snap)" : "var(--ui-chart-vectorscope-live)"}
-                    strokeWidth={UI_PREFERENCES.charts.vectorscope.strokeWidth}
-                    opacity={UI_PREFERENCES.charts.vectorscope.axisOpacity}
-                  />
-                  <circle
-                    cx="130"
-                    cy="130"
-                    r="2"
-                    fill={selectedOffset >= 0 ? "var(--ui-chart-vectorscope-snap)" : "var(--ui-chart-vectorscope-live)"}
-                  />
-                </svg>
+                <div className="absolute inset-4 z-0 min-h-0 min-w-0 overflow-hidden">
+                  <svg
+                    className="pointer-events-none absolute inset-0 z-0 block h-full w-full"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    aria-hidden
+                  >
+                    <rect
+                      x="0"
+                      y="0"
+                      width="100"
+                      height="100"
+                      fill="none"
+                      stroke="var(--ui-color-divider)"
+                      strokeWidth="0.5"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      x1="50"
+                      y1="0"
+                      x2="50"
+                      y2="100"
+                      stroke="var(--ui-color-divider)"
+                      strokeWidth="0.35"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      x1="0"
+                      y1="50"
+                      x2="100"
+                      y2="50"
+                      stroke="var(--ui-color-divider)"
+                      strokeWidth="0.35"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2="100"
+                      y2="100"
+                      stroke="var(--ui-color-divider)"
+                      strokeWidth="0.35"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <line
+                      x1="100"
+                      y1="0"
+                      x2="0"
+                      y2="100"
+                      stroke="var(--ui-color-divider)"
+                      strokeWidth="0.35"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                  <svg
+                    viewBox="0 0 260 260"
+                    preserveAspectRatio="none"
+                    className="absolute inset-0 z-[1] block h-full w-full"
+                  >
+                    <path
+                      d={displayVectorPath || "M 130 130 L 130 130"}
+                      fill="none"
+                      stroke={selectedOffset >= 0 ? "var(--ui-chart-vectorscope-snap)" : "var(--ui-chart-vectorscope-live)"}
+                      strokeWidth={UI_PREFERENCES.charts.vectorscope.strokeWidth}
+                      opacity={UI_PREFERENCES.charts.vectorscope.axisOpacity}
+                    />
+                    <circle
+                      cx="130"
+                      cy="130"
+                      r="2"
+                      fill={selectedOffset >= 0 ? "var(--ui-chart-vectorscope-snap)" : "var(--ui-chart-vectorscope-live)"}
+                    />
+                  </svg>
+                </div>
                 <span className="ui-caption absolute left-2 top-2">L</span>
                 <span className="ui-caption absolute right-2 top-2">R</span>
                 <span className="ui-caption absolute left-2 bottom-2">-1</span>
                 <span className="ui-caption absolute right-2 bottom-2">+1</span>
-                <span className="ui-caption absolute bottom-2 right-12">CORRELATION</span>
-                <span className={`ui-caption absolute bottom-2 right-2 font-semibold ${valueClassByCorr(correlation)}`}>{correlation.toFixed(2)}</span>
+              </div>
+              <div className="mt-2 flex shrink-0 items-baseline justify-end gap-2">
+                <span className="ui-caption text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
+                <span className={`ui-caption font-semibold tabular-nums ${valueClassByCorr(correlation)}`}>{correlation.toFixed(2)}</span>
               </div>
             </article>
           </section>

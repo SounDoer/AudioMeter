@@ -14,7 +14,7 @@
  * 6) 圆角                      → 搜 `radii`
  * 7) 深色 / 浅色「整页配色」   → 搜 `DARK_THEME_COLORS` 或 `LIGHT_THEME_COLORS`
  * 8) 浅色下单独加深曲线颜色   → 搜 `themes:` 里 `light:` 下的 `charts` / `spectrumGrid`
- * 9) 图表线宽、默认描边色     → 搜 `charts:`（与主题里覆盖合并）
+ * 9) 图表线宽、默认描边色、Vectorscope 轨迹比例 → 搜 `charts:` / `plotRadius`（与主题里覆盖合并）
  * 10) 谱图底网、表盘渐变      → 搜 `spectrumGrid` | `meterGradient`
  * 11) 右侧 Metrics 列宽       → 搜 `loudnessMetrics`
  * 12) 历史窗默认秒数          → 搜 `history`
@@ -166,15 +166,15 @@ export const UI_PREFERENCES = {
 
   // 主布局：左侧「Peak + Vector」一栏的宽度（px）及中间竖条拖拽范围
   mainColumn: {
-    initialPx: 360, // 默认左栏宽
-    dragMinPx: 280, // 拖窄极限
-    dragMaxPx: 520, // 拖宽极限
+    initialPx: 280, // 默认左栏宽
+    dragMinPx: 240, // 拖窄极限
+    dragMaxPx: 360, // 拖宽极限
   },
 
   // 左栏内：Peak Meter 占上方高度比例（0~1），余下给 Vectorscope
   leftSplit: {
-    initialRatio: 0.56, // 默认：Peak 约 56% 高
-    dragMinRatio: 0.32, // 上下拖动的比例下限
+    initialRatio: 0.57, // 默认
+    dragMinRatio: 0.5, // 上下拖动的比例下限
     dragMaxRatio: 0.72,
     dragPixelsPerDelta: 500, // 越大同样鼠标位移变化越小（手感更「钝」）
   },
@@ -285,6 +285,8 @@ export const UI_PREFERENCES = {
       strokeSnap: "#f59e0b", // 时停
       strokeWidth: 1.2,
       axisOpacity: 0.8, // 轨迹透明度
+      /** viewBox 260×260、中心 130：L/R 限幅 ±1 经 M/S 映射后，从中心到轨迹边缘的「半径」SVG 单位（原默认 96） */
+      plotRadius: 240,
     },
     spectrum: {
       strokeLive: "#007AFF",
