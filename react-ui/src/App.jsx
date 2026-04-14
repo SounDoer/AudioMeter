@@ -69,6 +69,8 @@ function valueClassByCorr(corr) {
 }
 
 export default function App() {
+  const buildVersionRaw = import.meta.env.VITE_APP_VERSION || "dev";
+  const buildVersion = buildVersionRaw === "dev" ? "dev" : buildVersionRaw.slice(0, 7);
   const STORE_KEY = UI_PREFERENCES.layoutPersistKey;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uiMode, setUiMode] = useState(() => readPersistedUiMode());
@@ -1084,6 +1086,8 @@ export default function App() {
           <span>{status2}</span>
           <span className="h-3 w-px bg-[color:var(--ui-color-divider)]" />
           <span>Loudness standard: {standard === "ebu" ? "EBU R128" : "Streaming"}</span>
+          <span className="h-3 w-px bg-[color:var(--ui-color-divider)]" />
+          <span>Build: {buildVersion}</span>
         </footer>
       </div>
 
