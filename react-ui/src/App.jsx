@@ -30,17 +30,34 @@ function PillButton({ children, accent = false, onClick }) {
   );
 }
 
-function MetricRow({ label, value, unit }) {
+function MetricRow({ label, value, unit, toggleColor, isActive = false, onToggle }) {
   const { valueColumnCh, unitColumnRem } = UI_PREFERENCES.loudnessMetrics;
-  return (
-    <div className="ui-metric-row">
-      <span className="ui-metric-label">{label}</span>
+  const content = (
+    <>
+      <span className="ui-metric-label">
+        {toggleColor ? <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ backgroundColor: toggleColor }} /> : null}
+        {label}
+      </span>
       <span className="ui-metric-value" style={{ width: `${valueColumnCh}ch` }}>
         {value}
       </span>
       <span className="ui-metric-unit" style={{ width: `${unitColumnRem}rem` }}>
         {unit}
       </span>
+    </>
+  );
+
+  if (onToggle) {
+    return (
+      <button type="button" onClick={onToggle} className={isActive ? "ui-metric-row ui-metric-row-toggle on" : "ui-metric-row ui-metric-row-toggle"}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="ui-metric-row">
+      {content}
     </div>
   );
 }
@@ -946,22 +963,7 @@ export default function App() {
                   </div>
 
                   <div />
-                  <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
-                    <span className="text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-target-label)]">
-                      Target <span className="ml-1 font-semibold text-[color:var(--ui-color-target-value)]">{targetLufs} LUFS</span>
-                    </span>
-                    {historyLegend.map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => toggleCurve(item.key)}
-                        className={histCurves[item.key] ? "ui-legend-on" : "ui-legend-off"}
-                      >
-                        <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
+                  <div />
                 </div>
               </article>
 
@@ -976,9 +978,33 @@ export default function App() {
               <article className="ui-article ui-article-metrics flex h-full min-h-0 min-w-0 flex-col xl:min-h-0">
                 <div className="ui-section-title mb-2 shrink-0">Loudness Metrics</div>
                 <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-                  {primaryMetrics.map((metric) => (
-                    <MetricRow key={metric.label} {...metric} />
-                  ))}
+                  {primaryMetrics.map((metric) => {
+                    if (metric.label === "Momentary") {
+                      const item = historyLegend.find((x) => x.key === "m");
+                      return (
+                        <MetricRow
+                          key={metric.label}
+                          {...metric}
+                          toggleColor={item?.color}
+                          isActive={histCurves.m}
+                          onToggle={() => toggleCurve("m")}
+                        />
+                      );
+                    }
+                    if (metric.label === "Short-term") {
+                      const item = historyLegend.find((x) => x.key === "st");
+                      return (
+                        <MetricRow
+                          key={metric.label}
+                          {...metric}
+                          toggleColor={item?.color}
+                          isActive={histCurves.st}
+                          onToggle={() => toggleCurve("st")}
+                        />
+                      );
+                    }
+                    return <MetricRow key={metric.label} {...metric} />;
+                  })}
                   {secondaryMetrics.map((metric) => (
                     <MetricRow key={metric.label} {...metric} />
                   ))}

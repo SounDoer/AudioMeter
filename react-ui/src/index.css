@@ -220,6 +220,26 @@ body {
   padding: var(--ui-metric-row-pad-y) var(--ui-metric-row-pad-x);
 }
 
+.ui-metric-row-toggle {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.ui-metric-row-toggle.on {
+  border-color: var(--ui-color-brand);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ui-color-brand) 35%, transparent), 0 0 12px color-mix(in srgb, var(--ui-color-brand) 18%, transparent);
+  background-color: color-mix(in srgb, var(--ui-color-inset-dark) 88%, var(--ui-color-brand) 12%);
+}
+
+.ui-metric-row-toggle:focus-visible {
+  outline: 2px solid var(--ui-color-brand);
+  outline-offset: 2px;
+}
+
 .ui-metric-label {
   min-width: 0;
   flex: 1;
