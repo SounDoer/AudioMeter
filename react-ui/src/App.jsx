@@ -212,7 +212,12 @@ export default function App() {
   const displayAudio = audioSnapIdx >= 0 && snapAudioList[audioSnapIdx] ? snapAudioList[audioSnapIdx] : audio;
   const displaySpectrumPath = snapIdx >= 0 && snapSpecList[snapIdx] ? snapSpecList[snapIdx] : spectrumPath;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
+  const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.charts.vectorscope.gridDiagInsetPct ?? 0));
+  const vsGridDiagFar = 100 - vsGridDiagInset;
   const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : displayAudio.correlation;
+  const hasTpMaxValue = Number.isFinite(displayAudio.tpMax);
+  const tpMaxText = hasTpMaxValue ? `${displayAudio.tpMax.toFixed(1)} dBTP` : "-";
+  const hasCorrelationValue = Number.isFinite(displayAudio.sampleL) && Number.isFinite(displayAudio.sampleR);
   const startMode = selectedOffset >= 0 ? "live" : running ? "stop" : "start";
   const startLabel = startMode === "live" ? "LIVE" : startMode === "stop" ? "STOP" : "START";
   const totalSamples = histSourceList.length;
@@ -665,21 +670,21 @@ export default function App() {
         </header>
 
         <main
-          className="min-h-0 flex-1 gap-[var(--ui-splitter-row)] overflow-y-auto lg:grid lg:overflow-hidden lg:min-h-0 lg:grid-cols-[var(--left)_var(--ui-splitter-main)_1fr] lg:grid-rows-[minmax(0,1fr)]"
+          className="min-h-0 flex-1 gap-[var(--ui-section-gap)] overflow-y-auto lg:grid lg:gap-0 lg:overflow-hidden lg:min-h-0 lg:grid-cols-[var(--left)_var(--ui-splitter-main)_1fr] lg:grid-rows-[minmax(0,1fr)]"
           style={{ "--left": `${mainLeft}px` }}
         >
           <section
-            className="grid min-h-0 gap-[var(--ui-splitter-row)] lg:h-full lg:min-h-0 lg:grid-rows-[var(--leftTop)_var(--ui-splitter-row)_minmax(0,1fr)]"
+            className="grid min-h-0 gap-[var(--ui-section-gap)] lg:h-full lg:min-h-0 lg:gap-0 lg:grid-rows-[var(--leftTop)_var(--ui-splitter-row)_minmax(0,1fr)]"
             style={{ "--leftTop": `${Math.round(leftTopRatio * 100)}%` }}
           >
             <article className="ui-article ui-min-h-peak min-h-0">
               <div className="shrink-0">
                 <div className="ui-section-title ui-section-title-main shrink-0">Peak Meter</div>
               </div>
-              <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-[var(--ui-panel-inner-gap)] ui-min-h-peak">
+              <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-[var(--ui-peak-axis-chart-gap)] ui-min-h-peak">
                 {/* ??????gauge??top-2 bottom-3?????????????????peakFromTopFrac ??peak.js mFrac ????*/}
                 <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
-                  <div className="absolute inset-x-0 top-[var(--ui-peak-gauge-top-inset)] bottom-[var(--ui-peak-gauge-bottom-inset)]">
+                  <div className="absolute inset-x-0 top-[var(--ui-peak-display-top-inset)] bottom-[var(--ui-peak-display-bottom-inset)]">
                     {PEAK_TICKS.map(({ v, lb }) => (
                       <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${peakFromTopFrac(v) * 100}%` }}>
                         {lb}
@@ -687,9 +692,9 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-[var(--ui-panel-inner-gap)]">
-                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-[var(--ui-meter-card-pad)]">
-                    <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-meter-chart-bottom-inset)] top-[var(--ui-meter-chart-top-inset)]">
+                <div className="grid grid-cols-2 gap-[var(--ui-peak-channel-gap)]">
+                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
+                    <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
                       <div className="meter-gradient absolute inset-x-0 bottom-0 rounded-md" style={{ top: `${peakFromTopFrac(displayAudio.sampleL) * 100}%` }} />
                       {Number.isFinite(displayAudio.samplePeakMaxL) && (
                         <div
@@ -698,12 +703,12 @@ export default function App() {
                         />
                       )}
                     </div>
-                    <div className="absolute left-[var(--ui-meter-label-inset-x)] right-[var(--ui-meter-label-inset-x)] top-[var(--ui-meter-label-top-inset)] text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
+                    <div className="absolute left-[var(--ui-meter-label-left-inset)] right-0 top-[var(--ui-meter-label-top-inset)] text-left text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
                       L <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleL)}</span>
                     </div>
                   </div>
-                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-[var(--ui-meter-card-pad)]">
-                    <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-meter-chart-bottom-inset)] top-[var(--ui-meter-chart-top-inset)]">
+                  <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
+                    <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
                       <div className="meter-gradient absolute inset-x-0 bottom-0 rounded-md" style={{ top: `${peakFromTopFrac(displayAudio.sampleR) * 100}%` }} />
                       {Number.isFinite(displayAudio.samplePeakMaxR) && (
                         <div
@@ -712,16 +717,19 @@ export default function App() {
                         />
                       )}
                     </div>
-                    <div className="absolute left-[var(--ui-meter-label-inset-x)] right-[var(--ui-meter-label-inset-x)] top-[var(--ui-meter-label-top-inset)] text-center text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
+                    <div className="absolute left-[var(--ui-meter-label-left-inset)] right-0 top-[var(--ui-meter-label-top-inset)] text-left text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
                       R <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleR)}</span>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="mt-[var(--ui-panel-footer-gap)] grid shrink-0 grid-cols-[auto_1fr] gap-[var(--ui-panel-inner-gap)]">
-                <div />
-                <div className="text-right text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-muted)]">
-                  TP MAX <span className="font-semibold text-[color:var(--ui-color-tp-max)]">{fmt(displayAudio.tpMax)} dBTP</span>
+              <div className="mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-start text-[length:var(--ui-fs-extra)]">
+                <div className="shrink-0" style={{ width: "var(--ui-tp-info-left-blank)" }} />
+                <div className="flex items-baseline gap-[var(--ui-inline-value-gap)]">
+                  <span className="text-[color:var(--ui-color-text-muted)]">TP MAX</span>
+                  <span className={hasTpMaxValue ? "font-semibold text-[color:var(--ui-color-tp-max)]" : "font-semibold text-[color:var(--ui-color-text-muted)]"}>
+                    {tpMaxText}
+                  </span>
                 </div>
               </div>
             </article>
@@ -754,48 +762,20 @@ export default function App() {
                     preserveAspectRatio="none"
                     aria-hidden
                   >
-                    <rect
-                      x="0"
-                      y="0"
-                      width="100"
-                      height="100"
-                      fill="none"
-                      stroke="var(--ui-color-divider)"
-                      strokeWidth="0.5"
-                      vectorEffect="non-scaling-stroke"
-                    />
                     <line
-                      x1="50"
-                      y1="0"
-                      x2="50"
-                      y2="100"
+                      x1={vsGridDiagInset}
+                      y1={vsGridDiagInset}
+                      x2={vsGridDiagFar}
+                      y2={vsGridDiagFar}
                       stroke="var(--ui-color-divider)"
                       strokeWidth="0.35"
                       vectorEffect="non-scaling-stroke"
                     />
                     <line
-                      x1="0"
-                      y1="50"
-                      x2="100"
-                      y2="50"
-                      stroke="var(--ui-color-divider)"
-                      strokeWidth="0.35"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                    <line
-                      x1="0"
-                      y1="0"
-                      x2="100"
-                      y2="100"
-                      stroke="var(--ui-color-divider)"
-                      strokeWidth="0.35"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                    <line
-                      x1="100"
-                      y1="0"
-                      x2="0"
-                      y2="100"
+                      x1={vsGridDiagFar}
+                      y1={vsGridDiagInset}
+                      x2={vsGridDiagInset}
+                      y2={vsGridDiagFar}
                       stroke="var(--ui-color-divider)"
                       strokeWidth="0.35"
                       vectorEffect="non-scaling-stroke"
@@ -826,9 +806,12 @@ export default function App() {
                 <span className="ui-caption absolute left-[var(--ui-vector-corner-inset)] bottom-[var(--ui-vector-corner-inset)]">-1</span>
                 <span className="ui-caption absolute right-[var(--ui-vector-corner-inset)] bottom-[var(--ui-vector-corner-inset)]">+1</span>
               </div>
-              <div className="mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-end gap-[var(--ui-inline-value-gap)] text-[length:var(--ui-fs-extra)]">
-                <span className="text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
-                <span className={`font-semibold tabular-nums ${valueClassByCorr(correlation)}`}>{correlation.toFixed(2)}</span>
+              <div className="mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-start text-[length:var(--ui-fs-extra)]">
+                <div className="shrink-0" style={{ width: "var(--ui-corr-info-left-blank)" }} />
+                <div className="flex items-baseline gap-[var(--ui-inline-value-gap)]">
+                  <span className="text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
+                  <span className={hasCorrelationValue ? `font-semibold tabular-nums ${valueClassByCorr(correlation)}` : "font-semibold text-[color:var(--ui-color-text-muted)]"}>{hasCorrelationValue ? correlation.toFixed(2) : "-"}</span>
+                </div>
               </div>
             </article>
           </section>
@@ -842,18 +825,18 @@ export default function App() {
           />
 
           <section
-            className="grid min-h-0 gap-[var(--ui-splitter-row)] lg:h-full lg:min-h-0 lg:grid-rows-[var(--rightTop)_var(--ui-splitter-row)_minmax(0,1fr)]"
+            className="grid min-h-0 gap-[var(--ui-section-gap)] lg:h-full lg:min-h-0 lg:gap-0 lg:grid-rows-[var(--rightTop)_var(--ui-splitter-row)_minmax(0,1fr)]"
             style={{ "--rightTop": `${Math.round(rightTopRatio * 100)}%` }}
           >
             <div
-              className="grid min-h-0 grid-cols-1 gap-[var(--ui-right-section-gap)] xl:h-full xl:min-h-0 xl:grid-cols-[var(--hmSplit)_var(--ui-splitter-hm)_minmax(0,1fr)] xl:gap-[var(--ui-splitter-hm)]"
+              className="grid min-h-0 grid-cols-1 gap-[var(--ui-section-gap)] xl:h-full xl:min-h-0 xl:grid-cols-[var(--hmSplit)_var(--ui-splitter-hm)_minmax(0,1fr)] xl:gap-0"
               style={{ "--hmSplit": `${Math.round(loudnessHistWidthRatio * 100)}%` }}
             >
               <article className="ui-article ui-min-h-history flex h-full min-w-0 flex-1 flex-col">
                 <div className="ui-section-title ui-section-title-main shrink-0">Loudness History</div>
-                <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-2 gap-y-2 items-stretch ui-min-h-history">
+                <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-history">
                   <div className="ui-w-loudness-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
-                    <div className="absolute inset-x-0 top-[var(--ui-history-axis-inset-y)] bottom-[var(--ui-history-axis-inset-y)]">
+                    <div className="absolute inset-x-0 top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)]">
                       {historyYAxisTicks.map(({ v, lb }) => {
                         const isTargetTick = v === targetLufs;
                         const tickClass = isTargetTick
@@ -898,7 +881,7 @@ export default function App() {
                     <svg
                       viewBox="0 0 600 220"
                       preserveAspectRatio="none"
-                      className="relative z-0 h-full w-full p-[var(--ui-history-svg-pad)]"
+                      className="relative z-0 h-full w-full px-[var(--ui-history-svg-pad)] pt-[var(--ui-history-display-top-inset)] pb-[var(--ui-history-display-bottom-inset)]"
                     >
                       {histCurves.m && (
                         <path
@@ -918,7 +901,7 @@ export default function App() {
                         />
                       )}
                     </svg>
-                    <div className="pointer-events-none absolute inset-[var(--ui-history-overlay-inset)] z-10">
+                    <div className="pointer-events-none absolute inset-x-[var(--ui-history-svg-pad)] top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)] z-10">
                       <div
                         className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
                         style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
@@ -941,28 +924,30 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="ui-axis-label-sub self-center text-center">LUFS</div>
+                  <div />
                   <div className="ui-caption relative h-[var(--ui-spectrum-freq-row-h)]">
-                    {historyTimeTicks.map((tick, i) => {
-                      if (i === 0) {
-                        return <span key={`${i}-${tick}`} className="absolute left-0 top-0 text-left">{tick}</span>;
-                      }
-                      if (i === HISTORY_TIME_TICK_STEPS) {
-                        return <span key={`${i}-${tick}`} className="absolute right-0 top-0 text-right">{tick}</span>;
-                      }
-                      return (
-                        <span
-                          key={`${i}-${tick}`}
-                          className="absolute top-0 -translate-x-1/2 text-center"
-                          style={{ left: `${(i / HISTORY_TIME_TICK_STEPS) * 100}%` }}
-                        >
-                          {tick}
-                        </span>
-                      );
-                    })}
+                    <div className="absolute inset-x-[var(--ui-history-svg-pad)] top-0 h-full">
+                      {historyTimeTicks.map((tick, i) => {
+                        if (i === 0) {
+                          return <span key={`${i}-${tick}`} className="absolute left-0 top-0 text-left">{tick}</span>;
+                        }
+                        if (i === HISTORY_TIME_TICK_STEPS) {
+                          return <span key={`${i}-${tick}`} className="absolute right-0 top-0 text-right">{tick}</span>;
+                        }
+                        return (
+                          <span
+                            key={`${i}-${tick}`}
+                            className="absolute top-0 -translate-x-1/2 text-center"
+                            style={{ left: `${(i / HISTORY_TIME_TICK_STEPS) * 100}%` }}
+                          >
+                            {tick}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <div />
+                  <div className="h-0 shrink-0" />
                   <div />
                 </div>
               </article>
@@ -1022,22 +1007,19 @@ export default function App() {
 
             <article className="ui-article ui-min-h-spectrum flex-1">
               <div className="ui-section-title ui-section-title-main shrink-0">Spectrum Analyzer</div>
-              <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] gap-[var(--ui-axis-chart-gap)] items-stretch ui-min-h-spectrum">
-                <div className="ui-w-spectrum-y-axis flex min-h-0 shrink-0 flex-col text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
-                  <div className="relative min-h-0 w-full flex-1">
-                    <div className="absolute inset-x-0 top-[var(--ui-spectrum-axis-inset-y)] bottom-[var(--ui-spectrum-axis-inset-y)]">
-                      {SPEC_Y_TICKS.map(({ v, lb }) => (
-                        <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${spectrumDbToTopFrac(v) * 100}%` }}>
-                          {lb}
-                        </span>
-                      ))}
-                    </div>
+              <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-spectrum-freq-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-spectrum">
+                <div className="ui-w-spectrum-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
+                  <div className="absolute inset-x-0 top-[var(--ui-spectrum-display-top-inset)] bottom-[var(--ui-spectrum-display-bottom-inset)]">
+                    {SPEC_Y_TICKS.map(({ v, lb }) => (
+                      <span key={v} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${spectrumDbToTopFrac(v) * 100}%` }}>
+                        {lb}
+                      </span>
+                    ))}
                   </div>
-                  <div className="ui-axis-label-sub shrink-0 pb-[var(--ui-axis-unit-pad-b)] text-center">dB</div>
                 </div>
-                <div className="relative flex min-h-0 min-w-0 flex-col">
+                <div className="relative min-h-0 min-w-0">
                   <div
-                    className={`spectrum-grid ui-inset-chart-spectrum relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)] ${selectedOffset >= 0 ? "ring-1 ring-[color:var(--ui-color-snapshot-ring)]" : ""}`}
+                    className={`spectrum-grid ui-inset-chart-spectrum relative min-h-0 h-full rounded-lg bg-[var(--ui-color-inset-bg)] ${selectedOffset >= 0 ? "ring-1 ring-[color:var(--ui-color-snapshot-ring)]" : ""}`}
                   >
                     {selectedOffset >= 0 && (
                       <div
@@ -1047,7 +1029,7 @@ export default function App() {
                         Snapshot View
                       </div>
                     )}
-                    <div className="absolute inset-0 min-h-0 min-w-0 p-[var(--ui-spectrum-svg-pad)]">
+                    <div className="absolute inset-0 min-h-0 min-w-0 px-[var(--ui-spectrum-svg-pad)] pt-[var(--ui-spectrum-display-top-inset)] pb-[var(--ui-spectrum-display-bottom-inset)]">
                       <svg
                         viewBox="0 0 1000 260"
                         preserveAspectRatio="none"
@@ -1062,15 +1044,21 @@ export default function App() {
                       </svg>
                     </div>
                   </div>
-                  <div className="ui-caption relative mt-[var(--ui-freq-axis-top-gap)] w-full" style={{ height: "var(--ui-spectrum-freq-row-h)" }}>
+                </div>
+
+                <div />
+                <div className="ui-caption relative h-[var(--ui-spectrum-freq-row-h)] w-full">
+                  <div className="absolute inset-x-[var(--ui-spectrum-svg-pad)] top-0 h-full">
                     {FREQ_LABELS.map(([f, lb]) => (
                       <span key={f} className="absolute top-0 -translate-x-1/2 whitespace-nowrap" style={{ left: `${freqToXFrac(f) * 100}%` }}>
                         {lb}
                       </span>
                     ))}
                   </div>
-                  <div className="ui-caption-subtle mt-[var(--ui-axis-sub-label-gap)]">Hz (log)</div>
                 </div>
+
+                <div />
+                <div />
               </div>
             </article>
           </section>

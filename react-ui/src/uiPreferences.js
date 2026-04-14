@@ -151,19 +151,18 @@ export const UI_PREFERENCES = {
   shell: {
     maxWidthPx: 1600, // 内容区 max-width，再大两侧留白
     paddingRem: { base: 0.8, lg: 1.2}, // 小屏 / lg 以上整页内边距
-    gapRem: { base: 0.4, lg: 0.4 }, // header、main、footer 之间的缝
+    gapRem: { base: 0.5, lg: 0.5 }, // header、main、footer 之间的缝
   },
 
-  // 主栏竖条、上下分栏条、History|Metrics 之间竖条宽度（px）
+  // section 间距与分栏条粗细（px）
   splitters: {
-    mainGutterPx: 8, // 左整块 vs 右整块
-    rowGutterPx: 6, // Peak|Vector 或 Loudness 区|Spectrum 之间横条
-    histMetricsGutterPx: 6, // History 与 Metrics 之间竖条
+    sectionGapPx: 8, // 所有 section 间距统一值
+    barThicknessPx: 1, // 分栏条可视粗细
   },
 
   // 顶栏 AudioMeter 一行：左右内边距（rem）
   header: {
-    paddingXRem: 1.25,
+    paddingXRem: 1.0,
     paddingYRem: 0.75,
   },
 
@@ -173,44 +172,58 @@ export const UI_PREFERENCES = {
     paddingYRem: 0.5,
   },
 
-  // 各 article 卡片内边距：默认 vs Metrics 略紧（rem）
+  // 各 article 卡片内边距：默认可分 x/y；Metrics 列表单独控制（rem）
   articlePadding: {
-    defaultRem: 0.6,
-    metricsRem: 0.75, // Metrics 条目列表内边距（标题仍跟随 defaultRem）
-    sectionTitleGapRem: 0.75, // 常规模块标题与内容间距
-    metricsTitleGapRem: 0.5, // Metrics 模块标题与列表间距
+    defaultXRem: 0.6,
+    defaultYRem: 0.5,
+    metricsRem: 0, // Metrics 条目列表内边距（标题仍跟随 defaultRem）
+    sectionTitleGapRem: 0.4, // 常规模块标题与内容间距
+    metricsTitleGapRem: 0.4, // Metrics 模块标题与列表间距
   },
 
   // 常用细粒度间距（rem）：避免 JSX 里硬编码 mt/gap/pb 导致配置失效
   spacingRem: {
-    panelFooterGap: 0.5, // 模块主体与底部信息条之间（原 mt-2）
-    metricsListGap: 0.25, // Metrics 条目间距（原 gap-1）
-    axisUnitPadBottom: 0.25, // 纵轴单位文本底部内边距（原 pb-1）
-    axisSubLabelGap: 0.25, // 频轴次级标签与主轴间距（原 mt-1）
-    freqAxisTopGap: 0.5, // 频率刻度轴与图表间距（原 mt-2）
-    headerActionGap: 0.5, // 顶栏右侧按钮间距（原 gap-2）
-    inlineValueGap: 0.5, // 模块内同一行数值组间距（原 gap-2）
-    rightSectionGap: 1, // 右侧上下/左右分区缝隙（原 gap-4）
-    axisChartGap: 0.5, // 轴与图表间距（原 gap-2）
-    panelInnerGap: 0.75, // 模块内中等间距（原 gap-3）
-    metricDotSize: 0.5, // Metrics 可切换条目前的小圆点（原 h-2 w-2）
-    peakGaugeTopInset: 0.5, // Peak 刻度顶部留白（原 top-2）
-    peakGaugeBottomInset: 0.75, // Peak 刻度底部留白（原 bottom-3）
-    meterCardPad: 0.5, // L/R 柱图卡片内边距（原 p-2）
-    meterChartInsetX: 0.75, // L/R 柱图左右内缩（原 inset-x-3）
-    meterChartTopInset: 0.5, // L/R 柱图顶部内缩（原 top-2）
-    meterChartBottomInset: 0.75, // L/R 柱图底部内缩（原 bottom-3）
-    meterLabelInsetX: 0.75, // L/R 标题左右定位（原 left-3/right-3）
+    // Global
+    headerActionGap: 0, // 顶栏右侧按钮间距（原 gap-2）
+    panelFooterGap: 0.4, // 模块主体与底部信息条之间（原 mt-2）
+    inlineValueGap: 0.4, // 模块内同一行数值组间距（原 gap-2）
+    
+    // Metrics
+    metricsListGap: 0.45, // Metrics 条目间距（原 gap-1）
+    metricDotSize: 0.6, // Metrics 可切换条目前的小圆点（原 h-2 w-2）
+    
+    // Shared chart axes (History / Spectrum)
+    axisGapX: 0.4, // 横轴刻度与图表间距（History/Spectrum 共用）
+    axisGapY: 0.4, // 纵轴刻度与图表间距（History/Spectrum 共用）
+    
+    // Peak Meter
+    peakAxisChartGap: 0.5, // Peak 纵轴刻度列与柱图区之间间距
+    peakChannelGap: 0.4, // Peak 柱与柱之间间距（N 声道时为 N-1 个 gap）
+    peakDisplayTopInset: 0.5, // Peak 显示区顶部边界（刻度与柱体共用）
+    peakDisplayBottomInset: 0.5, // Peak 显示区底部边界（刻度与柱体共用）
+    meterChartInsetX: 0.6, // L/R 柱图左右内缩（原 inset-x-3）
+    meterLabelLeftInset: 1.6, // L/R 标题左侧内缩（仅正数，越大越靠右）
     meterLabelTopInset: 0.75, // L/R 标题顶部定位（原 top-3）
-    snapshotBadgeInset: 0.5, // Snapshot 徽章右上偏移（原 right-2/top-2）
-    chartOuterInset: 1, // Vectorscope 绘图区外边距（原 inset-4）
-    vectorCornerInset: 0.5, // Vectorscope 四角标注偏移（原 left/right/top/bottom-2）
-    historyAxisInsetY: 0.75, // History 左轴上下内缩（原 top-3/bottom-3）
-    historySvgPad: 0.75, // History 主图 SVG 内边距（原 p-3）
-    historyOverlayInset: 0.75, // History 覆盖层内边距（原 inset-3）
+    tpInfoLeftBlank: 5.4, // Peak 信息行 TP MAX 左侧留白
+
+    // Vectorscope
+    chartOuterInset: 0, // Vectorscope 绘图区外边距（原 inset-4）
+    vectorCornerInset: 0.4, // Vectorscope 四角标注偏移（原 left/right/top/bottom-2）
+    corrInfoLeftBlank: 4, // Vectorscope 信息行 CORRELATION 左侧留白
+
+    // History
+    historyDisplayTopInset: 0.1, // History 显示区顶部边界（左轴与图线共用）
+    historyDisplayBottomInset: 0, // History 显示区底部边界（左轴与图线共用）
+    historySvgPad: 0.4, // History 主图 SVG 内边距（原 p-3）
     hudInset: 0.25, // History HUD 角落偏移（原 bottom-1/right-1）
-    spectrumAxisInsetY: 0.5, // Spectrum 左轴上下内缩（原 top-2/bottom-2）
-    spectrumSvgPad: 0.5, // Spectrum 主图 SVG 内边距（原 p-2）
+
+    // Spectrum
+    spectrumDisplayTopInset: 0.5, // Spectrum 显示区顶部边界（左轴与图线共用）
+    spectrumDisplayBottomInset: 0.5, // Spectrum 显示区底部边界（左轴与图线共用）
+    spectrumSvgPad: 0.4, // Spectrum 主图 SVG 内边距（原 p-2）
+
+    // Shared badges
+    snapshotBadgeInset: 0.5, // Snapshot 徽章右上偏移（原 right-2/top-2）
   },
 
   // 设置弹窗：最大宽、内边距、遮罩内边距（rem）
@@ -227,14 +240,14 @@ export const UI_PREFERENCES = {
 
   // 主布局：左侧「Peak + Vector」一栏的宽度（px）及中间竖条拖拽范围
   mainColumn: {
-    initialPx: 280, // 默认左栏宽
+    initialPx: 270, // 默认左栏宽
     dragMinPx: 240, // 拖窄极限
     dragMaxPx: 360, // 拖宽极限
   },
 
   // 左栏内：Peak Meter 占上方高度比例（0~1），余下给 Vectorscope
   leftSplit: {
-    initialRatio: 0.57, // 默认
+    initialRatio: 0.6, // 默认
     dragMinRatio: 0.5, // 上下拖动的比例下限
     dragMaxRatio: 0.72,
     dragPixelsPerDelta: 500, // 越大同样鼠标位移变化越小（手感更「钝」）
@@ -348,6 +361,7 @@ export const UI_PREFERENCES = {
       strokeSnap: "#f59e0b", // 时停
       strokeWidth: 1.2,
       axisOpacity: 0.8, // 轨迹透明度
+      gridDiagInsetPct: 1.2, // 米字斜线端点离边缘内缩百分比（避免圆角处越界）
       /** viewBox 260×260、中心 130：L/R 限幅 ±1 经 M/S 映射后，从中心到轨迹边缘的「半径」SVG 单位（原默认 96） */
       plotRadius: 240,
     },
@@ -516,9 +530,13 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-w-spectrum-y-axis", `${widthsPx.spectrumYAxis}px`);
   setCssVar("--ui-w-peak-ticks", `${widthsPx.peakTickCol}px`);
 
-  setCssVar("--ui-splitter-main", `${prefs.splitters.mainGutterPx}px`);
-  setCssVar("--ui-splitter-row", `${prefs.splitters.rowGutterPx}px`);
-  setCssVar("--ui-splitter-hm", `${prefs.splitters.histMetricsGutterPx}px`);
+  setCssVar("--ui-section-gap", `${prefs.splitters.sectionGapPx}px`);
+  // splitters track size drives actual section spacing
+  setCssVar("--ui-splitter-main", `${prefs.splitters.sectionGapPx}px`);
+  setCssVar("--ui-splitter-row", `${prefs.splitters.sectionGapPx}px`);
+  setCssVar("--ui-splitter-hm", `${prefs.splitters.sectionGapPx}px`);
+  // visual splitter bar thickness inside the track
+  setCssVar("--ui-splitter-bar-thickness", `${prefs.splitters.barThicknessPx}px`);
 
   const lm = prefs.loudnessMetrics;
   setCssVar("--ui-metric-row-min-h", `${lm.rowMinHeightRem}rem`);
@@ -531,7 +549,8 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-header-pad-y", `${h.paddingYRem}rem`);
 
   const a = prefs.articlePadding;
-  setCssVar("--ui-article-pad", `${a.defaultRem}rem`);
+  setCssVar("--ui-article-pad-x", `${a.defaultXRem}rem`);
+  setCssVar("--ui-article-pad-y", `${a.defaultYRem}rem`);
   setCssVar("--ui-article-pad-metrics", `${a.metricsRem}rem`);
   setCssVar("--ui-section-title-gap", `${a.sectionTitleGapRem}rem`);
   setCssVar("--ui-metrics-title-gap", `${a.metricsTitleGapRem}rem`);
@@ -539,31 +558,29 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   const sp = prefs.spacingRem;
   setCssVar("--ui-panel-footer-gap", `${sp.panelFooterGap}rem`);
   setCssVar("--ui-metrics-list-gap", `${sp.metricsListGap}rem`);
-  setCssVar("--ui-axis-unit-pad-b", `${sp.axisUnitPadBottom}rem`);
-  setCssVar("--ui-axis-sub-label-gap", `${sp.axisSubLabelGap}rem`);
-  setCssVar("--ui-freq-axis-top-gap", `${sp.freqAxisTopGap}rem`);
+  setCssVar("--ui-axis-gap-x", `${sp.axisGapX}rem`);
   setCssVar("--ui-header-action-gap", `${sp.headerActionGap}rem`);
   setCssVar("--ui-inline-value-gap", `${sp.inlineValueGap}rem`);
-  setCssVar("--ui-right-section-gap", `${sp.rightSectionGap}rem`);
-  setCssVar("--ui-axis-chart-gap", `${sp.axisChartGap}rem`);
-  setCssVar("--ui-panel-inner-gap", `${sp.panelInnerGap}rem`);
+  setCssVar("--ui-tp-info-left-blank", `${sp.tpInfoLeftBlank}rem`);
+  setCssVar("--ui-corr-info-left-blank", `${sp.corrInfoLeftBlank}rem`);
+  setCssVar("--ui-axis-gap-y", `${sp.axisGapY}rem`);
+  setCssVar("--ui-peak-axis-chart-gap", `${sp.peakAxisChartGap}rem`);
+  setCssVar("--ui-peak-channel-gap", `${sp.peakChannelGap}rem`);
   setCssVar("--ui-metric-dot-size", `${sp.metricDotSize}rem`);
-  setCssVar("--ui-peak-gauge-top-inset", `${sp.peakGaugeTopInset}rem`);
-  setCssVar("--ui-peak-gauge-bottom-inset", `${sp.peakGaugeBottomInset}rem`);
-  setCssVar("--ui-meter-card-pad", `${sp.meterCardPad}rem`);
+  setCssVar("--ui-peak-display-top-inset", `${sp.peakDisplayTopInset}rem`);
+  setCssVar("--ui-peak-display-bottom-inset", `${sp.peakDisplayBottomInset}rem`);
   setCssVar("--ui-meter-chart-inset-x", `${sp.meterChartInsetX}rem`);
-  setCssVar("--ui-meter-chart-top-inset", `${sp.meterChartTopInset}rem`);
-  setCssVar("--ui-meter-chart-bottom-inset", `${sp.meterChartBottomInset}rem`);
-  setCssVar("--ui-meter-label-inset-x", `${sp.meterLabelInsetX}rem`);
+  setCssVar("--ui-meter-label-left-inset", `${sp.meterLabelLeftInset}rem`);
   setCssVar("--ui-meter-label-top-inset", `${sp.meterLabelTopInset}rem`);
   setCssVar("--ui-snapshot-badge-inset", `${sp.snapshotBadgeInset}rem`);
   setCssVar("--ui-chart-outer-inset", `${sp.chartOuterInset}rem`);
   setCssVar("--ui-vector-corner-inset", `${sp.vectorCornerInset}rem`);
-  setCssVar("--ui-history-axis-inset-y", `${sp.historyAxisInsetY}rem`);
+  setCssVar("--ui-history-display-top-inset", `${sp.historyDisplayTopInset}rem`);
+  setCssVar("--ui-history-display-bottom-inset", `${sp.historyDisplayBottomInset}rem`);
   setCssVar("--ui-history-svg-pad", `${sp.historySvgPad}rem`);
-  setCssVar("--ui-history-overlay-inset", `${sp.historyOverlayInset}rem`);
   setCssVar("--ui-hud-inset", `${sp.hudInset}rem`);
-  setCssVar("--ui-spectrum-axis-inset-y", `${sp.spectrumAxisInsetY}rem`);
+  setCssVar("--ui-spectrum-display-top-inset", `${sp.spectrumDisplayTopInset}rem`);
+  setCssVar("--ui-spectrum-display-bottom-inset", `${sp.spectrumDisplayBottomInset}rem`);
   setCssVar("--ui-spectrum-svg-pad", `${sp.spectrumSvgPad}rem`);
 
   const f = prefs.footer;
