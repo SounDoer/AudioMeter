@@ -38,13 +38,13 @@ export function loudnessHistY(v, viewH = 220) {
   return viewH * loudnessFromTopFrac(v);
 }
 
-/** Spectrum：viewBox 1000×260，与 spectrum 路径生成 `y = 260 - ((d+100)/100)*240` 一致 */
+/** Spectrum：viewBox 1000×260，0 dB 在 y=0（顶端），-100 dB 在 y=260（底端） */
 export const SPEC_VIEW_H = 260;
 export const SPEC_DB_MIN = -100;
 export const SPEC_DB_MAX = 0;
 const SPEC_DB_RNG = SPEC_DB_MAX - SPEC_DB_MIN;
-/** 有效绘图区在 viewBox 内 y∈[20,260]，高度 240（0 dB 在 y=20，-100 dB 在 y=260） */
-export const SPEC_PLOT_H = 240;
+/** 有效绘图区占满整个 viewBox 高度（0 dB → y=0，-100 dB → y=260） */
+export const SPEC_PLOT_H = 260;
 
 export function spectrumDbToYViewBox(d) {
   const dd = Math.max(SPEC_DB_MIN, Math.min(SPEC_DB_MAX, Number.isFinite(d) ? d : SPEC_DB_MIN));

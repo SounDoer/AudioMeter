@@ -218,7 +218,7 @@ export const UI_PREFERENCES = {
     hudInset: 0.25, // History HUD 角落偏移（原 bottom-1/right-1）
 
     // Spectrum
-    spectrumDisplayTopInset: 0, // Spectrum 显示区顶部边界（左轴与图线共用）
+    spectrumDisplayTopInset: 0.5, // Spectrum 显示区顶部边界（左轴与图线共用，预留 0 dB 标签空间）
     spectrumDisplayBottomInset: 0, // Spectrum 显示区底部边界（左轴与图线共用）
     spectrumSvgPad: 0.4, // Spectrum 主图 SVG 内边距（原 p-2）
 
