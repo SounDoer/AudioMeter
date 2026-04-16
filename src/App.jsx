@@ -22,6 +22,7 @@ import { dbPathFromBands, smoothByKernel, smoothingPreset } from "./math/spectru
 import { buildHistoryPath, getHistoryViewport, HISTORY_MAX_WINDOW_SEC, HISTORY_MIN_WINDOW_SEC } from "./math/historyMath";
 import { fmtMetric, fmtSec } from "./math/formatMath";
 import { samplePeakLineColor } from "./math/colorMath";
+import { useHistoryInteraction } from "./hooks/useHistoryInteraction";
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 const HISTORY_TIME_TICK_STEPS = 4;
@@ -121,9 +122,6 @@ export default function App() {
   const [rightTopRatio, setRightTopRatio] = useState(UI_PREFERENCES.rightSplit.initialRatio);
   /** History ??Metrics ?????????History ???????????????????Metrics??*/
   const [loudnessHistWidthRatio, setLoudnessHistWidthRatio] = useState(UI_PREFERENCES.loudnessHistMetrics.initialRatio);
-  const dragModeRef = useRef(null);
-  const panStartRef = useRef({ x: 0, offset: 0 });
-  const lastRightDownTsRef = useRef(0);
   const layoutDragRef = useRef(null);
   const audioRef = useRef(null);
   const spectrumStateRef = useRef({ smoothDb: [], peakDb: [], peakHoldUntil: [] });
@@ -188,14 +186,6 @@ export default function App() {
       (v) => peakFromTopFrac(Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, v))),
       meterGradientCfg
     );
-  const showHistoryHud = (ms = 1600) => {
-    setHistoryHudUntilTs(Date.now() + Math.max(200, ms));
-  };
-  const holdHistoryHud = (on) => {
-    setHistoryHudHold(Boolean(on));
-    if (on) showHistoryHud(2200);
-  };
-
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
   const targetLufs = standard === "ebu" ? -23 : -14;
   const historyYAxisTicks = useMemo(() => {
@@ -293,6 +283,30 @@ export default function App() {
     )
   );
 
+  const {
+    showHistoryHud,
+    holdHistoryHud,
+    onHistoryPointerDown,
+    onHistoryPointerMove,
+    onHistoryPointerUp,
+    onHistoryWheel,
+  } = useHistoryInteraction({
+    sampleSec: HIST_SAMPLE_SEC,
+    minWindowSec: HISTORY_MIN_WINDOW_SEC,
+    maxWindowSec: HISTORY_MAX_WINDOW_SEC,
+    defaultWindowSec: UI_PREFERENCES.history.defaultWindowSec,
+    totalSamples,
+    visibleSamples,
+    maxOffsetSamples,
+    effectiveOffsetSamples,
+    effectiveOffsetSec,
+    setSelectedOffset,
+    setHistoryOffsetSec,
+    setHistoryWindowSec,
+    setHistoryHudUntilTs,
+    setHistoryHudHold,
+  });
+
   const clearAll = () => {
     if (audioRef.current?.wklt) {
       try {
@@ -349,88 +363,6 @@ export default function App() {
     }
     setRunning(true);
   };
-  /** rect ??history ???????????????LUFS ????????????????????????????*/
-  const updateSelectionFromClientX = (clientX, rect) => {
-    const width = Math.max(1, rect.width);
-    const x = Math.max(0, Math.min(width, clientX - rect.left));
-    const normalized = 1 - x / width;
-    const fromEndSamples = effectiveOffsetSamples + normalized * Math.max(0, visibleSamples - 1);
-    setSelectedOffset(Math.round(fromEndSamples) * HIST_SAMPLE_SEC);
-  };
-  const onHistoryPointerDown = (ev) => {
-    const rect = ev.currentTarget.getBoundingClientRect();
-    if (ev.button === 0) {
-      dragModeRef.current = "select";
-      holdHistoryHud(true);
-      showHistoryHud(1600);
-      updateSelectionFromClientX(ev.clientX, rect);
-    } else if (ev.button === 2) {
-      const nowTs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
-      if (nowTs - lastRightDownTsRef.current <= 320) {
-        setHistoryWindowSec(UI_PREFERENCES.history.defaultWindowSec);
-        setHistoryOffsetSec(0);
-        holdHistoryHud(false);
-        showHistoryHud(1200);
-        lastRightDownTsRef.current = 0;
-        return;
-      }
-      lastRightDownTsRef.current = nowTs;
-      if (totalSamples <= visibleSamples) return;
-      dragModeRef.current = "pan";
-      panStartRef.current = { x: ev.clientX, offset: effectiveOffsetSec };
-      holdHistoryHud(true);
-      showHistoryHud(1600);
-    } else return;
-    try {
-      ev.currentTarget.setPointerCapture(ev.pointerId);
-    } catch (_) {}
-  };
-  const onHistoryPointerMove = (ev) => {
-    const mode = dragModeRef.current;
-    if (!mode) return;
-    const rect = ev.currentTarget.getBoundingClientRect();
-    if (mode === "select") {
-      showHistoryHud(1600);
-      return void updateSelectionFromClientX(ev.clientX, rect);
-    }
-    const dx = ev.clientX - panStartRef.current.x;
-    const secPerPx = (visibleSamples * HIST_SAMPLE_SEC) / Math.max(1, rect.width);
-    const next = Math.max(0, Math.min(maxOffsetSamples * HIST_SAMPLE_SEC, panStartRef.current.offset + dx * secPerPx));
-    setHistoryOffsetSec(next);
-    showHistoryHud(1600);
-  };
-  const onHistoryPointerUp = (ev) => {
-    dragModeRef.current = null;
-    holdHistoryHud(false);
-    showHistoryHud(900);
-    try {
-      ev.currentTarget.releasePointerCapture(ev.pointerId);
-    } catch (_) {}
-  };
-  const onHistoryWheel = (ev) => {
-    ev.preventDefault();
-    showHistoryHud(1600);
-    const factor = ev.deltaY < 0 ? 0.85 : 1.18;
-    const rect = ev.currentTarget.getBoundingClientRect();
-    const width = Math.max(1, rect.width);
-    const x = Math.max(0, Math.min(width, ev.clientX - rect.left));
-    const norm = 1 - x / width;
-    const anchorFromEndSamples = effectiveOffsetSamples + norm * Math.max(0, visibleSamples - 1);
-    const baselineSec = Math.max(HIST_SAMPLE_SEC, visibleSamples * HIST_SAMPLE_SEC);
-    const next = Math.max(HISTORY_MIN_WINDOW_SEC, Math.min(HISTORY_MAX_WINDOW_SEC, baselineSec * factor));
-    const nextVisibleSamples = Math.max(1, Math.min(Math.max(1, totalSamples), Math.round(next / HIST_SAMPLE_SEC)));
-    const nextMaxOffsetSamples = Math.max(0, totalSamples - nextVisibleSamples);
-    const nextOffsetSamples = Math.max(
-      0,
-      Math.min(
-        nextMaxOffsetSamples,
-        Math.round(anchorFromEndSamples - norm * Math.max(0, nextVisibleSamples - 1))
-      )
-    );
-    setHistoryWindowSec(next);
-    setHistoryOffsetSec(nextOffsetSamples * HIST_SAMPLE_SEC);
-  };
-
   useEffect(() => {
     if (historyHudHold) return;
     const remain = historyHudUntilTs - Date.now();
