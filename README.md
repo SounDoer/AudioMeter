@@ -25,10 +25,9 @@
 
 ## 快速开始
 
-克隆或下载本仓库后，进入 `react-ui` 启动开发服务器：
+克隆或下载本仓库后，在项目根目录启动开发服务器：
 
 ```bash
-cd react-ui
 npm install
 npm run dev
 ```
@@ -38,14 +37,13 @@ npm run dev
 ## 仓库结构
 
 ```
-index.html               # 根入口（重定向到 react-ui）
-react-ui/
-  src/
-    App.jsx              # 主界面与交互
-    uiPreferences.js     # UI 配置与偏好
-    scales.js            # 刻度与量程配置
-  public/worklets/
-    loudness-meter.js    # 响度测量 AudioWorklet
+index.html               # 页面入口
+src/
+  App.jsx                # 主界面与交互
+  uiPreferences.js       # UI 配置与偏好
+  scales.js              # 刻度与量程配置
+public/worklets/
+  loudness-meter.js      # 响度测量 AudioWorklet
 ```
 
 ## 测「系统正在播放的声音」
@@ -60,7 +58,7 @@ react-ui/
 ## 隐私与对外部署注意
 
 - **数据处理**：音频仅在用户本机处理与显示，无自有后端接口。
-- **第三方资源**：页面通过 Google Fonts 加载字体；若部署环境对出站请求敏感，可改为自托管字体并修改 `react-ui/src/index.css`。
+- **第三方资源**：页面通过 Google Fonts 加载字体；若部署环境对出站请求敏感，可改为自托管字体并修改 `src/index.css`。
 - **本地存储**：界面偏好会保存在 `localStorage`，不涉及服务端。
 - **错误信息**：启动失败时界面仅显示简要说明；详细错误可在开发者工具控制台查看（便于排障，避免向普通访问者暴露堆栈路径）。
 
