@@ -992,7 +992,7 @@ export default function App() {
                 <div className="shrink-0" style={{ width: "var(--ui-corr-info-left-blank)" }} />
                 <div className="flex items-baseline gap-[var(--ui-inline-value-gap)]">
                   <span className="text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
-                  <span className={hasCorrelationValue ? `font-semibold tabular-nums ${valueClassByCorr(correlation)}` : "font-semibold text-[color:var(--ui-color-text-muted)]"}>{hasCorrelationValue ? correlation.toFixed(2) : "-"}</span>
+                  <span className={hasCorrelationValue ? "font-semibold tabular-nums text-[color:var(--ui-color-tp-max)]" : "font-semibold text-[color:var(--ui-color-text-muted)]"}>{hasCorrelationValue ? correlation.toFixed(2) : "-"}</span>
                 </div>
               </div>
             </article>
