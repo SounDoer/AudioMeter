@@ -14,6 +14,8 @@ export function useAudioEngine({
   histRef,
   loudnessHistRef,
   spectrumSnapRef,
+  spectrumDataRef,
+  spectrumDataSnapRef,
   vectorSnapRef,
   corrSnapRef,
   audioSnapRef,
@@ -163,6 +165,7 @@ export function useAudioEngine({
           const maxF = Math.max(minF * 1.2, Math.min(spectrumCfg.maxHz || 20000, nyquist));
           const bands = buildRtaBands(minF, maxF, spectrumCfg.resolution || "1/6");
           if (spectrumCfg.freeze && spectrumStateRef.current.smoothDb.length === bands.length) {
+            spectrumDataRef.current = { bands, dbList: [...spectrumStateRef.current.smoothDb] };
             if (selectedOffsetRef.current < 0 && shouldPaintUi) {
               setSpectrumPath(dbPathFromBands(bands, spectrumStateRef.current.smoothDb));
               setSpectrumPeakPath(spectrumCfg.showPeakHold ? dbPathFromBands(bands, spectrumStateRef.current.peakDb) : "");
@@ -220,8 +223,12 @@ export function useAudioEngine({
 
           const livePath = dbPathFromBands(bands, state.smoothDb);
           const peakPath = dbPathFromBands(bands, state.peakDb);
+          const spectrumData = { bands, dbList: [...state.smoothDb] };
+          spectrumDataRef.current = spectrumData;
           spectrumSnapRef.current.push(livePath);
           if (spectrumSnapRef.current.length > histMaxSamples) spectrumSnapRef.current.shift();
+          spectrumDataSnapRef.current.push(spectrumData);
+          if (spectrumDataSnapRef.current.length > histMaxSamples) spectrumDataSnapRef.current.shift();
           if (selectedOffsetRef.current < 0 && shouldPaintUi) {
             setSpectrumPath(livePath);
             setSpectrumPeakPath(spectrumCfg.showPeakHold ? peakPath : "");

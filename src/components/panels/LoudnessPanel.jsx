@@ -25,12 +25,15 @@ export function LoudnessPanel({
   clampedWindowSec,
   effectiveOffsetSec,
   fmtSec,
+  historyHover,
   historyTimeTicks,
   historyTickSteps,
   primaryMetrics,
   secondaryMetrics,
   MetricRow,
   toggleCurve,
+  onHistoryHoverMove,
+  onHistoryHoverLeave,
 }) {
   return (
     <article className="ui-article ui-min-h-history">
@@ -82,9 +85,13 @@ export function LoudnessPanel({
               }}
               onWheel={onHistoryWheel}
               onPointerDown={onHistoryPointerDown}
-              onPointerMove={onHistoryPointerMove}
+              onPointerMove={(e) => {
+                onHistoryPointerMove(e);
+                onHistoryHoverMove?.(e.clientX, e.currentTarget.getBoundingClientRect());
+              }}
               onPointerUp={onHistoryPointerUp}
               onPointerCancel={onHistoryPointerUp}
+              onPointerLeave={onHistoryHoverLeave}
             >
               <svg
                 viewBox="0 0 600 220"
@@ -126,11 +133,30 @@ export function LoudnessPanel({
                     }}
                   />
                 )}
+                {historyHover?.leftPct != null ? (
+                  <div
+                    className="absolute bottom-0 top-0 border-l border-dashed border-[color:color-mix(in_srgb,var(--ui-color-text-secondary)_55%,transparent)]"
+                    style={{ left: `${historyHover.leftPct}%` }}
+                  />
+                ) : null}
+                {historyHover?.topPct != null ? (
+                  <div
+                    className="absolute left-0 right-0 border-t border-dashed border-[color:color-mix(in_srgb,var(--ui-color-text-secondary)_38%,transparent)]"
+                    style={{ top: `${historyHover.topPct}%` }}
+                  />
+                ) : null}
                 {isHistoryHudVisible && (
                   <div className="absolute bottom-[var(--ui-hud-inset)] right-[var(--ui-hud-inset)] rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-0.5 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
                     Window {fmtSec(clampedWindowSec)} | Offset {fmtSec(effectiveOffsetSec)}
                   </div>
                 )}
+                {historyHover ? (
+                  <div className="absolute left-[var(--ui-hud-inset)] top-[var(--ui-hud-inset)] rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-1 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)] shadow-sm">
+                    <div>{historyHover.offsetLabel}</div>
+                    <div>M {historyHover.momentary != null ? `${historyHover.momentary.toFixed(1)} LUFS` : "-"}</div>
+                    <div>ST {historyHover.shortTerm != null ? `${historyHover.shortTerm.toFixed(1)} LUFS` : "-"}</div>
+                  </div>
+                ) : null}
               </div>
             </div>
 

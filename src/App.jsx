@@ -4,7 +4,12 @@ import {
   PEAK_DB_MIN,
   PEAK_DB_MAX,
   loudnessHistY,
+  loudnessFromTopFrac,
   LOUDNESS_TICKS,
+  buildRtaBands,
+  SPECTRUM_SETTINGS,
+  spectrumDbToTopFrac,
+  freqToXFrac,
 } from "./scales";
 import { UI_PREFERENCES, applyUiPreferencesToDocument, mergeCharts, readPersistedUiMode } from "./uiPreferences";
 import { buildHistoryPath, getHistoryViewport, HISTORY_MAX_WINDOW_SEC, HISTORY_MIN_WINDOW_SEC } from "./math/historyMath";
@@ -20,6 +25,25 @@ import { VectorscopePanel } from "./components/panels/VectorscopePanel";
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 const HISTORY_TIME_TICK_STEPS = 4;
+
+function formatHoverOffset(sec) {
+  const s = Math.max(0, sec);
+  if (s >= 60) {
+    const m = Math.floor(s / 60);
+    const rem = s - m * 60;
+    return `${m}m ${rem.toFixed(rem >= 10 ? 0 : 1)}s ago`;
+  }
+  return `${s.toFixed(s >= 10 ? 0 : 1)}s ago`;
+}
+
+function formatSpectrumFreq(freq) {
+  if (!Number.isFinite(freq)) return "-";
+  if (freq >= 1000) {
+    const khz = freq / 1000;
+    return `${khz >= 10 ? khz.toFixed(1) : khz.toFixed(2)} kHz`;
+  }
+  return `${Math.round(freq)} Hz`;
+}
 
 function PillButton({ children, accent = false, liveSnap = false, onClick }) {
   const cls = [
@@ -105,6 +129,8 @@ export default function App() {
   const [vectorPath, setVectorPath] = useState("");
   const [historyPathM, setHistoryPathM] = useState("");
   const [historyPathST, setHistoryPathST] = useState("");
+  const [historyHover, setHistoryHover] = useState(null);
+  const [spectrumHover, setSpectrumHover] = useState(null);
   const [mainLeft, setMainLeft] = useState(UI_PREFERENCES.mainColumn.initialPx);
   const [leftTopRatio, setLeftTopRatio] = useState(UI_PREFERENCES.leftSplit.initialRatio);
   const [rightTopRatio, setRightTopRatio] = useState(UI_PREFERENCES.rightSplit.initialRatio);
@@ -118,6 +144,8 @@ export default function App() {
   const histRef = useRef([]);
   const loudnessHistRef = useRef([]);
   const spectrumSnapRef = useRef([]);
+  const spectrumDataRef = useRef(null);
+  const spectrumDataSnapRef = useRef([]);
   const vectorSnapRef = useRef([]);
   const corrSnapRef = useRef([]);
   const audioSnapRef = useRef([]);
@@ -187,6 +215,7 @@ export default function App() {
     frozenSnapRef.current = {
       loudness: [...loudnessHistRef.current],
       spectrum: [...spectrumSnapRef.current],
+      spectrumData: [...spectrumDataSnapRef.current],
       vector: [...vectorSnapRef.current],
       corr: [...corrSnapRef.current],
       audio: [...audioSnapRef.current],
@@ -197,6 +226,7 @@ export default function App() {
   const snapSource = selectedOffset >= 0 && frozenSnapRef.current ? frozenSnapRef.current : null;
   const snapCorrList = snapSource ? snapSource.corr : corrSnapRef.current;
   const snapSpecList = snapSource ? snapSource.spectrum : spectrumSnapRef.current;
+  const snapSpecDataList = snapSource ? snapSource.spectrumData : spectrumDataSnapRef.current;
   const snapVecList = snapSource ? snapSource.vector : vectorSnapRef.current;
   const snapAudioList = snapSource ? snapSource.audio : audioSnapRef.current;
   const selectedHistSteps = selectedOffset >= 0 ? Math.max(0, Math.round(selectedOffset / HIST_SAMPLE_SEC)) : -1;
@@ -223,6 +253,7 @@ export default function App() {
   ];
   const displaySpectrumPath = snapIdx >= 0 && snapSpecList[snapIdx] ? snapSpecList[snapIdx] : spectrumPath;
   const displaySpectrumPeakPath = selectedOffset >= 0 ? "" : spectrumPeakPath;
+  const displaySpectrumData = snapIdx >= 0 && snapSpecDataList[snapIdx] ? snapSpecDataList[snapIdx] : spectrumDataRef.current;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
   const hasHistoryData = histSourceList.some((p) => Number.isFinite(p?.m) || Number.isFinite(p?.st));
   const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.charts.vectorscope.gridDiagInsetPct ?? 0));
@@ -269,6 +300,64 @@ export default function App() {
       600 - ((selectedHistSteps - effectiveOffsetSamples) / Math.max(1, visibleSamples - 1)) * 600
     )
   );
+  const onHistoryHoverMove = (clientX, rect) => {
+    if (!histSourceList.length) {
+      setHistoryHover(null);
+      return;
+    }
+    const width = Math.max(1, rect.width);
+    const x = Math.max(0, Math.min(width, clientX - rect.left));
+    const normalized = 1 - x / width;
+    const fromEndSamples = effectiveOffsetSamples + normalized * Math.max(0, visibleSamples - 1);
+    const hoverIndex = Math.max(0, Math.min(histSourceList.length - 1, histSourceList.length - 1 - Math.round(fromEndSamples)));
+    const point = histSourceList[hoverIndex];
+    if (!point) {
+      setHistoryHover(null);
+      return;
+    }
+    const offsetSec = Math.max(0, (histSourceList.length - 1 - hoverIndex) * HIST_SAMPLE_SEC);
+    const yValue = Number.isFinite(point.st) ? point.st : point.m;
+    setHistoryHover({
+      leftPct: (x / width) * 100,
+      topPct: Number.isFinite(yValue) ? loudnessFromTopFrac(yValue) * 100 : null,
+      momentary: Number.isFinite(point.m) ? point.m : null,
+      shortTerm: Number.isFinite(point.st) ? point.st : null,
+      offsetLabel: formatHoverOffset(offsetSec),
+    });
+  };
+  const onHistoryHoverLeave = () => setHistoryHover(null);
+  const onSpectrumHoverMove = (clientX, rect) => {
+    const data = displaySpectrumData;
+    if (!data?.bands?.length || !data?.dbList?.length) {
+      setSpectrumHover(null);
+      return;
+    }
+    const width = Math.max(1, rect.width);
+    const x = Math.max(0, Math.min(width, clientX - rect.left));
+    const xFrac = x / width;
+    let nearestIdx = 0;
+    let nearestDist = Infinity;
+    for (let i = 0; i < data.bands.length; i += 1) {
+      const dist = Math.abs(freqToXFrac(data.bands[i].fCenter) - xFrac);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestIdx = i;
+      }
+    }
+    const band = data.bands[nearestIdx];
+    const db = data.dbList[nearestIdx];
+    if (!band || !Number.isFinite(db)) {
+      setSpectrumHover(null);
+      return;
+    }
+    setSpectrumHover({
+      leftPct: freqToXFrac(band.fCenter) * 100,
+      topPct: spectrumDbToTopFrac(db) * 100,
+      freqLabel: formatSpectrumFreq(band.fCenter),
+      dbLabel: `${db.toFixed(1)} dB`,
+    });
+  };
+  const onSpectrumHoverLeave = () => setSpectrumHover(null);
 
   const {
     showHistoryHud,
@@ -315,6 +404,8 @@ export default function App() {
     histRef.current = [];
     loudnessHistRef.current = [];
     spectrumSnapRef.current = [];
+    spectrumDataRef.current = null;
+    spectrumDataSnapRef.current = [];
     vectorSnapRef.current = [];
     corrSnapRef.current = [];
     audioSnapRef.current = [];
@@ -323,6 +414,8 @@ export default function App() {
     spectrumTimeRef.current = 0;
     setSpectrumPath("");
     setSpectrumPeakPath("");
+    setSpectrumHover(null);
+    setHistoryHover(null);
     setVectorPath("");
     setHistoryPathM("");
     setHistoryPathST("");
@@ -434,6 +527,8 @@ export default function App() {
     histRef,
     loudnessHistRef,
     spectrumSnapRef,
+    spectrumDataRef,
+    spectrumDataSnapRef,
     vectorSnapRef,
     corrSnapRef,
     audioSnapRef,
@@ -539,12 +634,15 @@ export default function App() {
               clampedWindowSec={clampedWindowSec}
               effectiveOffsetSec={effectiveOffsetSec}
               fmtSec={fmtSec}
+              historyHover={historyHover}
               historyTimeTicks={historyTimeTicks}
               historyTickSteps={HISTORY_TIME_TICK_STEPS}
               primaryMetrics={primaryMetrics}
               secondaryMetrics={secondaryMetrics}
               MetricRow={MetricRow}
               toggleCurve={toggleCurve}
+              onHistoryHoverMove={onHistoryHoverMove}
+              onHistoryHoverLeave={onHistoryHoverLeave}
             />
 
             <div
@@ -559,6 +657,9 @@ export default function App() {
               displaySpectrumPath={displaySpectrumPath}
               displaySpectrumPeakPath={displaySpectrumPeakPath}
               selectedOffset={selectedOffset}
+              spectrumHover={spectrumHover}
+              onSpectrumHoverMove={onSpectrumHoverMove}
+              onSpectrumHoverLeave={onSpectrumHoverLeave}
             />
           </section>
         </main>
