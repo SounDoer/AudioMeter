@@ -178,32 +178,17 @@ body {
   }
 }
 
-.ui-splitter-hm {
-  display: block;
-  min-height: 0;
-  height: 100%;
-  align-self: stretch;
-  cursor: col-resize;
-  border-radius: var(--ui-radius-card);
-  background-color: transparent;
-  opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.15s ease;
-  width: var(--ui-splitter-bar-thickness);
-  justify-self: center;
-}
-
 .ui-splitter-h:hover,
 .ui-splitter-h:active,
 .ui-splitter-v:hover,
-.ui-splitter-v:active,
-.ui-splitter-hm:hover,
-.ui-splitter-hm:active {
+.ui-splitter-v:active {
   opacity: 1;
   background-color: color-mix(in srgb, var(--ui-color-brand) 30%, var(--ui-color-panel-bg-splitter));
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--ui-color-brand) 45%, transparent),
     0 0 12px color-mix(in srgb, var(--ui-color-brand) 24%, transparent);
 }
+
 
 .ui-inset-chart {
   position: relative;

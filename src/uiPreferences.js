@@ -156,6 +156,7 @@ export const UI_PREFERENCES = {
   splitters: {
     sectionGapPx: 8, // 所有 section 间距统一值
     barThicknessPx: 1, // 分栏条可视粗细
+    loudnessGapPx: 10, // Loudness 内部 History 与 Metrics 的横向间距
   },
 
   // 顶栏 AudioMeter 一行：左右内边距（rem）
@@ -535,6 +536,7 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-splitter-main", `${prefs.splitters.sectionGapPx}px`);
   setCssVar("--ui-splitter-row", `${prefs.splitters.sectionGapPx}px`);
   setCssVar("--ui-splitter-hm", `${prefs.splitters.sectionGapPx}px`);
+  setCssVar("--ui-loudness-gap", `${prefs.splitters.loudnessGapPx}px`);
   // visual splitter bar thickness inside the track
   setCssVar("--ui-splitter-bar-thickness", `${prefs.splitters.barThicknessPx}px`);
 
