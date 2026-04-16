@@ -179,8 +179,10 @@ body {
 }
 
 .ui-splitter-hm {
-  display: none;
+  display: block;
   min-height: 0;
+  height: 100%;
+  align-self: stretch;
   cursor: col-resize;
   border-radius: var(--ui-radius-card);
   background-color: transparent;
@@ -201,15 +203,6 @@ body {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--ui-color-brand) 45%, transparent),
     0 0 12px color-mix(in srgb, var(--ui-color-brand) 24%, transparent);
-}
-
-@media (min-width: 1280px) {
-  .ui-splitter-hm {
-    display: block;
-    height: 100%;
-    min-height: 0;
-    align-self: stretch;
-  }
 }
 
 .ui-inset-chart {
@@ -251,8 +244,6 @@ body {
   align-items: center;
   gap: var(--ui-metric-row-gap);
   border-radius: var(--ui-radius-metric-row);
-  border: 1px solid var(--ui-color-metric-row-border);
-  background-color: var(--ui-color-metric-row-bg);
   padding: var(--ui-metric-row-pad-y) var(--ui-metric-row-pad-x);
 }
 
@@ -262,6 +253,8 @@ body {
   text-align: left;
   appearance: none;
   -webkit-appearance: none;
+  border: 1px solid var(--ui-color-metric-row-border);
+  background-color: var(--ui-color-metric-row-bg);
   border-radius: var(--ui-radius-pill);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
@@ -327,11 +320,18 @@ body {
 }
 
 .ui-pill {
+  border: none;
   border-radius: var(--ui-radius-pill);
   padding: 0.5rem 1rem;
   font-size: var(--ui-fs-action);
   font-weight: 600;
+  cursor: pointer;
   transition: background-color 0.2s, color 0.2s;
+  outline: none;
+}
+
+.ui-pill::-moz-focus-inner {
+  border: 0;
 }
 
 .ui-pill-default {

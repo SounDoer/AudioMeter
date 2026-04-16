@@ -184,8 +184,7 @@ export const UI_PREFERENCES = {
     
     // Metrics
     metricsListGap: 0.45, // Metrics 条目间距（原 gap-1）
-    metricDotSize: 0.6, // Metrics 可切换条目前的小圆点（原 h-2 w-2）
-    
+
     // Shared chart axes (History / Spectrum)
     axisGapX: 0.4, // 横轴刻度与图表间距（History/Spectrum 共用）
     axisGapY: 0.4, // 纵轴刻度与图表间距（History/Spectrum 共用）
@@ -561,7 +560,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-axis-gap-y", `${sp.axisGapY}rem`);
   setCssVar("--ui-peak-axis-chart-gap", `${sp.peakAxisChartGap}rem`);
   setCssVar("--ui-peak-channel-gap", `${sp.peakChannelGap}rem`);
-  setCssVar("--ui-metric-dot-size", `${sp.metricDotSize}rem`);
   setCssVar("--ui-peak-display-top-inset", `${sp.peakDisplayTopInset}rem`);
   setCssVar("--ui-peak-display-bottom-inset", `${sp.peakDisplayBottomInset}rem`);
   setCssVar("--ui-meter-chart-inset-x", `${sp.meterChartInsetX}rem`);

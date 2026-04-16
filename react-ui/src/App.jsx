@@ -71,14 +71,11 @@ function PillButton({ children, accent = false, liveSnap = false, onClick }) {
   );
 }
 
-function MetricRow({ label, value, unit, toggleColor, isActive = false, onToggle }) {
+function MetricRow({ label, value, unit, isActive = false, onToggle }) {
   const { valueColumnCh, unitColumnRem } = UI_PREFERENCES.loudnessMetrics;
   const content = (
     <>
-      <span className="ui-metric-label">
-        {toggleColor ? <span className="mr-1.5 inline-block h-[var(--ui-metric-dot-size)] w-[var(--ui-metric-dot-size)] rounded-full align-middle" style={{ backgroundColor: toggleColor }} /> : null}
-        {label}
-      </span>
+      <span className="ui-metric-label">{label}</span>
       <span className="ui-metric-value" style={{ width: `${valueColumnCh}ch` }}>
         {value}
       </span>
@@ -123,7 +120,7 @@ export default function App() {
   const [historyHudUntilTs, setHistoryHudUntilTs] = useState(0);
   const [historyHudHold, setHistoryHudHold] = useState(false);
   const [status, setStatus] = useState("Ready - click Start to begin monitoring");
-  const [status2, setStatus2] = useState("Input: System default microphone");
+  const [status2, setStatus2] = useState("Input: Not connected");
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const [audio, setAudio] = useState({
     momentary: -Infinity,
@@ -364,11 +361,12 @@ export default function App() {
     setLoudnessHistWidthRatio(UI_PREFERENCES.loudnessHistMetrics.initialRatio);
   };
   const onStartClick = () => {
-    if (selectedOffset >= 0) return void (setSelectedOffset(-1), setStatus("Returned to live view"));
+    if (selectedOffset >= 0) return void (setSelectedOffset(-1), setStatus("Monitoring live input"));
     if (running) {
       setRunning(false);
+      setSelectedOffset(-1);
       setStatus("Stopped - click Start to resume");
-      setStatus2("Input: None");
+      setStatus2("Input: Not connected");
       return;
     }
     setRunning(true);
@@ -462,6 +460,19 @@ export default function App() {
     const t = setTimeout(() => setHistoryHudUntilTs(0), remain + 24);
     return () => clearTimeout(t);
   }, [historyHudUntilTs, historyHudHold]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [settingsOpen]);
+
   const beginLayoutDrag = (mode, ev) => {
     layoutDragRef.current = {
       mode,
@@ -537,6 +548,12 @@ export default function App() {
   useEffect(() => {
     selectedOffsetRef.current = selectedOffset;
   }, [selectedOffset]);
+
+  /** 与 Loudness History 快照一致：该模式下读数/矢量/频谱来自选中时刻，并非实时输入 */
+  useEffect(() => {
+    if (!running || selectedOffset < 0) return;
+    setStatus("History snapshot (not live input)");
+  }, [running, selectedOffset]);
 
   useEffect(() => {
     if (!running) {
@@ -740,12 +757,13 @@ export default function App() {
         audioRef.current = { ctx, stream, wklt };
         setStatus("Monitoring live input");
         const label = stream.getAudioTracks()[0]?.label || "System default microphone";
-        setStatus2(`Input: ${label} | SR: ${Math.round(ctx.sampleRate)} Hz`);
+        setStatus2(`Input: ${label}`);
         tick();
       } catch (err) {
         setRunning(false);
+        setSelectedOffset(-1);
         setStatus(`Error: ${err?.message || "Microphone unavailable"}`);
-        setStatus2("Input: None");
+        setStatus2("Input: Not connected");
       }
     };
     init();
@@ -926,7 +944,7 @@ export default function App() {
             style={{ "--rightTop": `${Math.round(rightTopRatio * 100)}%` }}
           >
             <div
-              className="grid min-h-0 grid-cols-1 gap-[var(--ui-section-gap)] xl:h-full xl:min-h-0 xl:grid-cols-[var(--hmSplit)_var(--ui-splitter-hm)_minmax(0,1fr)] xl:gap-0"
+              className="grid h-full min-h-0 grid-cols-[var(--hmSplit)_var(--ui-splitter-hm)_minmax(0,1fr)] gap-0"
               style={{ "--hmSplit": `${Math.round(loudnessHistWidthRatio * 100)}%` }}
             >
               <article className="ui-article ui-min-h-history flex h-full min-w-0 flex-1 flex-col">
@@ -967,6 +985,7 @@ export default function App() {
                     onContextMenu={(e) => e.preventDefault()}
                       onDoubleClick={() => {
                         setSelectedOffset(-1);
+                        if (running) setStatus("Monitoring live input");
                         holdHistoryHud(false);
                         showHistoryHud(1200);
                       }}
@@ -1060,29 +1079,25 @@ export default function App() {
                 onPointerCancel={onLayoutDragUp}
               />
 
-              <article className="ui-article ui-article-metrics flex h-full min-h-0 min-w-0 flex-col xl:min-h-0">
+              <article className="ui-article ui-article-metrics flex h-full min-h-0 min-w-0 flex-col">
                 <div className="ui-section-title ui-section-title-metrics shrink-0">Loudness Metrics</div>
                 <div className="ui-metrics-list flex min-h-0 flex-1 flex-col gap-[var(--ui-metrics-list-gap)] overflow-y-auto">
                   {primaryMetrics.map((metric) => {
                     if (metric.label === "Momentary") {
-                      const item = historyLegend.find((x) => x.key === "m");
                       return (
                         <MetricRow
                           key={metric.label}
                           {...metric}
-                          toggleColor={item?.color}
                           isActive={histCurves.m}
                           onToggle={() => toggleCurve("m")}
                         />
                       );
                     }
                     if (metric.label === "Short-term") {
-                      const item = historyLegend.find((x) => x.key === "st");
                       return (
                         <MetricRow
                           key={metric.label}
                           {...metric}
-                          toggleColor={item?.color}
                           isActive={histCurves.st}
                           onToggle={() => toggleCurve("st")}
                         />
@@ -1180,7 +1195,12 @@ export default function App() {
       </div>
 
       {settingsOpen && (
-        <div className="ui-settings-overlay">
+        <div
+          className="ui-settings-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSettingsOpen(false);
+          }}
+        >
           <div className="ui-settings-dialog">
             <div className="ui-settings-header flex items-center justify-between">
               <h2 className="ui-settings-heading">Settings</h2>
