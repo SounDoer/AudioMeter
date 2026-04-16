@@ -240,7 +240,7 @@ export const UI_PREFERENCES = {
     dragMaxPx: 360, // 拖宽极限
   },
 
-  // 左栏内：Peak Meter 占上方高度比例（0~1），余下给 Vectorscope
+  // 左栏内：Peak 占上方高度比例（0~1），余下给 Vectorscope
   leftSplit: {
     initialRatio: 0.6, // 默认
     dragMinRatio: 0.5, // 上下拖动的比例下限
@@ -256,7 +256,7 @@ export const UI_PREFERENCES = {
     dragPixelsPerDelta: 650,
   },
 
-  // 右栏 Loudness 一行内：History 宽度占行宽比例（0~1），余下给 Metrics
+  // 右栏 Loudness 卡片内：History 区域宽度占比（0~1），余下给 Metrics 区域
   loudnessHistMetrics: {
     initialRatio: 0.65, // 默认 History 约 64%，Metrics 约 36%
     dragMinRatio: 0.5,
@@ -267,7 +267,7 @@ export const UI_PREFERENCES = {
   // 各模块最小高度（rem），防止拖得太扁看不见
   heightsRem: {
     peakModuleMin: 12, // Peak 整块
-    historyModuleMin: 10, // Loudness History 整块（含轴与底栏）
+    historyModuleMin: 10, // Loudness 模块整块（含 History 图与 Metrics）
     spectrumModuleMin: 10, // Spectrum 整块
     historyChartMin: 8, // 仅中间曲线区域最小高
     chartXAxisRowRem: 0.6, // History / Spectrum 共用横轴刻度行高
@@ -293,8 +293,8 @@ export const UI_PREFERENCES = {
       axisValue: 12, // 坐标轴刻度数字、时间轴刻度
       axisUnit: 11, // 坐标轴单位（LUFS / dB / Hz）
       extraValue: 13, // TP MAX / Correlation / Target 等模块补充信息
-      metricMeta: 14, // Loudness Metrics 参数名与单位；Settings 条目文本
-      metricValue: 18, // Loudness Metrics 数值
+      metricMeta: 14, // Loudness 指标参数名与单位；Settings 条目文本
+      metricValue: 18, // Loudness 指标数值
       action: 14, // Start/Clear/Settings、图例药丸等按钮/操作文案
       status: 12, // 底部状态栏
     },
@@ -535,7 +535,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   // splitters track size drives actual section spacing
   setCssVar("--ui-splitter-main", `${prefs.splitters.sectionGapPx}px`);
   setCssVar("--ui-splitter-row", `${prefs.splitters.sectionGapPx}px`);
-  setCssVar("--ui-splitter-hm", `${prefs.splitters.sectionGapPx}px`);
   setCssVar("--ui-loudness-gap", `${prefs.splitters.loudnessGapPx}px`);
   // visual splitter bar thickness inside the track
   setCssVar("--ui-splitter-bar-thickness", `${prefs.splitters.barThicknessPx}px`);

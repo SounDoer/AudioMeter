@@ -235,7 +235,7 @@ export default function App() {
   const startLabel = startMode === "live" ? "LIVE" : startMode === "stop" ? "STOP" : "START";
   const totalSamples = histSourceList.length;
   const availableSec = Math.max(0, totalSamples * HIST_SAMPLE_SEC);
-  const { visibleSamples, maxOffsetSamples, effectiveOffsetSamples, effectiveOffsetSec } = getHistoryViewport(
+  const { clampedWindowSec, visibleSamples, maxOffsetSamples, effectiveOffsetSamples, effectiveOffsetSec } = getHistoryViewport(
     totalSamples,
     historyWindowSec,
     historyOffsetSec,

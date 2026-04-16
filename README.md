@@ -39,7 +39,10 @@ npm run dev
 ```
 index.html               # 页面入口
 src/
-  App.jsx                # 主界面与交互
+  App.jsx                # 页面编排（状态与布局连接）
+  components/panels/     # Peak/Loudness/Spectrum/Vectorscope 四个主面板
+  hooks/                 # 交互与音频引擎（history/layout/audio）
+  math/                  # 纯数学与格式化逻辑
   uiPreferences.js       # UI 配置与偏好
   scales.js              # 刻度与量程配置
 public/worklets/
