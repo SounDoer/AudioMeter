@@ -46,6 +46,21 @@ const SPEC_DB_RNG = SPEC_DB_MAX - SPEC_DB_MIN;
 /** 有效绘图区占满整个 viewBox 高度（0 dB → y=0，-100 dB → y=260） */
 export const SPEC_PLOT_H = 260;
 
+/** React Spectrum：FFT→RTA 呈现层默认参数（与 UI 主题无关，见 App tick） */
+export const SPECTRUM_SETTINGS = {
+  resolution: "1/6", // 1/3 | 1/6 | 1/12
+  weighting: "z", // z | a | c
+  smoothing: "normal", // fast | normal | slow
+  showPeakHold: true,
+  peakHoldMs: 1000,
+  peakDecayDbPerSec: 12,
+  freqSmoothingKernel: [0.2, 0.6, 0.2],
+  tiltDbPerOctave: 0,
+  freeze: false,
+  minHz: 20,
+  maxHz: 20000,
+};
+
 export function spectrumDbToYViewBox(d) {
   const dd = Math.max(SPEC_DB_MIN, Math.min(SPEC_DB_MAX, Number.isFinite(d) ? d : SPEC_DB_MIN));
   return SPEC_VIEW_H - ((dd - SPEC_DB_MIN) / SPEC_DB_RNG) * SPEC_PLOT_H;
@@ -64,6 +79,63 @@ const LOG_DEN = LOG20K - LOG20;
 export function freqToXFrac(f) {
   const ff = Math.max(20, Math.min(20000, f));
   return (Math.log10(ff) - LOG20) / LOG_DEN;
+}
+
+const RTA_BANDS_PER_OCTAVE = {
+  "1/3": 3,
+  "1/6": 6,
+  "1/12": 12,
+};
+
+export function getRtaBandsPerOctave(resolution = "1/6") {
+  return RTA_BANDS_PER_OCTAVE[resolution] || RTA_BANDS_PER_OCTAVE["1/6"];
+}
+
+export function buildRtaBands(minHz = 20, maxHz = 20000, resolution = "1/6") {
+  const lo = Math.max(1, minHz);
+  const hi = Math.max(lo + 1, maxHz);
+  const n = getRtaBandsPerOctave(resolution);
+  const half = Math.pow(2, 1 / (2 * n));
+  const step = Math.pow(2, 1 / n);
+  const bands = [];
+  let center = lo;
+  for (let guard = 0; guard < 512 && center <= hi * 1.001; guard += 1) {
+    const fLow = center / half;
+    const fHigh = center * half;
+    if (fHigh >= lo && fLow <= hi) {
+      bands.push({
+        fLow: Math.max(lo, fLow),
+        fHigh: Math.min(hi, fHigh),
+        fCenter: center,
+      });
+    }
+    center *= step;
+  }
+  return bands;
+}
+
+function weightingA(fHz) {
+  const f2 = fHz * fHz;
+  const num = 12194 * 12194 * f2 * f2;
+  const den =
+    (f2 + 20.6 * 20.6) *
+    Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) *
+    (f2 + 12194 * 12194);
+  return 2 + 20 * Math.log10(Math.max(1e-20, num / den));
+}
+
+function weightingC(fHz) {
+  const f2 = fHz * fHz;
+  const num = 12194 * 12194 * f2;
+  const den = (f2 + 20.6 * 20.6) * (f2 + 12194 * 12194);
+  return 0.06 + 20 * Math.log10(Math.max(1e-20, num / den));
+}
+
+export function getWeightingDb(freqHz, mode = "z") {
+  const f = Math.max(10, freqHz);
+  if (mode === "a") return weightingA(f);
+  if (mode === "c") return weightingC(f);
+  return 0;
 }
 
 /** Peak 表盘左侧主刻度（与 peak.js TICKS 中常用子集一致，可按需增删） */

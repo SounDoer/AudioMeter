@@ -8,6 +8,9 @@ import {
   spectrumDbToYViewBox,
   spectrumDbToTopFrac,
   freqToXFrac,
+  buildRtaBands,
+  getWeightingDb,
+  SPECTRUM_SETTINGS,
   PEAK_TICKS,
   LOUDNESS_TICKS,
   SPEC_Y_TICKS,
@@ -17,6 +20,41 @@ import { UI_PREFERENCES, applyUiPreferencesToDocument, mergeCharts, readPersiste
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 const HISTORY_TIME_TICK_STEPS = 4;
+const SPECTRUM_VIEW_W = 1000;
+
+function smoothingPreset(mode) {
+  if (mode === "fast") return { attackMs: 30, releaseMs: 150 };
+  if (mode === "slow") return { attackMs: 120, releaseMs: 700 };
+  return { attackMs: 60, releaseMs: 300 };
+}
+
+function smoothByKernel(values, kernel) {
+  if (!Array.isArray(values) || values.length < 3) return values;
+  if (!Array.isArray(kernel) || kernel.length < 3) return values;
+  const out = values.slice();
+  const radius = Math.floor(kernel.length / 2);
+  const sum = kernel.reduce((a, b) => a + b, 0) || 1;
+  for (let i = 0; i < values.length; i++) {
+    let acc = 0;
+    for (let k = 0; k < kernel.length; k++) {
+      const idx = Math.max(0, Math.min(values.length - 1, i + k - radius));
+      acc += values[idx] * kernel[k];
+    }
+    out[i] = acc / sum;
+  }
+  return out;
+}
+
+function dbPathFromBands(bands, dbList) {
+  if (!Array.isArray(bands) || !Array.isArray(dbList) || !bands.length || bands.length !== dbList.length) return "";
+  const pts = [];
+  for (let i = 0; i < bands.length; i++) {
+    const x = freqToXFrac(bands[i].fCenter) * SPECTRUM_VIEW_W;
+    const y = spectrumDbToYViewBox(dbList[i]);
+    pts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
+  return pts.length ? `M ${pts.join(" L ")}` : "";
+}
 
 function PillButton({ children, accent = false, onClick }) {
   return (
@@ -104,6 +142,7 @@ export default function App() {
     correlation: 0,
   });
   const [spectrumPath, setSpectrumPath] = useState("");
+  const [spectrumPeakPath, setSpectrumPeakPath] = useState("");
   const [vectorPath, setVectorPath] = useState("");
   const [historyPathM, setHistoryPathM] = useState("");
   const [historyPathST, setHistoryPathST] = useState("");
@@ -117,6 +156,8 @@ export default function App() {
   const lastRightDownTsRef = useRef(0);
   const layoutDragRef = useRef(null);
   const audioRef = useRef(null);
+  const spectrumStateRef = useRef({ smoothDb: [], peakDb: [], peakHoldUntil: [] });
+  const spectrumTimeRef = useRef(0);
   const rafRef = useRef(0);
   const frameRef = useRef(0);
   const histRef = useRef([]);
@@ -221,6 +262,7 @@ export default function App() {
   const audioSnapIdx = selectedHistSteps >= 0 ? Math.max(0, snapAudioList.length - 1 - selectedHistSteps) : -1;
   const displayAudio = audioSnapIdx >= 0 && snapAudioList[audioSnapIdx] ? snapAudioList[audioSnapIdx] : audio;
   const displaySpectrumPath = snapIdx >= 0 && snapSpecList[snapIdx] ? snapSpecList[snapIdx] : spectrumPath;
+  const displaySpectrumPeakPath = selectedOffset >= 0 ? "" : spectrumPeakPath;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
   const hasHistoryData = histSourceList.some((p) => Number.isFinite(p?.m) || Number.isFinite(p?.st));
   const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.charts.vectorscope.gridDiagInsetPct ?? 0));
@@ -284,7 +326,10 @@ export default function App() {
     corrSnapRef.current = [];
     audioSnapRef.current = [];
     frozenSnapRef.current = null;
+    spectrumStateRef.current = { smoothDb: [], peakDb: [], peakHoldUntil: [] };
+    spectrumTimeRef.current = 0;
     setSpectrumPath("");
+    setSpectrumPeakPath("");
     setVectorPath("");
     setHistoryPathM("");
     setHistoryPathST("");
@@ -612,34 +657,78 @@ export default function App() {
             setHistoryPathST("");
           }
 
-          // Display-only fix: use log-frequency mapping for x-axis so curve aligns
-          // with 20..20k labels; no DSP/worklet calculation logic is changed here.
-          const pts = [];
+          const nowSec = ctx.currentTime;
+          const deltaSec = spectrumTimeRef.current > 0 ? Math.max(1 / 240, Math.min(0.25, nowSec - spectrumTimeRef.current)) : 1 / 60;
+          spectrumTimeRef.current = nowSec;
+          const spectrumCfg = SPECTRUM_SETTINGS;
           const nyquist = ctx.sampleRate * 0.5;
-          const minF = 20;
-          const maxF = Math.min(20000, nyquist);
-          const logMin = Math.log10(minF);
-          const logMax = Math.log10(maxF);
-          const pxCount = 240;
-          for (let p = 0; p < pxCount; p++) {
-            const t = p / Math.max(1, pxCount - 1);
-            const freq = Math.pow(10, logMin + t * (logMax - logMin));
-            const bin = (freq / nyquist) * fbuf.length;
-            const i0 = Math.max(0, Math.min(fbuf.length - 1, Math.floor(bin)));
-            const i1 = Math.max(0, Math.min(fbuf.length - 1, i0 + 1));
-            const k = Math.max(0, Math.min(1, bin - i0));
-            const d = Math.max(
-              -100,
-              Math.min(0, fbuf[i0] * (1 - k) + fbuf[i1] * k)
-            );
-            const x = t * 1000;
-            const y = spectrumDbToYViewBox(d);
-            pts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
+          const minF = Math.max(20, spectrumCfg.minHz || 20);
+          const maxF = Math.max(minF * 1.2, Math.min(spectrumCfg.maxHz || 20000, nyquist));
+          const bands = buildRtaBands(minF, maxF, spectrumCfg.resolution || "1/6");
+          if (spectrumCfg.freeze && spectrumStateRef.current.smoothDb.length === bands.length) {
+            if (selectedOffsetRef.current < 0 && shouldPaintUi) {
+              setSpectrumPath(dbPathFromBands(bands, spectrumStateRef.current.smoothDb));
+              setSpectrumPeakPath(spectrumCfg.showPeakHold ? dbPathFromBands(bands, spectrumStateRef.current.peakDb) : "");
+            }
+            rafRef.current = requestAnimationFrame(tick);
+            return;
           }
-          const sp = pts.length ? `M ${pts.join(" L ")}` : "";
-          spectrumSnapRef.current.push(sp);
+          const weightedDb = [];
+          const logMinF = Math.log2(minF);
+
+          for (let b = 0; b < bands.length; b++) {
+            const band = bands[b];
+            const loBin = Math.max(0, Math.min(fbuf.length - 1, Math.floor((band.fLow / nyquist) * fbuf.length)));
+            const hiBin = Math.max(loBin, Math.min(fbuf.length - 1, Math.ceil((band.fHigh / nyquist) * fbuf.length)));
+            let powerSum = 0;
+            let count = 0;
+            for (let bi = loBin; bi <= hiBin; bi++) {
+              const db = Math.max(-160, Math.min(20, fbuf[bi]));
+              powerSum += Math.pow(10, db / 10);
+              count += 1;
+            }
+            const meanPower = count > 0 ? powerSum / count : 1e-16;
+            let db = 10 * Math.log10(Math.max(1e-16, meanPower));
+            db += getWeightingDb(band.fCenter, spectrumCfg.weighting || "z");
+            const oct = Math.log2(Math.max(minF, band.fCenter)) - logMinF;
+            db += (spectrumCfg.tiltDbPerOctave || 0) * oct;
+            weightedDb.push(db);
+          }
+
+          const freqSmoothed = smoothByKernel(weightedDb, spectrumCfg.freqSmoothingKernel || [0.2, 0.6, 0.2]);
+          const state = spectrumStateRef.current;
+          if (!state.smoothDb.length || state.smoothDb.length !== freqSmoothed.length) {
+            state.smoothDb = freqSmoothed.slice();
+            state.peakDb = freqSmoothed.slice();
+            state.peakHoldUntil = new Array(freqSmoothed.length).fill(nowSec);
+          }
+          const { attackMs, releaseMs } = smoothingPreset(spectrumCfg.smoothing || "normal");
+          const atk = 1 - Math.exp(-deltaSec / Math.max(0.001, attackMs / 1000));
+          const rel = 1 - Math.exp(-deltaSec / Math.max(0.001, releaseMs / 1000));
+          const peakHoldSec = Math.max(0, (spectrumCfg.peakHoldMs || 0) / 1000);
+          const peakDecayPerSec = Math.max(0, spectrumCfg.peakDecayDbPerSec || 0);
+          for (let i = 0; i < freqSmoothed.length; i++) {
+            const incoming = freqSmoothed[i];
+            const prev = state.smoothDb[i];
+            const alpha = incoming > prev ? atk : rel;
+            const smoothed = prev + (incoming - prev) * alpha;
+            state.smoothDb[i] = smoothed;
+            if (smoothed >= state.peakDb[i]) {
+              state.peakDb[i] = smoothed;
+              state.peakHoldUntil[i] = nowSec + peakHoldSec;
+            } else if (nowSec > state.peakHoldUntil[i]) {
+              state.peakDb[i] = Math.max(smoothed, state.peakDb[i] - peakDecayPerSec * deltaSec);
+            }
+          }
+
+          const livePath = dbPathFromBands(bands, state.smoothDb);
+          const peakPath = dbPathFromBands(bands, state.peakDb);
+          spectrumSnapRef.current.push(livePath);
           if (spectrumSnapRef.current.length > HIST_MAX_SAMPLES) spectrumSnapRef.current.shift();
-          if (selectedOffsetRef.current < 0 && shouldPaintUi) setSpectrumPath(sp);
+          if (selectedOffsetRef.current < 0 && shouldPaintUi) {
+            setSpectrumPath(livePath);
+            setSpectrumPeakPath(spectrumCfg.showPeakHold ? peakPath : "");
+          }
           rafRef.current = requestAnimationFrame(tick);
         };
 
@@ -1050,12 +1139,24 @@ export default function App() {
                         className="block h-full w-full min-h-0 min-w-0"
                       >
                         {displaySpectrumPath ? (
-                          <path
-                            d={displaySpectrumPath}
-                            fill="none"
-                            stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
-                            strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
-                          />
+                          <>
+                            <path
+                              d={displaySpectrumPath}
+                              fill="none"
+                              stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
+                              strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
+                            />
+                            {displaySpectrumPeakPath ? (
+                              <path
+                                d={displaySpectrumPeakPath}
+                                fill="none"
+                                stroke="var(--ui-chart-spectrum-snap)"
+                                strokeWidth={Math.max(1, UI_PREFERENCES.charts.spectrum.strokeWidth - 1)}
+                                strokeDasharray="8 6"
+                                opacity="0.8"
+                              />
+                            ) : null}
+                          </>
                         ) : null}
                       </svg>
                     </div>
