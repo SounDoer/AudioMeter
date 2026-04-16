@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   peakFromTopFrac,
+  PEAK_DB_MIN,
+  PEAK_DB_MAX,
   LOUDNESS_DB_MAX,
   LOUDNESS_DB_MIN,
   loudnessFromTopFrac,
@@ -209,6 +211,19 @@ export default function App() {
     const m = Math.floor(s / 60);
     const rs = s % 60;
     return `${m}m${rs ? `${rs}s` : ""}`;
+  };
+  const renderPeakFill = (dbValue) => {
+    if (!Number.isFinite(dbValue)) return null;
+    const clamped = Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue));
+    const clipTopPct = peakFromTopFrac(clamped) * 100;
+    return (
+      <div
+        className="absolute inset-0 overflow-hidden rounded-md"
+        style={{ clipPath: `inset(${clipTopPct}% 0 0 0 round 0.375rem)` }}
+      >
+        <div className="meter-gradient absolute inset-0" />
+      </div>
+    );
   };
   const showHistoryHud = (ms = 1600) => {
     setHistoryHudUntilTs(Date.now() + Math.max(200, ms));
@@ -820,7 +835,7 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-[var(--ui-peak-channel-gap)]">
                   <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
                     <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
-                      <div className="meter-gradient absolute inset-x-0 bottom-0 rounded-md" style={{ top: `${peakFromTopFrac(displayAudio.sampleL) * 100}%` }} />
+                      {renderPeakFill(displayAudio.sampleL)}
                       {Number.isFinite(displayAudio.samplePeakMaxL) && (
                         <div
                           className="ui-border-peak-sample pointer-events-none absolute inset-x-0 z-[5] border-t"
@@ -834,7 +849,7 @@ export default function App() {
                   </div>
                   <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
                     <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
-                      <div className="meter-gradient absolute inset-x-0 bottom-0 rounded-md" style={{ top: `${peakFromTopFrac(displayAudio.sampleR) * 100}%` }} />
+                      {renderPeakFill(displayAudio.sampleR)}
                       {Number.isFinite(displayAudio.samplePeakMaxR) && (
                         <div
                           className="ui-border-peak-sample pointer-events-none absolute inset-x-0 z-[5] border-t"

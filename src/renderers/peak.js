@@ -28,7 +28,6 @@
 
   let spBufL = new Float32Array(0);
   let spBufR = new Float32Array(0);
-  let gradCache = { h: 0, grad: null };
 
   function mFrac(v) {
     return Math.max(0, Math.min(1, (v - MMIN) / MRNG));
@@ -137,38 +136,30 @@
       }
     }
 
-    /** Full-scale vertical gradient: color at each Y depends only on dB, not peak value (avoids threshold flicker). */
-    function createMeterBarGradient() {
-      if (gradCache.grad && gradCache.h === TH) return gradCache.grad;
-      const g = ctx.createLinearGradient(0, PT, 0, PT + TH);
-      const tClipHi = 0;
-      const tClipLo = 1 - mFrac(-6);
-      const tMid = 1 - mFrac(-18);
-      const tQuiet = 1;
-      const tClipMid = tClipHi + (tClipLo - tClipHi) * 0.35;
-      g.addColorStop(tClipHi, th.meters.clipFillTop);
-      g.addColorStop(tClipMid, th.meters.clipFillMid);
-      g.addColorStop(tClipLo, th.meters.warnFill);
-      g.addColorStop(tMid, th.meters.okFill);
-      g.addColorStop(tQuiet, th.meters.badFill);
-      gradCache = { h: TH, grad: g };
-      return g;
-    }
-
-    function drawBar(bx, val, barGradient) {
+    function drawBar(bx, val) {
       ctx.fillStyle = th.canvas.panel;
       ctx.fillRect(bx, PT, BW, TH);
       if (!isFinite(val)) return;
 
-      const fr = mFrac(val);
-      const bH = fr * TH;
-      const bY = PT + TH - bH;
-      ctx.fillStyle = barGradient;
-      ctx.fillRect(bx, bY, BW, bH);
+      const clippedVal = Math.max(MMIN, Math.min(MMAX, val));
+      const zones = [
+        { lo: MMIN, hi: -18, color: th.meters.badFill },
+        { lo: -18, hi: -6, color: th.meters.warnFill },
+        { lo: -6, hi: MMAX, color: th.meters.clipFillTop },
+      ];
+
+      for (const z of zones) {
+        const segTop = Math.min(clippedVal, z.hi);
+        if (segTop <= z.lo) continue;
+        const yTop = vY(segTop);
+        const yBottom = vY(z.lo);
+        ctx.fillStyle = z.color;
+        ctx.fillRect(bx, yTop, BW, Math.max(1, yBottom - yTop));
+      }
 
       const ec = val >= -6 ? th.meters.barOutlineBad : val >= -18 ? th.meters.barOutlineWarn : th.meters.barOutlineOk;
       ctx.fillStyle = ec;
-      ctx.fillRect(bx, bY, BW, 1.5);
+      ctx.fillRect(bx, vY(clippedVal), BW, 1.5);
     }
 
     const now = Date.now();
@@ -186,9 +177,8 @@
     const shownSpL = isFinite(SS.samplePeakL) ? SS.samplePeakL : spL;
     const shownSpR = isFinite(SS.samplePeakR) ? SS.samplePeakR : spR;
 
-    const barGradient = createMeterBarGradient();
-    drawBar(MX, shownSpL, barGradient);
-    drawBar(SX, shownSpR, barGradient);
+    drawBar(MX, shownSpL);
+    drawBar(SX, shownSpR);
 
     const y0 = vY(0);
     ctx.strokeStyle = th.meters.clipLine;
