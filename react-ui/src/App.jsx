@@ -225,6 +225,49 @@ export default function App() {
       </div>
     );
   };
+  const meterGradientCfg = {
+    ...UI_PREFERENCES.meterGradient,
+    ...(UI_PREFERENCES.themes[uiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
+  };
+  const parseHexColor = (hex) => {
+    if (typeof hex !== "string") return null;
+    const s = hex.trim();
+    if (!s.startsWith("#")) return null;
+    const raw = s.slice(1);
+    if (raw.length === 3) {
+      const r = Number.parseInt(raw[0] + raw[0], 16);
+      const g = Number.parseInt(raw[1] + raw[1], 16);
+      const b = Number.parseInt(raw[2] + raw[2], 16);
+      return Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b) ? { r, g, b } : null;
+    }
+    if (raw.length === 6) {
+      const r = Number.parseInt(raw.slice(0, 2), 16);
+      const g = Number.parseInt(raw.slice(2, 4), 16);
+      const b = Number.parseInt(raw.slice(4, 6), 16);
+      return Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b) ? { r, g, b } : null;
+    }
+    return null;
+  };
+  const mixRgb = (a, b, t) => {
+    const x = Math.max(0, Math.min(1, t));
+    return {
+      r: Math.round(a.r + (b.r - a.r) * x),
+      g: Math.round(a.g + (b.g - a.g) * x),
+      b: Math.round(a.b + (b.b - a.b) * x),
+    };
+  };
+  const samplePeakLineColor = (dbValue) => {
+    if (!Number.isFinite(dbValue)) return "var(--ui-color-peak-sample)";
+    const t = peakFromTopFrac(Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue)));
+    const midStopPct = Number.isFinite(meterGradientCfg.midStopPercent) ? meterGradientCfg.midStopPercent : 40;
+    const midStop = Math.max(0.001, Math.min(0.999, midStopPct / 100));
+    const cTop = parseHexColor(meterGradientCfg.top);
+    const cMid = parseHexColor(meterGradientCfg.mid);
+    const cBottom = parseHexColor(meterGradientCfg.bottom);
+    if (!cTop || !cMid || !cBottom) return "var(--ui-color-peak-sample)";
+    const rgb = t <= midStop ? mixRgb(cTop, cMid, t / midStop) : mixRgb(cMid, cBottom, (t - midStop) / (1 - midStop));
+    return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+  };
   const showHistoryHud = (ms = 1600) => {
     setHistoryHudUntilTs(Date.now() + Math.max(200, ms));
   };
@@ -232,21 +275,6 @@ export default function App() {
     setHistoryHudHold(Boolean(on));
     if (on) showHistoryHud(2200);
   };
-
-  const primaryMetrics = [
-    { label: "Momentary", value: fmtMetric(audio.momentary), unit: "LUFS" },
-    { label: "Short-term", value: fmtMetric(audio.shortTerm), unit: "LUFS" },
-    { label: "Integrated", value: fmtMetric(audio.integrated), unit: "LUFS" },
-    { label: "Momentary Max", value: fmtMetric(audio.mMax), unit: "LUFS" },
-    { label: "Short-term Max", value: fmtMetric(audio.stMax), unit: "LUFS" },
-    { label: "Loudness Range (LRA)", value: fmtMetric(audio.lra), unit: "LU" },
-  ];
-  const psr = Number.isFinite(audio.tpMax) && Number.isFinite(audio.shortTerm) ? audio.tpMax - audio.shortTerm : -Infinity;
-  const plr = Number.isFinite(audio.tpMax) && Number.isFinite(audio.integrated) ? audio.tpMax - audio.integrated : -Infinity;
-  const secondaryMetrics = [
-    { label: "Dynamics (PSR)", value: fmtMetric(psr), unit: "dB" },
-    { label: "Avg. Dynamics (PLR)", value: fmtMetric(plr), unit: "dB" },
-  ];
 
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
   const targetLufs = standard === "ebu" ? -23 : -14;
@@ -278,6 +306,24 @@ export default function App() {
   const snapIdx = selectedHistSteps >= 0 ? Math.max(0, snapSpecList.length - 1 - selectedHistSteps) : -1;
   const audioSnapIdx = selectedHistSteps >= 0 ? Math.max(0, snapAudioList.length - 1 - selectedHistSteps) : -1;
   const displayAudio = audioSnapIdx >= 0 && snapAudioList[audioSnapIdx] ? snapAudioList[audioSnapIdx] : audio;
+  const primaryMetrics = [
+    { label: "Momentary", value: fmtMetric(displayAudio.momentary), unit: "LUFS" },
+    { label: "Short-term", value: fmtMetric(displayAudio.shortTerm), unit: "LUFS" },
+    { label: "Integrated", value: fmtMetric(displayAudio.integrated), unit: "LUFS" },
+    { label: "Momentary Max", value: fmtMetric(displayAudio.mMax), unit: "LUFS" },
+    { label: "Short-term Max", value: fmtMetric(displayAudio.stMax), unit: "LUFS" },
+    { label: "Loudness Range (LRA)", value: fmtMetric(displayAudio.lra), unit: "LU" },
+  ];
+  const psr = Number.isFinite(displayAudio.tpMax) && Number.isFinite(displayAudio.shortTerm)
+    ? displayAudio.tpMax - displayAudio.shortTerm
+    : -Infinity;
+  const plr = Number.isFinite(displayAudio.tpMax) && Number.isFinite(displayAudio.integrated)
+    ? displayAudio.tpMax - displayAudio.integrated
+    : -Infinity;
+  const secondaryMetrics = [
+    { label: "Dynamics (PSR)", value: fmtMetric(psr), unit: "dB" },
+    { label: "Avg. Dynamics (PLR)", value: fmtMetric(plr), unit: "dB" },
+  ];
   const displaySpectrumPath = snapIdx >= 0 && snapSpecList[snapIdx] ? snapSpecList[snapIdx] : spectrumPath;
   const displaySpectrumPeakPath = selectedOffset >= 0 ? "" : spectrumPeakPath;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
@@ -838,8 +884,11 @@ export default function App() {
                       {renderPeakFill(displayAudio.sampleL)}
                       {Number.isFinite(displayAudio.samplePeakMaxL) && (
                         <div
-                          className="ui-border-peak-sample pointer-events-none absolute inset-x-0 z-[5] border-t"
-                          style={{ top: `${peakFromTopFrac(displayAudio.samplePeakMaxL) * 100}%` }}
+                          className="pointer-events-none absolute inset-x-0 z-[5] border-t"
+                          style={{
+                            top: `${peakFromTopFrac(displayAudio.samplePeakMaxL) * 100}%`,
+                            borderTopColor: samplePeakLineColor(displayAudio.samplePeakMaxL),
+                          }}
                         />
                       )}
                     </div>
@@ -852,8 +901,11 @@ export default function App() {
                       {renderPeakFill(displayAudio.sampleR)}
                       {Number.isFinite(displayAudio.samplePeakMaxR) && (
                         <div
-                          className="ui-border-peak-sample pointer-events-none absolute inset-x-0 z-[5] border-t"
-                          style={{ top: `${peakFromTopFrac(displayAudio.samplePeakMaxR) * 100}%` }}
+                          className="pointer-events-none absolute inset-x-0 z-[5] border-t"
+                          style={{
+                            top: `${peakFromTopFrac(displayAudio.samplePeakMaxR) * 100}%`,
+                            borderTopColor: samplePeakLineColor(displayAudio.samplePeakMaxR),
+                          }}
                         />
                       )}
                     </div>
