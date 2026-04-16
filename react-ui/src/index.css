@@ -337,10 +337,11 @@ body {
 .ui-pill-default {
   background: transparent;
   color: var(--ui-color-text-muted);
+  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 85%, var(--ui-color-panel-bg) 15%);
 }
 
 .ui-pill-default:hover {
-  background-color: var(--ui-color-inset-bg);
+  background-color: var(--ui-color-control-hover-bg);
 }
 
 .ui-pill-accent {
@@ -400,7 +401,8 @@ body {
   border-radius: var(--ui-radius-modal);
   background-color: var(--ui-color-panel-bg);
   padding: var(--ui-settings-modal-pad);
-  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+  box-shadow: var(--ui-shadow-settings-dialog);
+  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 55%, transparent);
 }
 
 .ui-settings-heading {
@@ -437,6 +439,7 @@ body {
 
 .ui-select,
 .ui-settings-btn {
+  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 75%, var(--ui-color-panel-bg) 25%);
   border-radius: var(--ui-radius-card);
   background-color: var(--ui-color-control-bg);
   padding: 0.25rem 0.5rem;
@@ -457,10 +460,15 @@ body {
 }
 
 .ui-theme-btn-off {
+  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 80%, var(--ui-color-panel-bg) 20%);
   border-radius: var(--ui-radius-pill);
   padding: 0.25rem 0.75rem;
   background-color: var(--ui-color-control-bg);
   color: var(--ui-color-text-muted);
+}
+
+.ui-theme-btn-off:hover {
+  background-color: var(--ui-color-control-hover-bg);
 }
 
 .ui-min-h-peak {
@@ -488,23 +496,36 @@ body {
 }
 
 .ui-legend-on {
+  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 78%, var(--ui-color-panel-bg) 22%);
   border-radius: var(--ui-radius-pill);
   padding: 0.25rem 0.75rem;
   font-size: var(--ui-fs-action);
   font-weight: 500;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
   background-color: var(--ui-color-legend-on-bg);
   color: var(--ui-color-legend-on-text);
 }
 
+.ui-legend-on:hover {
+  background-color: color-mix(in srgb, var(--ui-color-legend-on-bg) 40%, var(--ui-color-control-hover-bg) 60%);
+  border-color: color-mix(in srgb, var(--ui-color-border-default) 60%, var(--ui-color-brand) 40%);
+}
+
 .ui-legend-off {
+  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 72%, var(--ui-color-panel-bg) 28%);
   border-radius: var(--ui-radius-pill);
   padding: 0.25rem 0.75rem;
   font-size: var(--ui-fs-action);
   font-weight: 500;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
   background-color: var(--ui-color-legend-off-bg);
   color: var(--ui-color-legend-off-text);
+}
+
+.ui-legend-off:hover {
+  background-color: color-mix(in srgb, var(--ui-color-legend-off-bg) 40%, var(--ui-color-control-hover-bg) 60%);
+  border-color: color-mix(in srgb, var(--ui-color-border-default) 66%, var(--ui-color-brand) 34%);
+  color: color-mix(in srgb, var(--ui-color-legend-off-text) 82%, var(--ui-color-text-primary) 18%);
 }
 
 .ui-corr-bad {

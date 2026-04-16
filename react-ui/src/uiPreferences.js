@@ -88,6 +88,8 @@ const DARK_THEME_COLORS = {
   metricToggleOnUnitText: "#bfdbfe", // Metrics 选中单位
   targetLabel: "#d1d5db", // 「Target」文字
   targetValue: "#4ade80", // History 纵轴目标 LUFS 刻度（绿）
+  controlHoverBg: "#6b7280", // 浅交互控件 hover 底色
+  settingsDialogShadow: "0 25px 50px -12px rgb(0 0 0 / 0.5)", // 设置弹窗阴影
 };
 
 /** 浅色主题：语义与 DARK_THEME_COLORS 一一对应，数值为浅底可读配色 */
@@ -95,8 +97,8 @@ const LIGHT_THEME_COLORS = {
   pageBg: "#e5e7eb",
   textPrimary: "#111827",
   textSecondary: "#374151",
-  textMuted: "#6b7280",
-  textSubtle: "#9ca3af",
+  textMuted: "#4b5563",
+  textSubtle: "#64748b",
   panelBg: "#ffffff",
   panelBgSplitter: "rgba(209, 213, 219, 0.95)",
   insetBg: "#f9fafb",
@@ -121,20 +123,22 @@ const LIGHT_THEME_COLORS = {
   legendHistOnBg: "#e5e7eb",
   legendHistOnText: "#111827",
   legendHistOffBg: "#f3f4f6",
-  legendHistOffText: "#6b7280",
+  legendHistOffText: "#4b5563",
   metricRowBg: "rgba(255, 255, 255, 0.55)",
   metricRowBorder: "rgba(148, 163, 184, 0.5)",
   metricRowHoverBg: "rgba(248, 250, 252, 0.92)",
   metricRowToggleOnBg: "rgba(219, 234, 254, 0.72)",
   metricRowToggleOnBorder: "#2563eb",
   metricRowToggleOnGlow: "rgba(37, 99, 235, 0.25)",
-  metricLabelText: "#64748b",
+  metricLabelText: "#475569",
   metricValueText: "#0f172a",
   metricUnitText: "#475569",
   metricToggleOnLabelText: "#1e40af",
   metricToggleOnUnitText: "#1d4ed8",
   targetLabel: "#4b5563",
   targetValue: "#15803d", // History 纵轴目标刻度（绿）
+  controlHoverBg: "#d3ddea", // 浅交互控件 hover 底色
+  settingsDialogShadow: "0 16px 34px -14px rgb(15 23 42 / 0.28)", // 设置弹窗阴影（浅色更轻）
 };
 
 export const UI_PREFERENCES = {
@@ -323,7 +327,7 @@ export const UI_PREFERENCES = {
           selectionStroke: "#c2410c", // 时停竖线 / 选区
         },
         vectorscope: {
-          strokeLive: "#0e7490",
+          strokeLive: "#1d4ed8", // 与其他实时曲线统一主色
           strokeSnap: "#c2410c",
         },
         spectrum: {
@@ -343,18 +347,18 @@ export const UI_PREFERENCES = {
     loudnessHistory: {
       momentaryStroke: "#22d3ee",
       momentaryStrokeSnap: "#fb923c", // 时停：与 Vector/Spectrum snap 同系
-      momentaryStrokeWidth: 2.2,
+      momentaryStrokeWidth: 1.2,
       shortTermStroke: "#007AFF",
       shortTermStrokeSnap: "#f59e0b",
-      shortTermStrokeWidth: 2.6,
+      shortTermStrokeWidth: 1.2,
       shortTermOpacity: 0.95,
       selectionStroke: "#f59e0b", // 时停选点竖线（深色默认）
       selectionStrokeWidth: 1.2, // 时停选点竖线
     },
     vectorscope: {
-      strokeLive: "#22d3ee", // 实时轨迹
+      strokeLive: "#007AFF", // 与其他实时曲线统一主色
       strokeSnap: "#f59e0b", // 时停
-      strokeWidth: 1.2,
+      strokeWidth: 1,
       axisOpacity: 0.8, // 轨迹透明度
       gridDiagInsetPct: 1.2, // 米字斜线端点离边缘内缩百分比（避免圆角处越界）
       /** viewBox 260×260、中心 130：L/R 限幅 ±1 经 M/S 映射后，从中心到轨迹边缘的「半径」SVG 单位（原默认 96） */
@@ -363,7 +367,7 @@ export const UI_PREFERENCES = {
     spectrum: {
       strokeLive: "#007AFF",
       strokeSnap: "#f59e0b",
-      strokeWidth: 3,
+      strokeWidth: 1.5,
     },
   },
 
@@ -482,6 +486,8 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-color-metric-toggle-on-unit", colors.metricToggleOnUnitText);
   setCssVar("--ui-color-target-label", colors.targetLabel);
   setCssVar("--ui-color-target-value", colors.targetValue);
+  setCssVar("--ui-color-control-hover-bg", colors.controlHoverBg);
+  setCssVar("--ui-shadow-settings-dialog", colors.settingsDialogShadow);
 
   setCssVar("--ui-chart-momentary", charts.loudnessHistory.momentaryStroke);
   setCssVar("--ui-chart-momentary-snap", charts.loudnessHistory.momentaryStrokeSnap);
