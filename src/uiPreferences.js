@@ -48,8 +48,8 @@ const DARK_THEME_COLORS = {
   pageBg: "#111827", // 整页最外背景
   textPrimary: "#f3f4f6", // 主标题、正文高对比字
   textSecondary: "#d1d5db", // 次要说明
-  textMuted: "#9ca3af", // 再弱一级（小节标题、刻度感）
-  textSubtle: "#6b7280", // Metrics 标签等更淡字
+  textMuted: "#b3bcc8", // 再弱一级（小节标题、刻度感）- 提高扫读可见性
+  textSubtle: "#8792a2", // Metrics 标签等更淡字，但避免在暗底上过隐
   panelBg: "#1f2937", // 各模块圆角卡片背景（Peak、History…）
   panelBgSplitter: "rgba(31, 41, 55, 0.8)", // 可拖拽分割条背景
   insetBg: "#111827", // 图表深底（spectrum-grid 区域）
@@ -97,8 +97,8 @@ const LIGHT_THEME_COLORS = {
   pageBg: "#e5e7eb",
   textPrimary: "#111827",
   textSecondary: "#374151",
-  textMuted: "#4b5563",
-  textSubtle: "#64748b",
+  textMuted: "#334155",
+  textSubtle: "#475569",
   panelBg: "#ffffff",
   panelBgSplitter: "rgba(209, 213, 219, 0.95)",
   insetBg: "#f9fafb",
@@ -149,14 +149,14 @@ export const UI_PREFERENCES = {
   shell: {
     maxWidthPx: 1600, // 内容区 max-width，再大两侧留白
     paddingRem: { base: 0.8, lg: 1.2}, // 小屏 / lg 以上整页内边距
-    gapRem: { base: 0.5, lg: 0.5 }, // header、main、footer 之间的缝
+    gapRem: { base: 0.55, lg: 0.6 }, // header、main、footer 之间的缝
   },
 
   // section 间距与分栏条粗细（px）
   splitters: {
     sectionGapPx: 8, // 所有 section 间距统一值
     barThicknessPx: 1, // 分栏条可视粗细
-    loudnessGapPx: 10, // Loudness 内部 History 与 Metrics 的横向间距
+    loudnessGapPx: 8, // Loudness 内部 History 与 Metrics 的横向间距
   },
 
   // 顶栏 AudioMeter 一行：左右内边距（rem）
@@ -168,7 +168,7 @@ export const UI_PREFERENCES = {
   // 底栏状态行：左右 / 上下内边距（rem）
   footer: {
     paddingXRem: 1,
-    paddingYRem: 0.5,
+    paddingYRem: 0.65,
   },
 
   // 各 article 卡片内边距：默认可分 x/y；Metrics 列表单独控制（rem）
@@ -183,7 +183,7 @@ export const UI_PREFERENCES = {
   // 常用细粒度间距（rem）：避免 JSX 里硬编码 mt/gap/pb 导致配置失效
   spacingRem: {
     // Global
-    headerActionGap: 0, // 顶栏右侧按钮间距（原 gap-2）
+    headerActionGap: 0.35, // 顶栏右侧按钮间距
     panelFooterGap: 0.4, // 模块主体与底部信息条之间（原 mt-2）
     inlineValueGap: 0.4, // 模块内同一行数值组间距（原 gap-2）
     
@@ -258,8 +258,8 @@ export const UI_PREFERENCES = {
 
   // 右栏 Loudness 卡片内：History 区域宽度占比（0~1），余下给 Metrics 区域
   loudnessHistMetrics: {
-    initialRatio: 0.65, // 默认 History 约 64%，Metrics 约 36%
-    dragMinRatio: 0.5,
+    initialRatio: 0.7, // 默认 History 约 70%，Metrics 约 30%
+    dragMinRatio: 0.56,
     dragMaxRatio: 0.88,
     dragPixelsPerDelta: 720,
   },
@@ -290,13 +290,13 @@ export const UI_PREFERENCES = {
     sizesPx: {
       title: 20, // 顶栏大标题
       section: 12, // 各模块标题、Settings 标题
-      axisValue: 12, // 坐标轴刻度数字、时间轴刻度
+      axisValue: 13, // 坐标轴刻度数字、时间轴刻度
       axisUnit: 11, // 坐标轴单位（LUFS / dB / Hz）
       extraValue: 13, // TP MAX / Correlation / Target 等模块补充信息
       metricMeta: 14, // Loudness 指标参数名与单位；Settings 条目文本
       metricValue: 18, // Loudness 指标数值
       action: 14, // Start/Clear/Settings、图例药丸等按钮/操作文案
-      status: 12, // 底部状态栏
+      status: 13, // 底部状态栏
     },
     weights: {
       appTitle: 800,
@@ -369,6 +369,8 @@ export const UI_PREFERENCES = {
       strokeLive: "#007AFF",
       strokeSnap: "#f59e0b",
       strokeWidth: 1.5,
+      fillOpacityTop: 0.22,
+      fillOpacityBottom: 0.03,
     },
   },
 
@@ -395,10 +397,10 @@ export const UI_PREFERENCES = {
 
   // 右侧 Metrics：数值列宽(ch)、单位列宽(rem)、行高与内边距
   loudnessMetrics: {
-    valueColumnCh: 7, // 等宽数字列，影响小数点对齐
-    unitColumnRem: 3.5,
+    valueColumnCh: 6.5, // 等宽数字列，影响小数点对齐
+    unitColumnRem: 3.1,
     rowMinHeightRem: 2.5,
-    rowPaddingXRem: 0.625,
+    rowPaddingXRem: 0.5,
     rowPaddingYRem: 0.375,
     rowGapRem: 0.5,
   },
@@ -499,6 +501,8 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-chart-vectorscope-snap", charts.vectorscope.strokeSnap);
   setCssVar("--ui-chart-spectrum-live", charts.spectrum.strokeLive);
   setCssVar("--ui-chart-spectrum-snap", charts.spectrum.strokeSnap);
+  setCssVar("--ui-chart-spectrum-fill-top", String(charts.spectrum.fillOpacityTop ?? 0.18));
+  setCssVar("--ui-chart-spectrum-fill-bottom", String(charts.spectrum.fillOpacityBottom ?? 0.02));
 
   setCssVar("--ui-radius-card", radii.card);
   setCssVar("--ui-radius-modal", radii.modal);
@@ -608,4 +612,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
 
   const spectrum = charts.spectrum;
   setCssVar("--ui-sp-stroke-w", String(spectrum.strokeWidth));
+  setCssVar("--ui-sp-fill-top", String(spectrum.fillOpacityTop ?? 0.18));
+  setCssVar("--ui-sp-fill-bottom", String(spectrum.fillOpacityBottom ?? 0.02));
 }

@@ -1,11 +1,18 @@
 import { FREQ_LABELS, SPEC_Y_TICKS, freqToXFrac, spectrumDbToTopFrac } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 
+function buildSpectrumAreaPath(path) {
+  if (!path) return "";
+  return `${path} L 1000 260 L 0 260 Z`;
+}
+
 export function SpectrumPanel({
   displaySpectrumPath,
   displaySpectrumPeakPath,
   selectedOffset,
 }) {
+  const displaySpectrumAreaPath = buildSpectrumAreaPath(displaySpectrumPath);
+
   return (
     <article className="ui-article ui-min-h-spectrum flex-1">
       <div className="ui-section-title ui-section-title-main shrink-0">Spectrum</div>
@@ -27,8 +34,38 @@ export function SpectrumPanel({
                 preserveAspectRatio="none"
                 className="block h-full w-full min-h-0 min-w-0"
               >
+                <defs>
+                  <linearGradient id="spectrumFillLive" x1="0" x2="0" y1="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor="var(--ui-chart-spectrum-live)"
+                      stopOpacity="var(--ui-sp-fill-top, 0.18)"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--ui-chart-spectrum-live)"
+                      stopOpacity="var(--ui-sp-fill-bottom, 0.02)"
+                    />
+                  </linearGradient>
+                  <linearGradient id="spectrumFillSnap" x1="0" x2="0" y1="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor="var(--ui-chart-spectrum-snap)"
+                      stopOpacity="var(--ui-sp-fill-top, 0.18)"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--ui-chart-spectrum-snap)"
+                      stopOpacity="var(--ui-sp-fill-bottom, 0.02)"
+                    />
+                  </linearGradient>
+                </defs>
                 {displaySpectrumPath ? (
                   <>
+                    <path
+                      d={displaySpectrumAreaPath}
+                      fill={selectedOffset >= 0 ? "url(#spectrumFillSnap)" : "url(#spectrumFillLive)"}
+                    />
                     <path
                       d={displaySpectrumPath}
                       fill="none"

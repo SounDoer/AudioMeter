@@ -141,6 +141,7 @@ body {
   background-color: var(--ui-color-panel-bg);
   padding: var(--ui-footer-pad-y) var(--ui-footer-pad-x);
   font-size: var(--ui-fs-status);
+  line-height: 1.35;
   color: var(--ui-color-text-secondary);
 }
 
@@ -305,13 +306,13 @@ body {
 }
 
 .ui-pill {
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--ui-radius-pill);
   padding: 0.5rem 1rem;
   font-size: var(--ui-fs-action);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   outline: none;
 }
 
@@ -320,18 +321,24 @@ body {
 }
 
 .ui-pill-default {
-  background: transparent;
-  color: var(--ui-color-text-muted);
-  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 85%, var(--ui-color-panel-bg) 15%);
+  background: color-mix(in srgb, var(--ui-color-control-bg) 48%, transparent);
+  color: var(--ui-color-text-secondary);
+  border-color: color-mix(in srgb, var(--ui-color-border-default) 82%, var(--ui-color-panel-bg) 18%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
 }
 
 .ui-pill-default:hover {
-  background-color: var(--ui-color-control-hover-bg);
+  background-color: color-mix(in srgb, var(--ui-color-control-hover-bg) 78%, var(--ui-color-control-bg) 22%);
+  border-color: color-mix(in srgb, var(--ui-color-border-default) 58%, var(--ui-color-brand) 42%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--ui-color-brand) 16%, transparent);
 }
 
 .ui-pill-accent {
   background-color: var(--ui-color-brand);
   color: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ui-color-brand) 50%, transparent);
 }
 
 .ui-pill-accent:hover {
