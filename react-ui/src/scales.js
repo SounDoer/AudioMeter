@@ -1,6 +1,5 @@
 /**
- * 与 vanilla `src/renderers/peak.js`（mFrac / vY）、`loudness.js`（dToY）、`spectrum.js`（dToY / fToX）
- * 使用同一套数学关系，供 React UI 刻度与曲线对齐。
+ * 统一 React UI 内各仪表的坐标映射关系，保证刻度与曲线严格对齐。
  */
 
 /** Peak / Loudness History 共用：-60～+3 dB（与 peak.js MMIN/MMAX 一致） */
@@ -16,7 +15,7 @@ export function peakFrac(v) {
 
 /**
  * 从表盘/坐标区顶部向下的归一化位置：+3 dB → 0，-60 dB → 1。
- * peak.js: vY = PT + (1 - mFrac) * TH，即同一 (1 - mFrac) 关系。
+ * 坐标关系采用同一 (1 - frac) 变换，便于不同组件复用。
  */
 export function peakFromTopFrac(v) {
   return 1 - peakFrac(v);
@@ -75,7 +74,7 @@ const LOG20 = Math.log10(20);
 const LOG20K = Math.log10(20000);
 const LOG_DEN = LOG20K - LOG20;
 
-/** 频率 Hz → [0,1]，用于对数横轴刻度位置（与 spectrum.js fToX 一致） */
+/** 频率 Hz → [0,1]，用于对数横轴刻度位置 */
 export function freqToXFrac(f) {
   const ff = Math.max(20, Math.min(20000, f));
   return (Math.log10(ff) - LOG20) / LOG_DEN;
@@ -140,7 +139,7 @@ export function getWeightingDb(freqHz, mode = "z") {
   return 0;
 }
 
-/** Peak 表盘左侧主刻度（与 peak.js TICKS 中常用子集一致，可按需增删） */
+/** Peak 表盘左侧主刻度 */
 export const PEAK_TICKS = [
   { v: 3, lb: "+3" },
   { v: 0, lb: "0" },
@@ -173,7 +172,7 @@ export const SPEC_Y_TICKS = [
   { v: -80, lb: "-80" },
 ];
 
-/** 与 src/renderers/spectrum.js FREQ_LABELS 一致 */
+/** Spectrum 频率标签 */
 export const FREQ_LABELS = [
   [20, "20"],
   [50, "50"],

@@ -3,7 +3,7 @@
 在浏览器里做**实时音频监测**的小工具：峰值表、**LUFS 响度**（含 Momentary / Short-term / Integrated、LRA、True Peak 等）、**频谱**与**矢量示波器**。纯前端实现，无需后端。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Stack](https://img.shields.io/badge/stack-vanilla%20HTML%20%2F%20JS-lightgrey)
+![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite-lightgrey)
 
 ## 功能概览
 
@@ -25,30 +25,27 @@
 
 ## 快速开始
 
-克隆或下载本仓库后，在项目根目录启动任意**静态文件服务**，再打开站点根路径或 `index.html`（模块化界面）。
+克隆或下载本仓库后，进入 `react-ui` 启动开发服务器：
 
 ```bash
-# 任选其一
-python -m http.server 8080
-npx --yes serve .
+cd react-ui
+npm install
+npm run dev
 ```
 
-浏览器访问：`http://localhost:8080/` 或 `http://localhost:8080/index.html`（端口以实际为准）。
-
-> **说明**：直接用 `file://` 打开时，部分浏览器可能无法加载 AudioWorklet 模块；本工具内置了 Worklet 内联兜底，但仍**建议**用本地静态服务访问。
+浏览器访问终端输出中的本地地址（通常为 `http://localhost:5173/`）。
 
 ## 仓库结构
 
 ```
-index.html               # 模块化页面入口（部署在根路径时地址栏为 /）
-src/
-  main.js                # UI 绑定与启动
-  audio/controller.js    # 麦克风、AudioContext、Worklet、Analyser
-  render-loop.js         # 渲染循环
-  renderers/             # 各 Canvas 绘制
-  ui/                    # 状态栏、读数、布局
-worklets/
-  loudness-meter.js      # 响度测量 AudioWorklet
+index.html               # 根入口（重定向到 react-ui）
+react-ui/
+  src/
+    App.jsx              # 主界面与交互
+    uiPreferences.js     # UI 配置与偏好
+    scales.js            # 刻度与量程配置
+  public/worklets/
+    loudness-meter.js    # 响度测量 AudioWorklet
 ```
 
 ## 测「系统正在播放的声音」
@@ -63,8 +60,8 @@ worklets/
 ## 隐私与对外部署注意
 
 - **数据处理**：音频仅在用户本机处理与显示，无自有后端接口。
-- **第三方资源**：页面通过 Google Fonts 加载字体；若部署环境对出站请求敏感，可改为自托管字体并修改 `index.html` 中的 `<link>`。
-- **本地存储**：主题（`audiometer.uiMode`）与布局（`am.layout.v3`）保存在 `localStorage`，不涉及服务端。
+- **第三方资源**：页面通过 Google Fonts 加载字体；若部署环境对出站请求敏感，可改为自托管字体并修改 `react-ui/src/index.css`。
+- **本地存储**：界面偏好会保存在 `localStorage`，不涉及服务端。
 - **错误信息**：启动失败时界面仅显示简要说明；详细错误可在开发者工具控制台查看（便于排障，避免向普通访问者暴露堆栈路径）。
 
 ## 参与与许可
