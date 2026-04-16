@@ -47,6 +47,14 @@ export function VectorscopePanel({
               d={displayVectorPath || "M 130 130 L 130 130"}
               fill="none"
               stroke={selectedOffset >= 0 ? "var(--ui-chart-vectorscope-snap)" : "var(--ui-chart-vectorscope-live)"}
+              strokeWidth={UI_PREFERENCES.charts.vectorscope.strokeWidth * 3}
+              opacity={UI_PREFERENCES.charts.vectorscope.axisOpacity * 0.22}
+              strokeLinecap="round"
+            />
+            <path
+              d={displayVectorPath || "M 130 130 L 130 130"}
+              fill="none"
+              stroke={selectedOffset >= 0 ? "var(--ui-chart-vectorscope-snap)" : "var(--ui-chart-vectorscope-live)"}
               strokeWidth={UI_PREFERENCES.charts.vectorscope.strokeWidth}
               opacity={UI_PREFERENCES.charts.vectorscope.axisOpacity}
             />

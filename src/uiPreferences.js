@@ -384,10 +384,10 @@ export const UI_PREFERENCES = {
 
   // Peak 表盘竖向三色渐变（上→中→下）
   meterGradient: {
-    top: "#ef4444",
-    mid: "#f59e0b",
-    midStopPercent: 40, // 中间色停在渐变高度的百分比
-    bottom: "#22c55e",
+    top: "#f97373", // 轻微降低红区压迫感
+    mid: "#fbbf3b", // 更柔和的黄橙过渡
+    midStopPercent: 46, // 中段区稍向下延伸，过渡更平滑
+    bottom: "#34d399", // 稍偏青绿的安全区
   },
 
   // 响度历史默认时间窗（秒）；Clear、右键双击重置等与此一致
