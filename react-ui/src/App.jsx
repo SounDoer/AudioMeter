@@ -56,13 +56,16 @@ function dbPathFromBands(bands, dbList) {
   return pts.length ? `M ${pts.join(" L ")}` : "";
 }
 
-function PillButton({ children, accent = false, onClick }) {
+function PillButton({ children, accent = false, liveSnap = false, onClick }) {
+  const cls = [
+    "ui-pill",
+    accent ? "ui-pill-accent" : "ui-pill-default",
+    accent && liveSnap ? "ui-pill-live-snap" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={accent ? "ui-pill ui-pill-accent" : "ui-pill ui-pill-default"}
-    >
+    <button type="button" onClick={onClick} className={cls}>
       {children}
     </button>
   );
@@ -173,11 +176,13 @@ export default function App() {
   const historyLegend = useMemo(() => {
     const mode = uiMode === "light" ? "light" : "dark";
     const ch = mergeCharts(UI_PREFERENCES.charts, UI_PREFERENCES.themes[mode]?.charts);
+    const snap = selectedOffset >= 0;
+    const lh = ch.loudnessHistory;
     return [
-      { key: "m", label: "Momentary", color: ch.loudnessHistory.momentaryStroke },
-      { key: "st", label: "Short-term", color: ch.loudnessHistory.shortTermStroke },
+      { key: "m", label: "Momentary", color: snap ? lh.momentaryStrokeSnap : lh.momentaryStroke },
+      { key: "st", label: "Short-term", color: snap ? lh.shortTermStrokeSnap : lh.shortTermStroke },
     ];
-  }, [uiMode]);
+  }, [uiMode, selectedOffset]);
   const historyTimeTicks = useMemo(() => {
     const ticks = [];
     for (let i = 0; i <= HISTORY_TIME_TICK_STEPS; i++) {
@@ -764,7 +769,9 @@ export default function App() {
           <div className="flex-1" />
           <div className="flex items-center gap-[var(--ui-header-action-gap)]">
             <PillButton onClick={clearAll}>Clear</PillButton>
-            <PillButton accent onClick={onStartClick}>{startLabel}</PillButton>
+            <PillButton accent liveSnap={startMode === "live"} onClick={onStartClick}>
+              {startLabel}
+            </PillButton>
             <PillButton onClick={() => setSettingsOpen(true)}>Settings</PillButton>
           </div>
         </header>
@@ -844,17 +851,7 @@ export default function App() {
 
             <article className="ui-article ui-min-h-spectrum flex-1">
               <div className="ui-section-title ui-section-title-main shrink-0">Vectorscope</div>
-              <div
-                className={`relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)] ${selectedOffset >= 0 ? "ring-1 ring-[color:var(--ui-color-snapshot-ring)]" : ""}`}
-              >
-                {selectedOffset >= 0 && (
-                  <div
-                    className="absolute right-[var(--ui-snapshot-badge-inset)] top-[var(--ui-snapshot-badge-inset)] rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
-                    style={{ backgroundColor: "var(--ui-color-snapshot-badge-bg)", color: "var(--ui-color-snapshot-badge-text)" }}
-                  >
-                    Snapshot View
-                  </div>
-                )}
+              <div className="relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)]">
                 <div className="absolute inset-[var(--ui-chart-outer-inset)] z-0 min-h-0 min-w-0 overflow-hidden">
                   <svg
                     className="pointer-events-none absolute inset-0 z-0 block h-full w-full"
@@ -988,7 +985,7 @@ export default function App() {
                         <path
                           d={displayHistoryPathM}
                           fill="none"
-                          stroke="var(--ui-chart-momentary)"
+                          stroke={selectedOffset >= 0 ? "var(--ui-chart-momentary-snap)" : "var(--ui-chart-momentary)"}
                           strokeWidth={UI_PREFERENCES.charts.loudnessHistory.momentaryStrokeWidth}
                         />
                       )}
@@ -996,7 +993,7 @@ export default function App() {
                         <path
                           d={displayHistoryPathST}
                           fill="none"
-                          stroke="var(--ui-chart-shortterm)"
+                          stroke={selectedOffset >= 0 ? "var(--ui-chart-shortterm-snap)" : "var(--ui-chart-shortterm)"}
                           strokeWidth={UI_PREFERENCES.charts.loudnessHistory.shortTermStrokeWidth}
                           opacity={UI_PREFERENCES.charts.loudnessHistory.shortTermOpacity}
                         />
@@ -1121,17 +1118,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="relative min-h-0 min-w-0">
-                  <div
-                    className={`spectrum-grid ui-inset-chart-spectrum relative min-h-0 h-full rounded-lg bg-[var(--ui-color-inset-bg)] ${selectedOffset >= 0 ? "ring-1 ring-[color:var(--ui-color-snapshot-ring)]" : ""}`}
-                  >
-                    {selectedOffset >= 0 && (
-                      <div
-                        className="absolute right-[var(--ui-snapshot-badge-inset)] top-[var(--ui-snapshot-badge-inset)] rounded px-2 py-0.5 text-[length:var(--ui-fs-action)]"
-                        style={{ backgroundColor: "var(--ui-color-snapshot-badge-bg)", color: "var(--ui-color-snapshot-badge-text)" }}
-                      >
-                        Snapshot View
-                      </div>
-                    )}
+                  <div className="spectrum-grid ui-inset-chart-spectrum relative min-h-0 h-full rounded-lg bg-[var(--ui-color-inset-bg)]">
                     <div className="absolute inset-0 min-h-0 min-w-0 px-[var(--ui-spectrum-svg-pad)] pt-[var(--ui-spectrum-display-top-inset)] pb-[var(--ui-spectrum-display-bottom-inset)]">
                       <svg
                         viewBox="0 0 1000 260"

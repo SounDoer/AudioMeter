@@ -68,10 +68,7 @@ const DARK_THEME_COLORS = {
     mid: "#fcd34d", // 相关度中间
     good: "#6ee7b7", // 相关度良好
   },
-  loudnessTargetLine: "rgba(251, 191, 36, 0.7)", // History 里目标 LUFS 虚线
-  snapshotRing: "rgba(251, 191, 36, 0.5)", // 时停时 Spectrum/Vector 外圈
-  snapshotBadgeBg: "rgba(251, 191, 36, 0.15)", // 「Snapshot View」徽章底
-  snapshotBadgeText: "#fde68a", // 徽章字色
+  loudnessTargetLine: "rgba(74, 222, 128, 0.85)", // History 目标 LUFS 虚线（绿）
   settingsOverlay: "rgba(0, 0, 0, 0.6)", // 设置弹窗背后遮罩
   settingsRowBg: "rgba(17, 24, 39, 0.7)", // 设置里每一行选项条背景
   legendHistOnBg: "#374151", // History 图例按钮「开」
@@ -90,7 +87,7 @@ const DARK_THEME_COLORS = {
   metricToggleOnLabelText: "#dbeafe", // Metrics 选中名称
   metricToggleOnUnitText: "#bfdbfe", // Metrics 选中单位
   targetLabel: "#d1d5db", // 「Target」文字
-  targetValue: "#fcd34d", // 目标 LUFS 数字
+  targetValue: "#4ade80", // History 纵轴目标 LUFS 刻度（绿）
 };
 
 /** 浅色主题：语义与 DARK_THEME_COLORS 一一对应，数值为浅底可读配色 */
@@ -118,10 +115,7 @@ const LIGHT_THEME_COLORS = {
     mid: "#ca8a04",
     good: "#15803d",
   },
-  loudnessTargetLine: "rgba(217, 119, 6, 0.75)",
-  snapshotRing: "rgba(217, 119, 6, 0.45)",
-  snapshotBadgeBg: "rgba(251, 191, 36, 0.25)",
-  snapshotBadgeText: "#92400e",
+  loudnessTargetLine: "rgba(22, 163, 74, 0.8)", // History 目标虚线（绿）
   settingsOverlay: "rgba(15, 23, 42, 0.35)",
   settingsRowBg: "rgba(243, 244, 246, 0.95)",
   legendHistOnBg: "#e5e7eb",
@@ -140,7 +134,7 @@ const LIGHT_THEME_COLORS = {
   metricToggleOnLabelText: "#1e40af",
   metricToggleOnUnitText: "#1d4ed8",
   targetLabel: "#4b5563",
-  targetValue: "#b45309",
+  targetValue: "#15803d", // History 纵轴目标刻度（绿）
 };
 
 export const UI_PREFERENCES = {
@@ -221,9 +215,6 @@ export const UI_PREFERENCES = {
     spectrumDisplayTopInset: 0.5, // Spectrum 显示区顶部边界（左轴与图线共用，预留 0 dB 标签空间）
     spectrumDisplayBottomInset: 0, // Spectrum 显示区底部边界（左轴与图线共用）
     spectrumSvgPad: 0.4, // Spectrum 主图 SVG 内边距（原 p-2）
-
-    // Shared badges
-    snapshotBadgeInset: 0.5, // Snapshot 徽章右上偏移（原 right-2/top-2）
   },
 
   // 设置弹窗：最大宽、内边距、遮罩内边距（rem）
@@ -300,7 +291,7 @@ export const UI_PREFERENCES = {
       extraValue: 13, // TP MAX / Correlation / Target 等模块补充信息
       metricMeta: 14, // Loudness Metrics 参数名与单位；Settings 条目文本
       metricValue: 18, // Loudness Metrics 数值
-      action: 14, // Start/Clear/Settings、图例药丸、Snapshot 徽章等按钮/操作文案
+      action: 14, // Start/Clear/Settings、图例药丸等按钮/操作文案
       status: 12, // 底部状态栏
     },
     weights: {
@@ -327,7 +318,9 @@ export const UI_PREFERENCES = {
       charts: {
         loudnessHistory: {
           momentaryStroke: "#0e7490", // 浅底上略加深的 Momentary 线
+          momentaryStrokeSnap: "#c2410c",
           shortTermStroke: "#1d4ed8",
+          shortTermStrokeSnap: "#9a3412",
           selectionStroke: "#c2410c", // 时停竖线 / 选区
         },
         vectorscope: {
@@ -350,10 +343,13 @@ export const UI_PREFERENCES = {
   charts: {
     loudnessHistory: {
       momentaryStroke: "#22d3ee",
+      momentaryStrokeSnap: "#fb923c", // 时停：与 Vector/Spectrum snap 同系
       momentaryStrokeWidth: 2.2,
       shortTermStroke: "#007AFF",
+      shortTermStrokeSnap: "#f59e0b",
       shortTermStrokeWidth: 2.6,
       shortTermOpacity: 0.95,
+      selectionStroke: "#f59e0b", // 时停选点竖线（深色默认）
       selectionStrokeWidth: 1.2, // 时停选点竖线
     },
     vectorscope: {
@@ -468,9 +464,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-color-corr-mid", colors.correlation.mid);
   setCssVar("--ui-color-corr-good", colors.correlation.good);
   setCssVar("--ui-color-loudness-target-line", colors.loudnessTargetLine);
-  setCssVar("--ui-color-snapshot-ring", colors.snapshotRing);
-  setCssVar("--ui-color-snapshot-badge-bg", colors.snapshotBadgeBg);
-  setCssVar("--ui-color-snapshot-badge-text", colors.snapshotBadgeText);
   setCssVar("--ui-color-settings-overlay", colors.settingsOverlay);
   setCssVar("--ui-color-settings-row-bg", colors.settingsRowBg);
   setCssVar("--ui-color-legend-on-bg", colors.legendHistOnBg);
@@ -492,7 +485,9 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-color-target-value", colors.targetValue);
 
   setCssVar("--ui-chart-momentary", charts.loudnessHistory.momentaryStroke);
+  setCssVar("--ui-chart-momentary-snap", charts.loudnessHistory.momentaryStrokeSnap);
   setCssVar("--ui-chart-shortterm", charts.loudnessHistory.shortTermStroke);
+  setCssVar("--ui-chart-shortterm-snap", charts.loudnessHistory.shortTermStrokeSnap);
   setCssVar("--ui-chart-selection", charts.loudnessHistory.selectionStroke);
   setCssVar("--ui-chart-vectorscope-live", charts.vectorscope.strokeLive);
   setCssVar("--ui-chart-vectorscope-snap", charts.vectorscope.strokeSnap);
@@ -572,7 +567,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-meter-chart-inset-x", `${sp.meterChartInsetX}rem`);
   setCssVar("--ui-meter-label-left-inset", `${sp.meterLabelLeftInset}rem`);
   setCssVar("--ui-meter-label-top-inset", `${sp.meterLabelTopInset}rem`);
-  setCssVar("--ui-snapshot-badge-inset", `${sp.snapshotBadgeInset}rem`);
   setCssVar("--ui-chart-outer-inset", `${sp.chartOuterInset}rem`);
   setCssVar("--ui-vector-corner-inset", `${sp.vectorCornerInset}rem`);
   setCssVar("--ui-history-display-top-inset", `${sp.historyDisplayTopInset}rem`);

@@ -352,6 +352,37 @@ body {
   background-color: var(--ui-color-brand-hover);
 }
 
+/* 时停回看：主按钮为 LIVE，与 snap 曲线同色并轻微闪烁 */
+.ui-pill-accent.ui-pill-live-snap {
+  background-color: var(--ui-chart-vectorscope-snap);
+  color: #fff;
+  animation: ui-pill-live-snap-blink 1.15s ease-in-out infinite;
+}
+
+.ui-pill-accent.ui-pill-live-snap:hover {
+  background-color: var(--ui-chart-vectorscope-snap);
+  filter: brightness(0.94);
+}
+
+@keyframes ui-pill-live-snap-blink {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-chart-vectorscope-snap) 45%, transparent);
+  }
+  50% {
+    opacity: 0.88;
+    box-shadow: 0 0 14px 2px color-mix(in srgb, var(--ui-chart-vectorscope-snap) 50%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-pill-accent.ui-pill-live-snap {
+    animation: none;
+    box-shadow: none;
+  }
+}
+
 .ui-settings-overlay {
   position: fixed;
   inset: 0;
