@@ -161,8 +161,8 @@ export const UI_PREFERENCES = {
 
   // 顶栏 AudioMeter 一行：左右内边距（rem）
   header: {
-    paddingXRem: 1.0,
-    paddingYRem: 0.75,
+    paddingXRem: 0.9,
+    paddingYRem: 0.55,
   },
 
   // 底栏状态行：左右 / 上下内边距（rem）
@@ -288,7 +288,7 @@ export const UI_PREFERENCES = {
   typography: {
     fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     sizesPx: {
-      title: 20, // 顶栏大标题
+      title: 18, // 顶栏大标题（略收一档，弱化存在感）
       section: 12, // 各模块标题、Settings 标题
       axisValue: 13, // 坐标轴刻度数字、时间轴刻度
       axisUnit: 11, // 坐标轴单位（LUFS / dB / Hz）
