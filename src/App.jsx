@@ -7,7 +7,6 @@ import {
   LOUDNESS_DB_MIN,
   loudnessFromTopFrac,
   loudnessHistY,
-  spectrumDbToYViewBox,
   spectrumDbToTopFrac,
   freqToXFrac,
   buildRtaBands,
@@ -19,44 +18,13 @@ import {
   FREQ_LABELS,
 } from "./scales";
 import { UI_PREFERENCES, applyUiPreferencesToDocument, mergeCharts, readPersistedUiMode } from "./uiPreferences";
+import { dbPathFromBands, smoothByKernel, smoothingPreset } from "./math/spectrumMath";
+import { buildHistoryPath, getHistoryViewport, HISTORY_MAX_WINDOW_SEC, HISTORY_MIN_WINDOW_SEC } from "./math/historyMath";
+import { fmtMetric, fmtSec } from "./math/formatMath";
+import { samplePeakLineColor } from "./math/colorMath";
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 const HISTORY_TIME_TICK_STEPS = 4;
-const SPECTRUM_VIEW_W = 1000;
-
-function smoothingPreset(mode) {
-  if (mode === "fast") return { attackMs: 30, releaseMs: 150 };
-  if (mode === "slow") return { attackMs: 120, releaseMs: 700 };
-  return { attackMs: 60, releaseMs: 300 };
-}
-
-function smoothByKernel(values, kernel) {
-  if (!Array.isArray(values) || values.length < 3) return values;
-  if (!Array.isArray(kernel) || kernel.length < 3) return values;
-  const out = values.slice();
-  const radius = Math.floor(kernel.length / 2);
-  const sum = kernel.reduce((a, b) => a + b, 0) || 1;
-  for (let i = 0; i < values.length; i++) {
-    let acc = 0;
-    for (let k = 0; k < kernel.length; k++) {
-      const idx = Math.max(0, Math.min(values.length - 1, i + k - radius));
-      acc += values[idx] * kernel[k];
-    }
-    out[i] = acc / sum;
-  }
-  return out;
-}
-
-function dbPathFromBands(bands, dbList) {
-  if (!Array.isArray(bands) || !Array.isArray(dbList) || !bands.length || bands.length !== dbList.length) return "";
-  const pts = [];
-  for (let i = 0; i < bands.length; i++) {
-    const x = freqToXFrac(bands[i].fCenter) * SPECTRUM_VIEW_W;
-    const y = spectrumDbToYViewBox(dbList[i]);
-    pts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
-  }
-  return pts.length ? `M ${pts.join(" L ")}` : "";
-}
 
 function PillButton({ children, accent = false, liveSnap = false, onClick }) {
   const cls = [
@@ -196,22 +164,7 @@ export default function App() {
     }
     return ticks;
   }, [historyOffsetSec, historyWindowSec]);
-  const METRIC_NEGATIVE_INFINITY_FLOOR = -200;
-  const METRIC_POSITIVE_INFINITY_CEIL = 200;
   const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
-  const fmtMetric = (v) => {
-    if (!Number.isFinite(v)) return "-";
-    if (v <= METRIC_NEGATIVE_INFINITY_FLOOR) return "-";
-    if (v >= METRIC_POSITIVE_INFINITY_CEIL) return "-";
-    return v.toFixed(1);
-  };
-  const fmtSec = (sec) => {
-    const s = Math.max(0, Math.round(sec));
-    if (s < 60) return `${s}s`;
-    const m = Math.floor(s / 60);
-    const rs = s % 60;
-    return `${m}m${rs ? `${rs}s` : ""}`;
-  };
   const renderPeakFill = (dbValue) => {
     if (!Number.isFinite(dbValue)) return null;
     const clamped = Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue));
@@ -229,45 +182,12 @@ export default function App() {
     ...UI_PREFERENCES.meterGradient,
     ...(UI_PREFERENCES.themes[uiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
   };
-  const parseHexColor = (hex) => {
-    if (typeof hex !== "string") return null;
-    const s = hex.trim();
-    if (!s.startsWith("#")) return null;
-    const raw = s.slice(1);
-    if (raw.length === 3) {
-      const r = Number.parseInt(raw[0] + raw[0], 16);
-      const g = Number.parseInt(raw[1] + raw[1], 16);
-      const b = Number.parseInt(raw[2] + raw[2], 16);
-      return Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b) ? { r, g, b } : null;
-    }
-    if (raw.length === 6) {
-      const r = Number.parseInt(raw.slice(0, 2), 16);
-      const g = Number.parseInt(raw.slice(2, 4), 16);
-      const b = Number.parseInt(raw.slice(4, 6), 16);
-      return Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b) ? { r, g, b } : null;
-    }
-    return null;
-  };
-  const mixRgb = (a, b, t) => {
-    const x = Math.max(0, Math.min(1, t));
-    return {
-      r: Math.round(a.r + (b.r - a.r) * x),
-      g: Math.round(a.g + (b.g - a.g) * x),
-      b: Math.round(a.b + (b.b - a.b) * x),
-    };
-  };
-  const samplePeakLineColor = (dbValue) => {
-    if (!Number.isFinite(dbValue)) return "var(--ui-color-peak-sample)";
-    const t = peakFromTopFrac(Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue)));
-    const midStopPct = Number.isFinite(meterGradientCfg.midStopPercent) ? meterGradientCfg.midStopPercent : 40;
-    const midStop = Math.max(0.001, Math.min(0.999, midStopPct / 100));
-    const cTop = parseHexColor(meterGradientCfg.top);
-    const cMid = parseHexColor(meterGradientCfg.mid);
-    const cBottom = parseHexColor(meterGradientCfg.bottom);
-    if (!cTop || !cMid || !cBottom) return "var(--ui-color-peak-sample)";
-    const rgb = t <= midStop ? mixRgb(cTop, cMid, t / midStop) : mixRgb(cMid, cBottom, (t - midStop) / (1 - midStop));
-    return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-  };
+  const getSamplePeakLineColor = (dbValue) =>
+    samplePeakLineColor(
+      dbValue,
+      (v) => peakFromTopFrac(Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, v))),
+      meterGradientCfg
+    );
   const showHistoryHud = (ms = 1600) => {
     setHistoryHudUntilTs(Date.now() + Math.max(200, ms));
   };
@@ -338,30 +258,27 @@ export default function App() {
   const startLabel = startMode === "live" ? "LIVE" : startMode === "stop" ? "STOP" : "START";
   const totalSamples = histSourceList.length;
   const availableSec = Math.max(0, totalSamples * HIST_SAMPLE_SEC);
-  const clampedWindowSec = Math.max(5, Math.min(1800, historyWindowSec));
-  const windowSamples = Math.max(1, Math.round(clampedWindowSec / HIST_SAMPLE_SEC));
-  const visibleSamples = Math.max(1, Math.min(Math.max(1, totalSamples), windowSamples));
-  const maxOffsetSamples = Math.max(0, totalSamples - visibleSamples);
-  const effectiveOffsetSamples = Math.max(0, Math.min(maxOffsetSamples, Math.round(historyOffsetSec / HIST_SAMPLE_SEC)));
-  const effectiveOffsetSec = effectiveOffsetSamples * HIST_SAMPLE_SEC;
+  const { visibleSamples, maxOffsetSamples, effectiveOffsetSamples, effectiveOffsetSec } = getHistoryViewport(
+    totalSamples,
+    historyWindowSec,
+    historyOffsetSec,
+    HIST_SAMPLE_SEC
+  );
 
-  const buildHistoryPath = (key) => {
-    if (!histSourceList.length) return "";
-    const total = histSourceList.length;
-    const winSamples = Math.max(2, visibleSamples);
-    const offSamples = Math.max(0, Math.min(Math.max(0, total - 2), effectiveOffsetSamples));
-    const end = Math.max(1, total - offSamples);
-    const start = Math.max(0, end - winSamples);
-    const view = histSourceList.slice(start, end);
-    if (view.length < 2) return "";
-    const toY = (v) => loudnessHistY(v, 220);
-    return view
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${(i / Math.max(1, view.length - 1)) * 600} ${toY(p[key])}`)
-      .join(" ");
-  };
-
-  const displayHistoryPathM = buildHistoryPath("m");
-  const displayHistoryPathST = buildHistoryPath("st");
+  const displayHistoryPathM = buildHistoryPath(
+    histSourceList,
+    "m",
+    visibleSamples,
+    effectiveOffsetSamples,
+    (v) => loudnessHistY(v, 220)
+  );
+  const displayHistoryPathST = buildHistoryPath(
+    histSourceList,
+    "st",
+    visibleSamples,
+    effectiveOffsetSamples,
+    (v) => loudnessHistY(v, 220)
+  );
   const showSelLine =
     selectedOffset >= 0 &&
     totalSamples > 0 &&
@@ -500,7 +417,7 @@ export default function App() {
     const norm = 1 - x / width;
     const anchorFromEndSamples = effectiveOffsetSamples + norm * Math.max(0, visibleSamples - 1);
     const baselineSec = Math.max(HIST_SAMPLE_SEC, visibleSamples * HIST_SAMPLE_SEC);
-    const next = Math.max(5, Math.min(1800, baselineSec * factor));
+    const next = Math.max(HISTORY_MIN_WINDOW_SEC, Math.min(HISTORY_MAX_WINDOW_SEC, baselineSec * factor));
     const nextVisibleSamples = Math.max(1, Math.min(Math.max(1, totalSamples), Math.round(next / HIST_SAMPLE_SEC)));
     const nextMaxOffsetSamples = Math.max(0, totalSamples - nextVisibleSamples);
     const nextOffsetSamples = Math.max(
@@ -887,7 +804,7 @@ export default function App() {
                           className="pointer-events-none absolute inset-x-0 z-[5] border-t"
                           style={{
                             top: `${peakFromTopFrac(displayAudio.samplePeakMaxL) * 100}%`,
-                            borderTopColor: samplePeakLineColor(displayAudio.samplePeakMaxL),
+                            borderTopColor: getSamplePeakLineColor(displayAudio.samplePeakMaxL),
                           }}
                         />
                       )}
@@ -904,7 +821,7 @@ export default function App() {
                           className="pointer-events-none absolute inset-x-0 z-[5] border-t"
                           style={{
                             top: `${peakFromTopFrac(displayAudio.samplePeakMaxR) * 100}%`,
-                            borderTopColor: samplePeakLineColor(displayAudio.samplePeakMaxR),
+                            borderTopColor: getSamplePeakLineColor(displayAudio.samplePeakMaxR),
                           }}
                         />
                       )}
