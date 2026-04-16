@@ -48,13 +48,13 @@ export const SPEC_PLOT_H = 260;
 
 /** React Spectrum：FFT→RTA 呈现层默认参数（与 UI 主题无关，见 App tick） */
 export const SPECTRUM_SETTINGS = {
-  resolution: "1/6", // 1/3 | 1/6 | 1/12
+  resolution: "1/24", // 1/3 | 1/6 | 1/12 | 1/24 | 1/48
   weighting: "z", // z | a | c
-  smoothing: "normal", // fast | normal | slow
-  showPeakHold: true,
+  smoothing: "fast", // fast | normal | slow
+  showPeakHold: false,
   peakHoldMs: 1000,
   peakDecayDbPerSec: 12,
-  freqSmoothingKernel: [0.2, 0.6, 0.2],
+  freqSmoothingKernel: [0.12,0.76,0.12],
   tiltDbPerOctave: 0,
   freeze: false,
   minHz: 20,
@@ -85,6 +85,8 @@ const RTA_BANDS_PER_OCTAVE = {
   "1/3": 3,
   "1/6": 6,
   "1/12": 12,
+  "1/24": 24,
+  "1/48": 48,
 };
 
 export function getRtaBandsPerOctave(resolution = "1/6") {

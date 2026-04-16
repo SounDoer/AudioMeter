@@ -557,7 +557,7 @@ export default function App() {
         const an = ctx.createAnalyser();
         const anL = ctx.createAnalyser();
         const anR = ctx.createAnalyser();
-        an.fftSize = 4096;
+        an.fftSize = 16384;
         anL.fftSize = 2048;
         anR.fftSize = 2048;
         src.connect(wklt);
