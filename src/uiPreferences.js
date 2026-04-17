@@ -20,7 +20,7 @@ function setCssVar(name, value) {
   document.documentElement.style.setProperty(name, String(value));
 }
 
-export function mergeCharts(base, override) {
+function mergeCharts(base, override) {
   if (!override) return base;
   return {
     loudnessHistory: { ...base.loudnessHistory, ...override.loudnessHistory },
@@ -152,7 +152,7 @@ const LIGHT_THEME_COLORS = {
 };
 
 export const UI_PREFERENCES = {
-  layoutPersistKey: "am.react.layout.v2",
+  layoutPersistKey: "am.react.layout",
 
   layout: {
     shell: {
