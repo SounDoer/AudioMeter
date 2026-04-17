@@ -1,72 +1,199 @@
 # AudioMeter
 
-在浏览器里做**实时音频监测**的小工具：峰值表、**LUFS 响度**（含 Momentary / Short-term / Integrated、LRA、True Peak 等）、**频谱**与**矢量示波器**。纯前端实现，无需后端。
+无需安装的浏览器实时音频分析工具，打开即用。支持 **峰值表（Peak）**、**LUFS 响度**（Momentary / Short-term / Integrated / LRA / True Peak）、**频谱分析（Spectrum）** 与 **矢量示波器（Vectorscope）**。音频仅在本机处理，不上传任何服务器。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite-lightgrey)
 
-## 功能概览
+---
 
-| 区域 | 说明 |
+## 使用前准备
+
+### 浏览器要求
+
+需要支持 Web Audio API 和 AudioWorklet 的现代桌面浏览器，推荐 Chrome / Edge / Firefox 最新版。页面必须通过 HTTPS 或 `localhost` 访问，否则浏览器会拒绝麦克风权限。
+
+### 麦克风权限
+
+首次点击 **START** 时，浏览器会弹出权限请求，选择「允许」即可。如果之前选了「拒绝」，需要在浏览器地址栏左侧的权限图标里手动重新开启。
+
+### 监测系统播放的声音（虚拟声卡）
+
+浏览器只能采集**输入设备**（麦克风或线路输入）。如果想测量系统正在播放的音频信号，需要安装虚拟声卡，把系统输出路由到虚拟输入：
+
+- **Windows**：安装 [VB-Audio Virtual Cable](https://vb-audio.com/Cable/)，然后完成以下设置：
+  1. 「声音 → 播放」将默认播放设备改为 **CABLE Input**（音频从这里进入虚拟线缆）。
+  2. 「声音 → 录制」右键 **CABLE Output** → 属性 → **Listen** 标签页，勾选 **Listen to this device**，并在下方选择你实际在用的声卡设备。这一步让声音在进入虚拟线缆的同时也能从真实设备播出，否则你将听不到任何声音。
+  3. AudioMeter 打开后，将默认录音设备设为 CABLE Output 即可采集到信号。
+- **macOS**：安装 [BlackHole](https://existential.audio/blackhole/)（2ch 版本即可），然后完成以下设置：
+  1. 打开 **Audio MIDI Setup**（应用程序 → 实用工具）。
+  2. 左下角点 **+** → **Create Multi-Output Device**，在右侧同时勾选你的真实扬声器/耳机和 **BlackHole 2ch**，并将真实设备设为 **Master Device**，同时勾选 BlackHole 那行的 **Drift Correction**（防止长时间使用后出现音画不同步）。
+  3. 「系统设置 → 声音 → 输出」选择刚创建的 **Multi-Output Device**，音频就会同时流向真实设备和 BlackHole。
+  4. AudioMeter 打开后选择 **BlackHole 2ch** 作为输入设备即可。
+  
+  注意：使用 Multi-Output Device 时，系统音量调节会变灰，需要直接在真实设备上控制音量。
+
+更换输入设备后请刷新页面并重新授权。
+
+---
+
+## 操作指南
+
+### 控制栏
+
+页面顶部有三个按钮：
+
+- **START** — 请求麦克风权限并开始监测。
+- **STOP** — 停止监测，保留当前历史数据。
+- **LIVE** — 仅在进入历史快照模式后出现，点击返回实时监测。
+- **Clear** — 清除所有历史数据和峰值保持记录。
+- **Settings** — 打开设置面板。
+
+---
+
+### Peak（峰值表）
+
+显示左（L）和右（R）两个声道的实时采样峰值，以及各声道的峰值保持线和 **TP MAX**（True Peak 最大值，单位 dBTP）。
+
+仪表从下到上对应信号从弱到强，颜色从绿渐变为红。
+
+---
+
+### Loudness（响度）
+
+分为左侧**历史图表**和右侧**指标列表**两部分。
+
+#### 右侧指标列表
+
+显示以下数值（单位 LUFS，LRA 单位 LU）：
+
+| 指标 | 说明 |
 |------|------|
-| **Peak** | 立体声峰值 / 表头 |
-| **Loudness** | BS.1770-4 风格链路（AudioWorklet），历史曲线可交互查看 |
-| **Spectrum** | 分析器频谱 |
-| **Vectorscope** | 李萨如 / 相关表读数 |
-| **Settings** | EBU R128 / Streaming 目标、明主题与暗主题、布局重置 |
+| Momentary | 最近 400ms 瞬时响度 |
+| Short-term | 最近 3 秒短期响度 |
+| Integrated | 从开始监测至今的整合响度 |
+| M Max | Momentary 最大值 |
+| ST Max | Short-term 最大值 |
+| LRA | 响度范围 |
+| Dynamics (PSR) | Peak 与 Short-term 的差值 |
+| Avg. Dynamics (PLR) | Peak 与 Integrated 的差值 |
 
-音频在本地通过 Web Audio 处理；**不会**上传到任何服务器。
+点击 **Momentary** 或 **Short-term** 行可切换对应曲线在历史图中的显示与隐藏。
 
-## 环境要求
+#### 左侧历史图表
 
-- 支持 **Web Audio**、**AudioWorklet**、`getUserMedia` 的现代浏览器（桌面 Chrome / Edge / Firefox 等）。
-- **麦克风权限**：首次点击 **START** 时浏览器会请求访问音频输入。
-- **必须通过 HTTP(S) 提供页面**：本地开发可用 `localhost`；公网部署请使用 **HTTPS**（多数浏览器在非安全上下文中会限制麦克风）。
+以时间轴展示 Momentary（M）和 Short-term（ST）的历史曲线，横轴为时间，纵轴为 LUFS，虚线为当前标准的目标响度值。
 
-## 快速开始
+**左键操作（选取快照）：**
 
-克隆或下载本仓库后，在项目根目录启动开发服务器：
+- **左键单击**：点击图表中某个位置，进入**快照模式**——所有面板（频谱、矢量示波器、响度指标）切换为该时刻的数据，顶部按钮变为 **LIVE**。
+- **左键拖拽**：按住左键拖动，实时在时间轴上滑动选取不同时刻的快照。
+- **左键双击**：退出快照模式，返回实时监测。也可点击顶部 **LIVE** 按钮退出。
+
+**右键操作（平移与重置视图）：**
+
+- **右键拖拽**：按住右键左右拖动，平移时间轴视图（仅移动可视范围，不选取快照）。
+- **右键双击**：将时间窗口和时间偏移恢复为默认值。
+
+**滚轮操作（缩放时间窗口）：**
+
+- **滚轮上/下**：以鼠标当前位置为锚点缩放时间窗口，即图表横轴覆盖的时间范围。
+
+**悬停（Hover）：**
+
+- 鼠标移入图表，显示当前位置的时间偏移、M 值和 ST 值。
+
+图表左下角会短暂显示当前「窗口时长 / 偏移量」的提示。
+
+---
+
+### Spectrum（频谱）
+
+显示实时频率响应曲线，横轴为频率（对数刻度，20 Hz–20 kHz），纵轴为幅度（dB）。
+
+**悬停（Hover）**：鼠标移入图表，会显示：
+- 垂直和水平两条虚线交叉定位当前位置。
+- 提示框显示该点的**频率**（Hz 或 kHz）和**幅度**（dB）。
+
+在**快照模式**下，频谱同时显示一条峰值保持虚线，对应该时刻的峰值记录。
+
+---
+
+### Vectorscope（矢量示波器）
+
+以李萨如图（Lissajous）方式展示立体声信号的相位关系，中心为 Mono，左上为 L 声道，右上为 R 声道。
+
+底部显示 **Correlation**（相关系数）：
+- **+1**：左右声道完全同相（Mono 信号）
+- **0**：左右声道不相关
+- **-1**：左右声道完全反相（可能导致单声道播放时声音消失）
+
+图形会根据信号幅度自动缩放，避免波形超出显示范围。
+
+---
+
+### 布局调整
+
+界面分为四个主要区块（Peak、Vectorscope、Loudness、Spectrum），之间的分割线均可拖动：
+
+- **左右主分割线**：拖动调整左侧（Peak + Vectorscope）和右侧（Loudness + Spectrum）的宽度比例。
+- **左侧上下分割线**：拖动调整 Peak 和 Vectorscope 的高度比例。
+- **右侧上下分割线**：拖动调整 Loudness 和 Spectrum 的高度比例。
+- **响度内部分割线**：拖动调整 Loudness 面板内历史图表和指标列表的宽度比例。
+
+所有布局比例自动保存到浏览器本地存储，下次打开时恢复。如需还原默认布局，进入 Settings → **Reset Layout**。
+
+---
+
+### Settings（设置）
+
+点击顶部 **Settings** 按钮打开，点击面板外部或按 Esc 关闭。
+
+- **Loudness Standard**：切换响度测量标准。
+  - **EBU R128**：广播标准，目标 −23 LUFS。
+  - **Streaming**：流媒体标准，目标 −14 LUFS。
+- **Theme**：切换深色（Dark）和浅色（Light）主题。
+- **Reset Layout**：将所有分割线位置恢复为默认值。
+
+---
+
+## 开发者
+
+### 本地运行
 
 ```bash
+git clone https://github.com/SounDoer/AudioMeter.git
+cd AudioMeter
 npm install
 npm run dev
 ```
 
 浏览器访问终端输出中的本地地址（通常为 `http://localhost:5173/`）。
 
-## 仓库结构
+### 其他命令
+
+```bash
+npm run build    # 构建生产版本，输出到 dist/
+npm test         # 运行单元测试（Vitest）
+npm run lint     # ESLint 检查
+```
+
+### 仓库结构
 
 ```
-index.html               # 页面入口
-src/
-  App.jsx                # 页面编排（状态与布局连接）
-  components/panels/     # Peak/Loudness/Spectrum/Vectorscope 四个主面板
-  hooks/                 # 交互与音频引擎（history/layout/audio）
-  math/                  # 纯数学与格式化逻辑
-  uiPreferences.js       # UI 配置与偏好
-  scales.js              # 刻度与量程配置
 public/worklets/
-  loudness-meter.js      # 响度测量 AudioWorklet
+  loudness-meter.js      # 响度测量 AudioWorklet（独立线程）
+src/
+  App.jsx                # 页面编排（状态与布局）
+  components/panels/     # Peak / Loudness / Spectrum / Vectorscope 面板
+  hooks/                 # 音频引擎与交互逻辑
+  math/                  # 纯数学与格式化工具函数
+  scales.js              # 刻度与量程配置
+  uiPreferences.js       # UI 配置与主题
 ```
 
-## 测「系统正在播放的声音」
+---
 
-浏览器只能采集**输入设备**（麦克风、线路输入、或虚拟声卡呈现的「输入」）。若要监测**系统回放**，需要把系统输出路由到这类输入，常见做法：
+## 许可
 
-- **Windows**：例如 [VB-Audio Virtual Cable](https://vb-audio.com/Cable/VirtualCables.htm)，将播放设备指到 CABLE Input，并把 CABLE Output 设为系统默认**录音**设备（或确保浏览器使用的默认输入是该虚拟设备）。
-- **macOS**：例如 [BlackHole](https://existential.audio/blackhole/)，在「声音 → 输入」中选择对应设备。
-
-当前版本使用系统**默认输入设备**；更换设备后请刷新页面并重新授权。
-
-## 隐私与对外部署注意
-
-- **数据处理**：音频仅在用户本机处理与显示，无自有后端接口。
-- **第三方资源**：页面通过 Google Fonts 加载字体；若部署环境对出站请求敏感，可改为自托管字体并修改 `src/index.css`。
-- **本地存储**：界面偏好会保存在 `localStorage`，不涉及服务端。
-- **错误信息**：启动失败时界面仅显示简要说明；详细错误可在开发者工具控制台查看（便于排障，避免向普通访问者暴露堆栈路径）。
-
-## 参与与许可
-
-欢迎 Issue / PR。本项目采用 [MIT License](LICENSE)：可自由使用、修改和再分发，但需保留原始版权声明与许可全文。
-
-若你希望著作权人显示为组织名或其他名字，可自行修改 `LICENSE` 首行 `Copyright`。
+本项目采用 [MIT License](LICENSE)，可自由使用、修改和再分发，需保留原始版权声明。
