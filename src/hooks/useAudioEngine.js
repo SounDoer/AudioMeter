@@ -206,14 +206,11 @@ export function useAudioEngine({
             const loBin = Math.max(0, Math.min(fbuf.length - 1, Math.floor((band.fLow / nyquist) * fbuf.length)));
             const hiBin = Math.max(loBin, Math.min(fbuf.length - 1, Math.ceil((band.fHigh / nyquist) * fbuf.length)));
             let powerSum = 0;
-            let count = 0;
             for (let bi = loBin; bi <= hiBin; bi++) {
               const db = Math.max(-160, Math.min(20, fbuf[bi]));
               powerSum += Math.pow(10, db / 10);
-              count += 1;
             }
-            const meanPower = count > 0 ? powerSum / count : 1e-16;
-            let db = 10 * Math.log10(Math.max(1e-16, meanPower));
+            let db = 10 * Math.log10(Math.max(1e-16, powerSum));
             db += getWeightingDb(band.fCenter, spectrumCfg.weighting || "z");
             const oct = Math.log2(Math.max(minF, band.fCenter)) - logMinF;
             db += (spectrumCfg.tiltDbPerOctave || 0) * oct;
