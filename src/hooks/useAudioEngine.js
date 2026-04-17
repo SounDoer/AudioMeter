@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { buildRtaBands, getWeightingDb, SPECTRUM_SETTINGS } from "../scales";
 import { dbPathFromBands, smoothByKernel, smoothingPreset } from "../math/spectrumMath";
-import { mergeCharts, UI_PREFERENCES } from "../uiPreferences";
+import { getResolvedCharts, UI_PREFERENCES } from "../uiPreferences";
 
 export function useAudioEngine({
   running,
@@ -112,7 +112,10 @@ export function useAudioEngine({
           }
           const vecPts = [];
           const invSqrt2 = 0.7071067811865476;
-          const vsCharts = mergeCharts(UI_PREFERENCES.charts, UI_PREFERENCES.themes[uiModeRef.current === "light" ? "light" : "dark"]?.charts).vectorscope;
+          const vsCharts = getResolvedCharts(
+            UI_PREFERENCES,
+            uiModeRef.current === "light" ? "light" : "dark"
+          ).vectorscope;
           const plotRadius = Math.max(1, Number(vsCharts.plotRadius) || 96);
           for (let i = 0; i < bufL.length; i += 6) {
             const l = Math.max(-1, Math.min(1, bufL[i]));

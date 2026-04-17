@@ -77,14 +77,14 @@ export function SpectrumPanel({
                       d={displaySpectrumPath}
                       fill="none"
                       stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
-                      strokeWidth={UI_PREFERENCES.charts.spectrum.strokeWidth}
+                      strokeWidth={UI_PREFERENCES.modules.spectrum.charts.spectrum.strokeWidth}
                     />
                     {displaySpectrumPeakPath ? (
                       <path
                         d={displaySpectrumPeakPath}
                         fill="none"
                         stroke="var(--ui-chart-spectrum-snap)"
-                        strokeWidth={Math.max(1, UI_PREFERENCES.charts.spectrum.strokeWidth - 1)}
+                        strokeWidth={Math.max(1, UI_PREFERENCES.modules.spectrum.charts.spectrum.strokeWidth - 1)}
                         strokeDasharray="8 6"
                         opacity="0.8"
                       />

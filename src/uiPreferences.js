@@ -1,29 +1,19 @@
 /**
- * 全局 UI 可调参数（单文件，不拆包）——保存后热更新；改布局持久化用 Settings → Reset Layout。
+ * 全局 UI 可调参数（单文件）——`applyUiPreferencesToDocument` 写入 `--ui-*`；布局与主题与 `layoutPersistKey` 一并持久化。
  *
- * 只改配色/布局数字：可直接跳到 `DARK_THEME_COLORS` / `LIGHT_THEME_COLORS` / `export const UI_PREFERENCES`。
- * 改「如何把 prefs 写进页面」再看文末 `applyUiPreferencesToDocument`。
+ * 结构分区（Ctrl+F）：
+ * - `layoutPersistKey` — localStorage 键（换键即放弃该键下旧数据）
+ * - `layout` — 整体：shell、splitters、三栏拖拽、顶底栏、article、spacingRem、heightsRem、widthsPx、settingsModal
+ * - `typography` / `radii` — 字号字重、圆角
+ * - `themes` — 按主题 id：`colors` + 可选 `charts`、`spectrumGrid`、`meterGradient` 覆盖
+ * - `modules.peak` — 表盘渐变（可被主题覆盖）
+ * - `modules.loudness` — History 默认窗长、Metrics 行、响度曲线 charts
+ * - `modules.vector` — Vectorscope charts
+ * - `modules.spectrum` — 谱图底网 + Spectrum charts
  *
- * ---------- 小白怎么找要改的东西（在本文档内 Ctrl+F 搜关键字）----------
+ * 运行时：`getResolvedCharts(prefs, uiMode)` = 三模块 charts 底稿 + `themes[mode].charts` 合并。
  *
- * 1) 布局持久化键名           → 搜 `layoutPersistKey`
- * 2) 整页最大宽、边距、间距   → 搜 `shell` | `splitters` | `header` | `footer` | `articlePadding` | `settingsModal`
- * 3) 左右栏宽、上下分栏比例   → 搜 `mainColumn` | `leftSplit` | `rightSplit` | `loudnessHistMetrics`
- * 4) 模块最小高度、纵轴宽度   → 搜 `heightsRem` | `widthsPx`
- * 5) 全局字体、字号九档       → 搜 `typography`（title / section / axisValue / axisUnit / extraValue / metricMeta / metricValue / action / status）
- * 6) 圆角                      → 搜 `radii`
- * 7) 深色 / 浅色「整页配色」   → 搜 `DARK_THEME_COLORS` 或 `LIGHT_THEME_COLORS`
- * 8) 浅色下单独加深曲线颜色   → 搜 `themes:` 里 `light:` 下的 `charts` / `spectrumGrid`
- * 9) 图表线宽、默认描边色、Vectorscope 轨迹比例 → 搜 `charts:` / `plotRadius`（与主题里覆盖合并）
- * 10) 谱图底网、表盘渐变      → 搜 `spectrumGrid` | `meterGradient`
- * 11) 右侧 Metrics 列宽       → 搜 `loudnessMetrics`
- * 12) 历史窗默认秒数          → 搜 `history`
- *
- * 调试技巧：浏览器 DevTools → 选中 `<html>` → 看「Computed」里以 `--ui-` 开头的变量是否已变。
- *
- * 主题机制：`applyUiPreferencesToDocument(prefs, uiMode)` 把当前主题的 `colors` 等写入 CSS 变量；
- * `main.jsx` 首屏按 localStorage 的 `uiMode` 调一次；`App.jsx` 在 `uiMode` 变化时再调。
- * `layoutPersistKey` 勿随意改名（与已存 localStorage 键一致）。
+ * 调试：DevTools → `<html>` → Computed 里 `--ui-` 变量。
  */
 function setCssVar(name, value) {
   if (value === undefined || value === null) return;
@@ -41,6 +31,26 @@ export function mergeCharts(base, override) {
 
 function mergeShallow(base, override) {
   return { ...base, ...(override || {}) };
+}
+
+/** 三模块图表底稿 → `mergeCharts` 用的扁平形状（不含主题覆盖） */
+function chartsBaseFromPrefs(prefs) {
+  const { loudness, vector, spectrum } = prefs.modules;
+  return {
+    loudnessHistory: { ...loudness.charts.loudnessHistory },
+    vectorscope: { ...vector.charts.vectorscope },
+    spectrum: { ...spectrum.charts.spectrum },
+  };
+}
+
+/**
+ * 当前主题下的完整 charts（模块默认 + `themes[mode].charts`）。
+ * @param {typeof UI_PREFERENCES} prefs
+ * @param {"dark"|"light"} mode
+ */
+export function getResolvedCharts(prefs = UI_PREFERENCES, mode = "dark") {
+  const m = mode === "light" ? "light" : "dark";
+  return mergeCharts(chartsBaseFromPrefs(prefs), prefs.themes[m]?.charts);
 }
 
 /** 深色主题：页面/面板/文字/Peak 线/图例/设置弹层等（写入 --ui-color-*） */
@@ -142,161 +152,119 @@ const LIGHT_THEME_COLORS = {
 };
 
 export const UI_PREFERENCES = {
-  // 与 Settings 里「布局+主题」一起写入 localStorage；改名会导致旧配置读不到
-  layoutPersistKey: "am.react.layout.v1",
+  layoutPersistKey: "am.react.layout.v2",
 
-  // 最外层容器：最大宽度、页面边距、主纵向间距（rem）
-  shell: {
-    maxWidthPx: 1600, // 内容区 max-width，再大两侧留白
-    paddingRem: { base: 0.8, lg: 1.2}, // 小屏 / lg 以上整页内边距
-    gapRem: { base: 0.55, lg: 0.6 }, // header、main、footer 之间的缝
+  layout: {
+    shell: {
+      maxWidthPx: 1600,
+      paddingRem: { base: 0.8, lg: 1.2 },
+      gapRem: { base: 0.55, lg: 0.6 },
+    },
+    splitters: {
+      sectionGapPx: 8,
+      barThicknessPx: 1,
+      loudnessGapPx: 8,
+    },
+    header: {
+      paddingXRem: 0.9,
+      paddingYRem: 0.55,
+    },
+    footer: {
+      paddingXRem: 1,
+      paddingYRem: 0.65,
+    },
+    articlePadding: {
+      defaultXRem: 0.7,
+      defaultYRem: 0.5,
+      metricsRem: 0,
+      sectionTitleGapRem: 0.4,
+      metricsTitleGapRem: 0.4,
+    },
+    spacingRem: {
+      headerActionGap: 0.35,
+      panelFooterGap: 0.4,
+      inlineValueGap: 0.4,
+      metricsListGap: 0.45,
+      axisGapX: 0.4,
+      axisGapY: 0.4,
+      peakAxisChartGap: 0.5,
+      peakChannelGap: 0.4,
+      peakDisplayTopInset: 0.5,
+      peakDisplayBottomInset: 0.5,
+      meterChartInsetX: 0.6,
+      meterLabelLeftInset: 1.6,
+      meterLabelTopInset: 0.75,
+      tpInfoLeftBlank: 5.4,
+      chartOuterInset: 0,
+      vectorCornerInset: 0.4,
+      corrInfoLeftBlank: 4,
+      historyDisplayTopInset: 0.1,
+      historyDisplayBottomInset: 0,
+      historySvgPad: 0.4,
+      hudInset: 0.25,
+      spectrumDisplayTopInset: 0.5,
+      spectrumDisplayBottomInset: 0,
+      spectrumSvgPad: 0.4,
+    },
+    settingsModal: {
+      maxWidthRem: 28,
+      paddingRem: 1.25,
+      overlayPaddingRem: 1,
+      headerGapRem: 1.25,
+      contentGapRem: 1,
+      inlineGapRem: 0.5,
+      actionPadXRem: 0.75,
+      actionPadYRem: 0.25,
+    },
+    mainColumn: {
+      initialPx: 270,
+      dragMinPx: 240,
+      dragMaxPx: 360,
+    },
+    leftSplit: {
+      initialRatio: 0.6,
+      dragMinRatio: 0.5,
+      dragMaxRatio: 0.72,
+      dragPixelsPerDelta: 500,
+    },
+    rightSplit: {
+      initialRatio: 0.5,
+      dragMinRatio: 0.34,
+      dragMaxRatio: 0.76,
+      dragPixelsPerDelta: 650,
+    },
+    loudnessHistMetrics: {
+      initialRatio: 0.7,
+      dragMinRatio: 0.56,
+      dragMaxRatio: 0.88,
+      dragPixelsPerDelta: 720,
+    },
+    heightsRem: {
+      peakModuleMin: 12,
+      historyModuleMin: 10,
+      spectrumModuleMin: 10,
+      historyChartMin: 8,
+      chartXAxisRowRem: 0.6,
+    },
+    widthsPx: {
+      loudnessYAxis: 24,
+      spectrumYAxis: 24,
+      peakTickCol: 24,
+    },
   },
 
-  // section 间距与分栏条粗细（px）
-  splitters: {
-    sectionGapPx: 8, // 所有 section 间距统一值
-    barThicknessPx: 1, // 分栏条可视粗细
-    loudnessGapPx: 8, // Loudness 内部 History 与 Metrics 的横向间距
-  },
-
-  // 顶栏 AudioMeter 一行：左右内边距（rem）
-  header: {
-    paddingXRem: 0.9,
-    paddingYRem: 0.55,
-  },
-
-  // 底栏状态行：左右 / 上下内边距（rem）
-  footer: {
-    paddingXRem: 1,
-    paddingYRem: 0.65,
-  },
-
-  // 各 article 卡片内边距：默认可分 x/y；Metrics 列表单独控制（rem）
-  articlePadding: {
-    defaultXRem: 0.7,
-    defaultYRem: 0.5,
-    metricsRem: 0, // Metrics 条目列表内边距（标题仍跟随 defaultRem）
-    sectionTitleGapRem: 0.4, // 常规模块标题与内容间距
-    metricsTitleGapRem: 0.4, // Metrics 模块标题与列表间距
-  },
-
-  // 常用细粒度间距（rem）：避免 JSX 里硬编码 mt/gap/pb 导致配置失效
-  spacingRem: {
-    // Global
-    headerActionGap: 0.35, // 顶栏右侧按钮间距
-    panelFooterGap: 0.4, // 模块主体与底部信息条之间（原 mt-2）
-    inlineValueGap: 0.4, // 模块内同一行数值组间距（原 gap-2）
-    
-    // Metrics
-    metricsListGap: 0.45, // Metrics 条目间距（原 gap-1）
-
-    // Shared chart axes (History / Spectrum)
-    axisGapX: 0.4, // 横轴刻度与图表间距（History/Spectrum 共用）
-    axisGapY: 0.4, // 纵轴刻度与图表间距（History/Spectrum 共用）
-    
-    // Peak Meter
-    peakAxisChartGap: 0.5, // Peak 纵轴刻度列与柱图区之间间距
-    peakChannelGap: 0.4, // Peak 柱与柱之间间距（N 声道时为 N-1 个 gap）
-    peakDisplayTopInset: 0.5, // Peak 显示区顶部边界（刻度与柱体共用）
-    peakDisplayBottomInset: 0.5, // Peak 显示区底部边界（刻度与柱体共用）
-    meterChartInsetX: 0.6, // L/R 柱图左右内缩（原 inset-x-3）
-    meterLabelLeftInset: 1.6, // L/R 标题左侧内缩（仅正数，越大越靠右）
-    meterLabelTopInset: 0.75, // L/R 标题顶部定位（原 top-3）
-    tpInfoLeftBlank: 5.4, // Peak 信息行 TP MAX 左侧留白
-
-    // Vectorscope
-    chartOuterInset: 0, // Vectorscope 绘图区外边距（原 inset-4）
-    vectorCornerInset: 0.4, // Vectorscope 四角标注偏移（原 left/right/top/bottom-2）
-    corrInfoLeftBlank: 4, // Vectorscope 信息行 CORRELATION 左侧留白
-
-    // History
-    historyDisplayTopInset: 0.1, // History 显示区顶部边界（左轴与图线共用）
-    historyDisplayBottomInset: 0, // History 显示区底部边界（左轴与图线共用）
-    historySvgPad: 0.4, // History 主图 SVG 内边距（原 p-3）
-    hudInset: 0.25, // History HUD 角落偏移（原 bottom-1/right-1）
-
-    // Spectrum
-    spectrumDisplayTopInset: 0.5, // Spectrum 显示区顶部边界（左轴与图线共用，预留 0 dB 标签空间）
-    spectrumDisplayBottomInset: 0, // Spectrum 显示区底部边界（左轴与图线共用）
-    spectrumSvgPad: 0.4, // Spectrum 主图 SVG 内边距（原 p-2）
-  },
-
-  // 设置弹窗：最大宽、内边距、遮罩内边距（rem）
-  settingsModal: {
-    maxWidthRem: 28,
-    paddingRem: 1.25,
-    overlayPaddingRem: 1,
-    headerGapRem: 1.25, // Settings 标题行与内容区间距（原 mb-5）
-    contentGapRem: 1, // Settings 各配置行垂直间距（原 gap-4）
-    inlineGapRem: 0.5, // Theme 按钮组横向间距（原 gap-2）
-    actionPadXRem: 0.75, // Close/Reset 按钮水平内边距（原 px-3）
-    actionPadYRem: 0.25, // Close/Reset 按钮垂直内边距（原 py-1）
-  },
-
-  // 主布局：左侧「Peak + Vector」一栏的宽度（px）及中间竖条拖拽范围
-  mainColumn: {
-    initialPx: 270, // 默认左栏宽
-    dragMinPx: 240, // 拖窄极限
-    dragMaxPx: 360, // 拖宽极限
-  },
-
-  // 左栏内：Peak 占上方高度比例（0~1），余下给 Vectorscope
-  leftSplit: {
-    initialRatio: 0.6, // 默认
-    dragMinRatio: 0.5, // 上下拖动的比例下限
-    dragMaxRatio: 0.72,
-    dragPixelsPerDelta: 500, // 越大同样鼠标位移变化越小（手感更「钝」）
-  },
-
-  // 右栏内：Loudness（History+Metrics）区 vs Spectrum 的上下分割
-  rightSplit: {
-    initialRatio: 0.5, // 默认：上面 Loudness 区约 48% 高
-    dragMinRatio: 0.34,
-    dragMaxRatio: 0.76,
-    dragPixelsPerDelta: 650,
-  },
-
-  // 右栏 Loudness 卡片内：History 区域宽度占比（0~1），余下给 Metrics 区域
-  loudnessHistMetrics: {
-    initialRatio: 0.7, // 默认 History 约 70%，Metrics 约 30%
-    dragMinRatio: 0.56,
-    dragMaxRatio: 0.88,
-    dragPixelsPerDelta: 720,
-  },
-
-  // 各模块最小高度（rem），防止拖得太扁看不见
-  heightsRem: {
-    peakModuleMin: 12, // Peak 整块
-    historyModuleMin: 10, // Loudness 模块整块（含 History 图与 Metrics）
-    spectrumModuleMin: 10, // Spectrum 整块
-    historyChartMin: 8, // 仅中间曲线区域最小高
-    chartXAxisRowRem: 0.6, // History / Spectrum 共用横轴刻度行高
-  },
-
-  // 纵轴刻度列宽度（px）：响度左轴、频谱左轴、Peak 刻度列
-  widthsPx: {
-    loudnessYAxis: 24,
-    spectrumYAxis: 24,
-    peakTickCol: 24,
-  },
-
-  /**
-   * 字号九档（px）：按语义分层，避免同一字号混用在不同行为上。
-   * 1) title 2) section 3) axisValue 4) axisUnit 5) extraValue
-   * 6) metricMeta 7) metricValue 8) action 9) status
-   */
   typography: {
     fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     sizesPx: {
-      title: 18, // 顶栏大标题（略收一档，弱化存在感）
-      section: 12, // 各模块标题、Settings 标题
-      axisValue: 13, // 坐标轴刻度数字、时间轴刻度
-      axisUnit: 11, // 坐标轴单位（LUFS / dB / Hz）
-      extraValue: 13, // TP MAX / Correlation / Target 等模块补充信息
-      metricMeta: 14, // Loudness 指标参数名与单位；Settings 条目文本
-      metricValue: 18, // Loudness 指标数值
-      action: 14, // Start/Clear/Settings、图例药丸等按钮/操作文案
-      status: 13, // 底部状态栏
+      title: 18,
+      section: 12,
+      axisValue: 13,
+      axisUnit: 11,
+      extraValue: 13,
+      metricMeta: 14,
+      metricValue: 18,
+      action: 14,
+      status: 13,
     },
     weights: {
       appTitle: 800,
@@ -304,7 +272,6 @@ export const UI_PREFERENCES = {
     },
   },
 
-  // 圆角：卡片、弹窗、药丸、Metrics 行
   radii: {
     card: "0.75rem",
     modal: "1rem",
@@ -312,7 +279,6 @@ export const UI_PREFERENCES = {
     metricRow: "0.375rem",
   },
 
-  // 深色 / 浅色：各自一套 colors；light 里多写的 charts / spectrumGrid 会与下面全局 charts 等合并
   themes: {
     dark: {
       colors: DARK_THEME_COLORS,
@@ -321,14 +287,14 @@ export const UI_PREFERENCES = {
       colors: LIGHT_THEME_COLORS,
       charts: {
         loudnessHistory: {
-          momentaryStroke: "#0e7490", // 浅底上略加深的 Momentary 线
+          momentaryStroke: "#0e7490",
           momentaryStrokeSnap: "#c2410c",
           shortTermStroke: "#1d4ed8",
           shortTermStrokeSnap: "#9a3412",
-          selectionStroke: "#c2410c", // 时停竖线 / 选区
+          selectionStroke: "#c2410c",
         },
         vectorscope: {
-          strokeLive: "#1d4ed8", // 与其他实时曲线统一主色
+          strokeLive: "#1d4ed8",
           strokeSnap: "#c2410c",
         },
         spectrum: {
@@ -337,72 +303,76 @@ export const UI_PREFERENCES = {
         },
       },
       spectrumGrid: {
-        verticalLineOpacity: 0.07, // 浅底上网格略明显一点
+        verticalLineOpacity: 0.07,
         horizontalLineOpacity: 0.05,
       },
     },
   },
 
-  // 深色默认下的曲线：颜色 + 线宽 + 透明度（浅色在 themes.light.charts 里覆盖颜色）
-  charts: {
-    loudnessHistory: {
-      momentaryStroke: "#22d3ee",
-      momentaryStrokeSnap: "#fb923c", // 时停：与 Vector/Spectrum snap 同系
-      momentaryStrokeWidth: 1.2,
-      shortTermStroke: "#007AFF",
-      shortTermStrokeSnap: "#f59e0b",
-      shortTermStrokeWidth: 1.2,
-      shortTermOpacity: 0.95,
-      selectionStroke: "#f59e0b", // 时停选点竖线（深色默认）
-      selectionStrokeWidth: 1.2, // 时停选点竖线
+  modules: {
+    peak: {
+      meterGradient: {
+        top: "#f97373",
+        mid: "#fbbf3b",
+        midStopPercent: 46,
+        bottom: "#34d399",
+      },
     },
-    vectorscope: {
-      strokeLive: "#007AFF", // 与其他实时曲线统一主色
-      strokeSnap: "#f59e0b", // 时停
-      strokeWidth: 1,
-      axisOpacity: 0.8, // 轨迹透明度
-      gridDiagInsetPct: 1.2, // 米字斜线端点离边缘内缩百分比（避免圆角处越界）
-      /** viewBox 260×260、中心 130：L/R 限幅 ±1 经 M/S 映射后，从中心到轨迹边缘的「半径」SVG 单位（原默认 96） */
-      plotRadius: 240,
+    loudness: {
+      history: {
+        defaultWindowSec: 120,
+      },
+      metrics: {
+        valueColumnCh: 6.5,
+        unitColumnRem: 3.1,
+        rowMinHeightRem: 2.5,
+        rowPaddingXRem: 0.5,
+        rowPaddingYRem: 0.375,
+        rowGapRem: 0.5,
+      },
+      charts: {
+        loudnessHistory: {
+          momentaryStroke: "#22d3ee",
+          momentaryStrokeSnap: "#fb923c",
+          momentaryStrokeWidth: 1.2,
+          shortTermStroke: "#007AFF",
+          shortTermStrokeSnap: "#f59e0b",
+          shortTermStrokeWidth: 1.2,
+          shortTermOpacity: 0.95,
+          selectionStroke: "#f59e0b",
+          selectionStrokeWidth: 1.2,
+        },
+      },
+    },
+    vector: {
+      charts: {
+        vectorscope: {
+          strokeLive: "#007AFF",
+          strokeSnap: "#f59e0b",
+          strokeWidth: 1,
+          axisOpacity: 0.8,
+          gridDiagInsetPct: 1.2,
+          plotRadius: 240,
+        },
+      },
     },
     spectrum: {
-      strokeLive: "#007AFF",
-      strokeSnap: "#f59e0b",
-      strokeWidth: 1.5,
-      fillOpacityTop: 0.22,
-      fillOpacityBottom: 0.03,
+      spectrumGrid: {
+        verticalLineOpacity: 0.04,
+        horizontalLineOpacity: 0.03,
+        verticalSpacingPx: 56,
+        horizontalSpacingPx: 34,
+      },
+      charts: {
+        spectrum: {
+          strokeLive: "#007AFF",
+          strokeSnap: "#f59e0b",
+          strokeWidth: 1.5,
+          fillOpacityTop: 0.22,
+          fillOpacityBottom: 0.03,
+        },
+      },
     },
-  },
-
-  // History / Spectrum 图底下的淡网格（透明度 + 线距 px）
-  spectrumGrid: {
-    verticalLineOpacity: 0.04,
-    horizontalLineOpacity: 0.03,
-    verticalSpacingPx: 56,
-    horizontalSpacingPx: 34,
-  },
-
-  // Peak 表盘竖向三色渐变（上→中→下）
-  meterGradient: {
-    top: "#f97373", // 轻微降低红区压迫感
-    mid: "#fbbf3b", // 更柔和的黄橙过渡
-    midStopPercent: 46, // 中段区稍向下延伸，过渡更平滑
-    bottom: "#34d399", // 稍偏青绿的安全区
-  },
-
-  // 响度历史默认时间窗（秒）；Clear、右键双击重置等与此一致
-  history: {
-    defaultWindowSec: 120,
-  },
-
-  // 右侧 Metrics：数值列宽(ch)、单位列宽(rem)、行高与内边距
-  loudnessMetrics: {
-    valueColumnCh: 6.5, // 等宽数字列，影响小数点对齐
-    unitColumnRem: 3.1,
-    rowMinHeightRem: 2.5,
-    rowPaddingXRem: 0.5,
-    rowPaddingYRem: 0.375,
-    rowGapRem: 0.5,
   },
 };
 
@@ -426,10 +396,21 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   const m = mode === "light" ? "light" : "dark";
   const theme = prefs.themes[m];
   const colors = theme.colors;
-  const charts = mergeCharts(prefs.charts, theme.charts);
-  const spectrumGrid = mergeShallow(prefs.spectrumGrid, theme.spectrumGrid);
-  const meterGradient = mergeShallow(prefs.meterGradient, theme.meterGradient);
-  const { typography, radii, shell, heightsRem, widthsPx } = prefs;
+  const charts = getResolvedCharts(prefs, m);
+  const spectrumGrid = mergeShallow(prefs.modules.spectrum.spectrumGrid, theme.spectrumGrid);
+  const meterGradient = mergeShallow(prefs.modules.peak.meterGradient, theme.meterGradient);
+  const { typography, radii } = prefs;
+  const {
+    shell,
+    splitters,
+    header,
+    footer,
+    articlePadding,
+    spacingRem,
+    settingsModal,
+    heightsRem,
+    widthsPx,
+  } = prefs.layout;
 
   setCssVar("--ui-font-sans", typography.fontFamily);
   setCssVar("color-scheme", m);
@@ -535,70 +516,65 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-w-spectrum-y-axis", `${widthsPx.spectrumYAxis}px`);
   setCssVar("--ui-w-peak-ticks", `${widthsPx.peakTickCol}px`);
 
-  setCssVar("--ui-section-gap", `${prefs.splitters.sectionGapPx}px`);
+  setCssVar("--ui-section-gap", `${splitters.sectionGapPx}px`);
   // splitters track size drives actual section spacing
-  setCssVar("--ui-splitter-main", `${prefs.splitters.sectionGapPx}px`);
-  setCssVar("--ui-splitter-row", `${prefs.splitters.sectionGapPx}px`);
-  setCssVar("--ui-loudness-gap", `${prefs.splitters.loudnessGapPx}px`);
+  setCssVar("--ui-splitter-main", `${splitters.sectionGapPx}px`);
+  setCssVar("--ui-splitter-row", `${splitters.sectionGapPx}px`);
+  setCssVar("--ui-loudness-gap", `${splitters.loudnessGapPx}px`);
   // visual splitter bar thickness inside the track
-  setCssVar("--ui-splitter-bar-thickness", `${prefs.splitters.barThicknessPx}px`);
+  setCssVar("--ui-splitter-bar-thickness", `${splitters.barThicknessPx}px`);
 
-  const lm = prefs.loudnessMetrics;
+  const lm = prefs.modules.loudness.metrics;
   setCssVar("--ui-metric-row-min-h", `${lm.rowMinHeightRem}rem`);
   setCssVar("--ui-metric-row-pad-x", `${lm.rowPaddingXRem}rem`);
   setCssVar("--ui-metric-row-pad-y", `${lm.rowPaddingYRem}rem`);
   setCssVar("--ui-metric-row-gap", `${lm.rowGapRem}rem`);
 
-  const h = prefs.header;
-  setCssVar("--ui-header-pad-x", `${h.paddingXRem}rem`);
-  setCssVar("--ui-header-pad-y", `${h.paddingYRem}rem`);
+  setCssVar("--ui-header-pad-x", `${header.paddingXRem}rem`);
+  setCssVar("--ui-header-pad-y", `${header.paddingYRem}rem`);
 
-  const a = prefs.articlePadding;
-  setCssVar("--ui-article-pad-x", `${a.defaultXRem}rem`);
-  setCssVar("--ui-article-pad-y", `${a.defaultYRem}rem`);
-  setCssVar("--ui-article-pad-metrics", `${a.metricsRem}rem`);
-  setCssVar("--ui-section-title-gap", `${a.sectionTitleGapRem}rem`);
-  setCssVar("--ui-metrics-title-gap", `${a.metricsTitleGapRem}rem`);
+  setCssVar("--ui-article-pad-x", `${articlePadding.defaultXRem}rem`);
+  setCssVar("--ui-article-pad-y", `${articlePadding.defaultYRem}rem`);
+  setCssVar("--ui-article-pad-metrics", `${articlePadding.metricsRem}rem`);
+  setCssVar("--ui-section-title-gap", `${articlePadding.sectionTitleGapRem}rem`);
+  setCssVar("--ui-metrics-title-gap", `${articlePadding.metricsTitleGapRem}rem`);
 
-  const sp = prefs.spacingRem;
-  setCssVar("--ui-panel-footer-gap", `${sp.panelFooterGap}rem`);
-  setCssVar("--ui-metrics-list-gap", `${sp.metricsListGap}rem`);
-  setCssVar("--ui-axis-gap-x", `${sp.axisGapX}rem`);
-  setCssVar("--ui-header-action-gap", `${sp.headerActionGap}rem`);
-  setCssVar("--ui-inline-value-gap", `${sp.inlineValueGap}rem`);
-  setCssVar("--ui-tp-info-left-blank", `${sp.tpInfoLeftBlank}rem`);
-  setCssVar("--ui-corr-info-left-blank", `${sp.corrInfoLeftBlank}rem`);
-  setCssVar("--ui-axis-gap-y", `${sp.axisGapY}rem`);
-  setCssVar("--ui-peak-axis-chart-gap", `${sp.peakAxisChartGap}rem`);
-  setCssVar("--ui-peak-channel-gap", `${sp.peakChannelGap}rem`);
-  setCssVar("--ui-peak-display-top-inset", `${sp.peakDisplayTopInset}rem`);
-  setCssVar("--ui-peak-display-bottom-inset", `${sp.peakDisplayBottomInset}rem`);
-  setCssVar("--ui-meter-chart-inset-x", `${sp.meterChartInsetX}rem`);
-  setCssVar("--ui-meter-label-left-inset", `${sp.meterLabelLeftInset}rem`);
-  setCssVar("--ui-meter-label-top-inset", `${sp.meterLabelTopInset}rem`);
-  setCssVar("--ui-chart-outer-inset", `${sp.chartOuterInset}rem`);
-  setCssVar("--ui-vector-corner-inset", `${sp.vectorCornerInset}rem`);
-  setCssVar("--ui-history-display-top-inset", `${sp.historyDisplayTopInset}rem`);
-  setCssVar("--ui-history-display-bottom-inset", `${sp.historyDisplayBottomInset}rem`);
-  setCssVar("--ui-history-svg-pad", `${sp.historySvgPad}rem`);
-  setCssVar("--ui-hud-inset", `${sp.hudInset}rem`);
-  setCssVar("--ui-spectrum-display-top-inset", `${sp.spectrumDisplayTopInset}rem`);
-  setCssVar("--ui-spectrum-display-bottom-inset", `${sp.spectrumDisplayBottomInset}rem`);
-  setCssVar("--ui-spectrum-svg-pad", `${sp.spectrumSvgPad}rem`);
+  setCssVar("--ui-panel-footer-gap", `${spacingRem.panelFooterGap}rem`);
+  setCssVar("--ui-metrics-list-gap", `${spacingRem.metricsListGap}rem`);
+  setCssVar("--ui-axis-gap-x", `${spacingRem.axisGapX}rem`);
+  setCssVar("--ui-header-action-gap", `${spacingRem.headerActionGap}rem`);
+  setCssVar("--ui-inline-value-gap", `${spacingRem.inlineValueGap}rem`);
+  setCssVar("--ui-tp-info-left-blank", `${spacingRem.tpInfoLeftBlank}rem`);
+  setCssVar("--ui-corr-info-left-blank", `${spacingRem.corrInfoLeftBlank}rem`);
+  setCssVar("--ui-axis-gap-y", `${spacingRem.axisGapY}rem`);
+  setCssVar("--ui-peak-axis-chart-gap", `${spacingRem.peakAxisChartGap}rem`);
+  setCssVar("--ui-peak-channel-gap", `${spacingRem.peakChannelGap}rem`);
+  setCssVar("--ui-peak-display-top-inset", `${spacingRem.peakDisplayTopInset}rem`);
+  setCssVar("--ui-peak-display-bottom-inset", `${spacingRem.peakDisplayBottomInset}rem`);
+  setCssVar("--ui-meter-chart-inset-x", `${spacingRem.meterChartInsetX}rem`);
+  setCssVar("--ui-meter-label-left-inset", `${spacingRem.meterLabelLeftInset}rem`);
+  setCssVar("--ui-meter-label-top-inset", `${spacingRem.meterLabelTopInset}rem`);
+  setCssVar("--ui-chart-outer-inset", `${spacingRem.chartOuterInset}rem`);
+  setCssVar("--ui-vector-corner-inset", `${spacingRem.vectorCornerInset}rem`);
+  setCssVar("--ui-history-display-top-inset", `${spacingRem.historyDisplayTopInset}rem`);
+  setCssVar("--ui-history-display-bottom-inset", `${spacingRem.historyDisplayBottomInset}rem`);
+  setCssVar("--ui-history-svg-pad", `${spacingRem.historySvgPad}rem`);
+  setCssVar("--ui-hud-inset", `${spacingRem.hudInset}rem`);
+  setCssVar("--ui-spectrum-display-top-inset", `${spacingRem.spectrumDisplayTopInset}rem`);
+  setCssVar("--ui-spectrum-display-bottom-inset", `${spacingRem.spectrumDisplayBottomInset}rem`);
+  setCssVar("--ui-spectrum-svg-pad", `${spacingRem.spectrumSvgPad}rem`);
 
-  const f = prefs.footer;
-  setCssVar("--ui-footer-pad-x", `${f.paddingXRem}rem`);
-  setCssVar("--ui-footer-pad-y", `${f.paddingYRem}rem`);
+  setCssVar("--ui-footer-pad-x", `${footer.paddingXRem}rem`);
+  setCssVar("--ui-footer-pad-y", `${footer.paddingYRem}rem`);
 
-  const sm = prefs.settingsModal;
-  setCssVar("--ui-settings-modal-max-w", `${sm.maxWidthRem}rem`);
-  setCssVar("--ui-settings-modal-pad", `${sm.paddingRem}rem`);
-  setCssVar("--ui-settings-overlay-pad", `${sm.overlayPaddingRem}rem`);
-  setCssVar("--ui-settings-header-gap", `${sm.headerGapRem}rem`);
-  setCssVar("--ui-settings-content-gap", `${sm.contentGapRem}rem`);
-  setCssVar("--ui-settings-inline-gap", `${sm.inlineGapRem}rem`);
-  setCssVar("--ui-settings-action-pad-x", `${sm.actionPadXRem}rem`);
-  setCssVar("--ui-settings-action-pad-y", `${sm.actionPadYRem}rem`);
+  setCssVar("--ui-settings-modal-max-w", `${settingsModal.maxWidthRem}rem`);
+  setCssVar("--ui-settings-modal-pad", `${settingsModal.paddingRem}rem`);
+  setCssVar("--ui-settings-overlay-pad", `${settingsModal.overlayPaddingRem}rem`);
+  setCssVar("--ui-settings-header-gap", `${settingsModal.headerGapRem}rem`);
+  setCssVar("--ui-settings-content-gap", `${settingsModal.contentGapRem}rem`);
+  setCssVar("--ui-settings-inline-gap", `${settingsModal.inlineGapRem}rem`);
+  setCssVar("--ui-settings-action-pad-x", `${settingsModal.actionPadXRem}rem`);
+  setCssVar("--ui-settings-action-pad-y", `${settingsModal.actionPadYRem}rem`);
 
   const lh = charts.loudnessHistory;
   setCssVar("--ui-lh-stroke-m-w", String(lh.momentaryStrokeWidth));

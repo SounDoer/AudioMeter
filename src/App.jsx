@@ -11,7 +11,7 @@ import {
   spectrumDbToTopFrac,
   freqToXFrac,
 } from "./scales";
-import { UI_PREFERENCES, applyUiPreferencesToDocument, mergeCharts, readPersistedUiMode } from "./uiPreferences";
+import { UI_PREFERENCES, applyUiPreferencesToDocument, getResolvedCharts, readPersistedUiMode } from "./uiPreferences";
 import { buildHistoryPath, getHistoryViewport, HISTORY_MAX_WINDOW_SEC, HISTORY_MIN_WINDOW_SEC } from "./math/historyMath";
 import { fmtMetric, fmtSec } from "./math/formatMath";
 import { samplePeakLineColor } from "./math/colorMath";
@@ -61,7 +61,7 @@ function PillButton({ children, accent = false, liveSnap = false, onClick }) {
 }
 
 function MetricRow({ label, value, unit, isActive = false, onToggle }) {
-  const { valueColumnCh, unitColumnRem } = UI_PREFERENCES.loudnessMetrics;
+  const { valueColumnCh, unitColumnRem } = UI_PREFERENCES.modules.loudness.metrics;
   const content = (
     <>
       <span className="ui-metric-label">{label}</span>
@@ -98,7 +98,7 @@ export default function App() {
   const [standard, setStandard] = useState("ebu");
   const [running, setRunning] = useState(false);
   const [selectedOffset, setSelectedOffset] = useState(-1);
-  const [historyWindowSec, setHistoryWindowSec] = useState(UI_PREFERENCES.history.defaultWindowSec);
+  const [historyWindowSec, setHistoryWindowSec] = useState(UI_PREFERENCES.modules.loudness.history.defaultWindowSec);
   const [historyOffsetSec, setHistoryOffsetSec] = useState(0);
   const [historyHudUntilTs, setHistoryHudUntilTs] = useState(0);
   const [historyHudHold, setHistoryHudHold] = useState(false);
@@ -131,11 +131,11 @@ export default function App() {
   const [historyPathST, setHistoryPathST] = useState("");
   const [historyHover, setHistoryHover] = useState(null);
   const [spectrumHover, setSpectrumHover] = useState(null);
-  const [mainLeft, setMainLeft] = useState(UI_PREFERENCES.mainColumn.initialPx);
-  const [leftTopRatio, setLeftTopRatio] = useState(UI_PREFERENCES.leftSplit.initialRatio);
-  const [rightTopRatio, setRightTopRatio] = useState(UI_PREFERENCES.rightSplit.initialRatio);
+  const [mainLeft, setMainLeft] = useState(UI_PREFERENCES.layout.mainColumn.initialPx);
+  const [leftTopRatio, setLeftTopRatio] = useState(UI_PREFERENCES.layout.leftSplit.initialRatio);
+  const [rightTopRatio, setRightTopRatio] = useState(UI_PREFERENCES.layout.rightSplit.initialRatio);
   /** History ??Metrics ?????????History ???????????????????Metrics??*/
-  const [loudnessHistWidthRatio, setLoudnessHistWidthRatio] = useState(UI_PREFERENCES.loudnessHistMetrics.initialRatio);
+  const [loudnessHistWidthRatio, setLoudnessHistWidthRatio] = useState(UI_PREFERENCES.layout.loudnessHistMetrics.initialRatio);
   const audioRef = useRef(null);
   const spectrumStateRef = useRef({ smoothDb: [], peakDb: [], peakHoldUntil: [] });
   const spectrumTimeRef = useRef(0);
@@ -155,7 +155,7 @@ export default function App() {
 
   const historyLegend = useMemo(() => {
     const mode = uiMode === "light" ? "light" : "dark";
-    const ch = mergeCharts(UI_PREFERENCES.charts, UI_PREFERENCES.themes[mode]?.charts);
+    const ch = getResolvedCharts(UI_PREFERENCES, mode);
     const snap = selectedOffset >= 0;
     const lh = ch.loudnessHistory;
     return [
@@ -192,7 +192,7 @@ export default function App() {
     );
   };
   const meterGradientCfg = {
-    ...UI_PREFERENCES.meterGradient,
+    ...UI_PREFERENCES.modules.peak.meterGradient,
     ...(UI_PREFERENCES.themes[uiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
   };
   const getSamplePeakLineColor = (dbValue) =>
@@ -256,7 +256,7 @@ export default function App() {
   const displaySpectrumData = snapIdx >= 0 && snapSpecDataList[snapIdx] ? snapSpecDataList[snapIdx] : spectrumDataRef.current;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
   const hasHistoryData = histSourceList.some((p) => Number.isFinite(p?.m) || Number.isFinite(p?.st));
-  const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.charts.vectorscope.gridDiagInsetPct ?? 0));
+  const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.modules.vector.charts.vectorscope.gridDiagInsetPct ?? 0));
   const vsGridDiagFar = 100 - vsGridDiagInset;
   const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : displayAudio.correlation;
   const hasTpMaxValue = Number.isFinite(displayAudio.tpMax);
@@ -370,7 +370,7 @@ export default function App() {
     sampleSec: HIST_SAMPLE_SEC,
     minWindowSec: HISTORY_MIN_WINDOW_SEC,
     maxWindowSec: HISTORY_MAX_WINDOW_SEC,
-    defaultWindowSec: UI_PREFERENCES.history.defaultWindowSec,
+    defaultWindowSec: UI_PREFERENCES.modules.loudness.history.defaultWindowSec,
     totalSamples,
     visibleSamples,
     maxOffsetSamples,
@@ -435,14 +435,14 @@ export default function App() {
     });
     setSelectedOffset(-1);
     setHistoryOffsetSec(0);
-    setHistoryWindowSec(UI_PREFERENCES.history.defaultWindowSec);
+    setHistoryWindowSec(UI_PREFERENCES.modules.loudness.history.defaultWindowSec);
     setStatus(running ? "Running - cleared history and peak hold" : "Ready - click Start to begin monitoring");
   };
   const resetLayout = () => {
-    setMainLeft(UI_PREFERENCES.mainColumn.initialPx);
-    setLeftTopRatio(UI_PREFERENCES.leftSplit.initialRatio);
-    setRightTopRatio(UI_PREFERENCES.rightSplit.initialRatio);
-    setLoudnessHistWidthRatio(UI_PREFERENCES.loudnessHistMetrics.initialRatio);
+    setMainLeft(UI_PREFERENCES.layout.mainColumn.initialPx);
+    setLeftTopRatio(UI_PREFERENCES.layout.leftSplit.initialRatio);
+    setRightTopRatio(UI_PREFERENCES.layout.rightSplit.initialRatio);
+    setLoudnessHistWidthRatio(UI_PREFERENCES.layout.loudnessHistMetrics.initialRatio);
   };
   const onStartClick = () => {
     if (selectedOffset >= 0) return void (setSelectedOffset(-1), setStatus("Monitoring live input"));

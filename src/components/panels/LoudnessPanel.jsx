@@ -103,7 +103,7 @@ export function LoudnessPanel({
                     d={displayHistoryPathM}
                     fill="none"
                     stroke={selectedOffset >= 0 ? "var(--ui-chart-momentary-snap)" : "var(--ui-chart-momentary)"}
-                    strokeWidth={UI_PREFERENCES.charts.loudnessHistory.momentaryStrokeWidth}
+                    strokeWidth={UI_PREFERENCES.modules.loudness.charts.loudnessHistory.momentaryStrokeWidth}
                   />
                 )}
                 {histCurves.st && displayHistoryPathST && (
@@ -111,8 +111,8 @@ export function LoudnessPanel({
                     d={displayHistoryPathST}
                     fill="none"
                     stroke={selectedOffset >= 0 ? "var(--ui-chart-shortterm-snap)" : "var(--ui-chart-shortterm)"}
-                    strokeWidth={UI_PREFERENCES.charts.loudnessHistory.shortTermStrokeWidth}
-                    opacity={UI_PREFERENCES.charts.loudnessHistory.shortTermOpacity}
+                    strokeWidth={UI_PREFERENCES.modules.loudness.charts.loudnessHistory.shortTermStrokeWidth}
+                    opacity={UI_PREFERENCES.modules.loudness.charts.loudnessHistory.shortTermOpacity}
                   />
                 )}
               </svg>
@@ -129,7 +129,7 @@ export function LoudnessPanel({
                     style={{
                       left: `${(selLineX / 600) * 100}%`,
                       width: 0,
-                      borderLeftWidth: `${UI_PREFERENCES.charts.loudnessHistory.selectionStrokeWidth}px`,
+                      borderLeftWidth: `${UI_PREFERENCES.modules.loudness.charts.loudnessHistory.selectionStrokeWidth}px`,
                     }}
                   />
                 )}
