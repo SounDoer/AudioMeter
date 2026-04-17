@@ -43,6 +43,8 @@ export function useAudioEngine({
       return;
     }
     let mounted = true;
+    /** Mid/Side 包络（L∞），用于 vectorscope 自适应缩放；每帧先衰减再由本帧峰值顶起 */
+    let vectorExtentHold = 0.02;
     const init = async () => {
       try {
         setStatus("Requesting microphone...");
@@ -116,14 +118,31 @@ export function useAudioEngine({
             UI_PREFERENCES,
             uiModeRef.current === "light" ? "light" : "dark"
           ).vectorscope;
-          const plotRadius = Math.max(1, Number(vsCharts.plotRadius) || 96);
+          const basePlotRadius = Math.max(1, Number(vsCharts.plotRadius) || 96);
+          const vsHalf = 130;
+          const vsSafeInset = 8;
+          const vsExtentFloor = 0.02;
+          const vsExtentRelease = 0.965;
+          let maxCheb = 0;
           for (let i = 0; i < bufL.length; i += 6) {
             const l = Math.max(-1, Math.min(1, bufL[i]));
             const r = Math.max(-1, Math.min(1, bufR[i]));
             const side = (r - l) * invSqrt2;
             const mid = (l + r) * invSqrt2;
-            const x = 130 + side * plotRadius;
-            const y = 130 - mid * plotRadius;
+            const e = Math.max(Math.abs(side), Math.abs(mid));
+            if (e > maxCheb) maxCheb = e;
+          }
+          vectorExtentHold *= vsExtentRelease;
+          if (maxCheb > vectorExtentHold) vectorExtentHold = maxCheb;
+          vectorExtentHold = Math.max(vectorExtentHold, vsExtentFloor);
+          const effPlotRadius = Math.min(basePlotRadius, (vsHalf - vsSafeInset) / vectorExtentHold);
+          for (let i = 0; i < bufL.length; i += 6) {
+            const l = Math.max(-1, Math.min(1, bufL[i]));
+            const r = Math.max(-1, Math.min(1, bufR[i]));
+            const side = (r - l) * invSqrt2;
+            const mid = (l + r) * invSqrt2;
+            const x = 130 + side * effPlotRadius;
+            const y = 130 - mid * effPlotRadius;
             vecPts.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
           }
           const vp = vecPts.length ? `M ${vecPts.join(" L ")}` : "";
