@@ -73,9 +73,8 @@ export function useAudioEngine({
           const d = e.data || {};
           const m = Number.isFinite(d.momentary) ? d.momentary : -Infinity;
           const st = Number.isFinite(d.shortTerm) ? d.shortTerm : -Infinity;
-          const next = [...loudnessHistRef.current, { m, st }];
-          if (next.length > histMaxSamples) next.shift();
-          loudnessHistRef.current = next;
+          loudnessHistRef.current.push({ m, st });
+          if (loudnessHistRef.current.length > histMaxSamples) loudnessHistRef.current.shift();
           setAudio((prev) => {
             const nextAudio = {
               ...prev,
@@ -96,6 +95,8 @@ export function useAudioEngine({
           });
         };
 
+        let cachedVsMode = null;
+        let cachedVsCharts = null;
         const tick = () => {
           if (!mounted) return;
           frameRef.current += 1;
@@ -114,10 +115,12 @@ export function useAudioEngine({
           }
           const vecPts = [];
           const invSqrt2 = 0.7071067811865476;
-          const vsCharts = getResolvedCharts(
-            UI_PREFERENCES,
-            uiModeRef.current === "light" ? "light" : "dark"
-          ).vectorscope;
+          const currentVsMode = uiModeRef.current === "light" ? "light" : "dark";
+          if (currentVsMode !== cachedVsMode) {
+            cachedVsMode = currentVsMode;
+            cachedVsCharts = getResolvedCharts(UI_PREFERENCES, currentVsMode).vectorscope;
+          }
+          const vsCharts = cachedVsCharts;
           const basePlotRadius = Math.max(1, Number(vsCharts.plotRadius) || 96);
           const vsHalf = 130;
           const vsSafeInset = 8;
