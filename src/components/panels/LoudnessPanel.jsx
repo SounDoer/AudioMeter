@@ -2,6 +2,17 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LOUDNESS_DB_MAX, LOUDNESS_DB_MIN, loudnessFromTopFrac } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 import { fmtSec } from "../../math/formatMath";
+import { HelpPopover } from "../HelpPopover";
+
+const LOUDNESS_HELP = [
+  "左键单击 — 选取该时刻快照",
+  "左键拖拽 — 滑动选取不同时刻",
+  "左键双击 — 退出快照，返回实时",
+  "右键拖拽 — 平移时间轴视图",
+  "右键双击 — 重置窗口与偏移量",
+  "滚轮 — 缩放时间窗口大小",
+  "点击 M / ST 标签 — 切换曲线显示",
+];
 
 function MetricRow({ label, value, unit, isActive = false, onToggle }) {
   const { valueColumnCh, unitColumnRem } = UI_PREFERENCES.modules.loudness.metrics;
@@ -98,7 +109,10 @@ export function LoudnessPanel({
 
   return (
     <article className="ui-article ui-min-h-history">
-      <div className="ui-section-title ui-section-title-main shrink-0">Loudness</div>
+      <div className="ui-section-title ui-section-title-main shrink-0 flex items-center gap-2">
+        Loudness
+        <HelpPopover items={LOUDNESS_HELP} />
+      </div>
       <div
         className="grid h-full min-h-0 grid-cols-[var(--hmSplit)_minmax(0,1fr)] gap-x-[var(--ui-loudness-gap)]"
         style={{ "--hmSplit": `${Math.round(loudnessHistWidthRatio * 100)}%` }}
