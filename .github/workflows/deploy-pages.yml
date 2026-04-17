@@ -10,6 +10,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "vite.config.js"
+      - "eslint.config.js"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -38,6 +39,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Build
         env:
