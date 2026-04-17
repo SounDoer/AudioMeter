@@ -256,6 +256,8 @@ export default function App() {
   const displaySpectrumData = snapIdx >= 0 && snapSpecDataList[snapIdx] ? snapSpecDataList[snapIdx] : spectrumDataRef.current;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
   const hasHistoryData = histSourceList.some((p) => Number.isFinite(p?.m) || Number.isFinite(p?.st));
+  /** Loudness history is a live control only while monitoring or when there is real history to scrub (not cold start). */
+  const historyChartInteractive = running || hasHistoryData;
   const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.modules.vector.charts.vectorscope.gridDiagInsetPct ?? 0));
   const vsGridDiagFar = 100 - vsGridDiagInset;
   const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : displayAudio.correlation;
@@ -292,7 +294,7 @@ export default function App() {
     totalSamples > 0 &&
     selectedHistSteps >= 0 &&
     selectedHistSteps < totalSamples;
-  const isHistoryHudVisible = historyHudHold || historyHudUntilTs > Date.now();
+  const isHistoryHudVisible = historyChartInteractive && (historyHudHold || historyHudUntilTs > Date.now());
   const selLineX = Math.max(
     0,
     Math.min(
@@ -301,6 +303,10 @@ export default function App() {
     )
   );
   const onHistoryHoverMove = (clientX, rect) => {
+    if (!historyChartInteractive) {
+      setHistoryHover(null);
+      return;
+    }
     if (!histSourceList.length) {
       setHistoryHover(null);
       return;
@@ -367,6 +373,7 @@ export default function App() {
     onHistoryPointerUp,
     onHistoryWheel,
   } = useHistoryInteraction({
+    enabled: historyChartInteractive,
     sampleSec: HIST_SAMPLE_SEC,
     minWindowSec: HISTORY_MIN_WINDOW_SEC,
     maxWindowSec: HISTORY_MAX_WINDOW_SEC,
@@ -462,6 +469,13 @@ export default function App() {
     const t = setTimeout(() => setHistoryHudUntilTs(0), remain + 24);
     return () => clearTimeout(t);
   }, [historyHudUntilTs, historyHudHold]);
+
+  useEffect(() => {
+    if (historyChartInteractive) return;
+    setHistoryHover(null);
+    setHistoryHudHold(false);
+    setHistoryHudUntilTs(0);
+  }, [historyChartInteractive]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -615,6 +629,7 @@ export default function App() {
               historyYAxisTicks={historyYAxisTicks}
               targetLufs={targetLufs}
               hasHistoryData={hasHistoryData}
+              historyChartInteractive={historyChartInteractive}
               running={running}
               setSelectedOffset={setSelectedOffset}
               setStatus={setStatus}

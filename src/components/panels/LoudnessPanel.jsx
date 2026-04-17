@@ -6,6 +6,7 @@ export function LoudnessPanel({
   historyYAxisTicks,
   targetLufs,
   hasHistoryData,
+  historyChartInteractive,
   running,
   setSelectedOffset,
   setStatus,
@@ -75,9 +76,10 @@ export function LoudnessPanel({
               </div>
             </div>
             <div
-              className="spectrum-grid ui-inset-chart relative min-h-0 min-w-0 rounded-lg bg-[var(--ui-color-inset-bg)]"
+              className={`spectrum-grid ui-inset-chart relative min-h-0 min-w-0 rounded-lg bg-[var(--ui-color-inset-bg)]${historyChartInteractive ? "" : " pointer-events-none"}`}
               onContextMenu={(e) => e.preventDefault()}
               onDoubleClick={() => {
+                if (!historyChartInteractive) return;
                 setSelectedOffset(-1);
                 if (running) setStatus("Monitoring live input");
                 holdHistoryHud(false);

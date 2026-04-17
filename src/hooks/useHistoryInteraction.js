@@ -1,6 +1,8 @@
 import { useCallback, useRef } from "react";
 
 export function useHistoryInteraction({
+  /** When false, history pointer/wheel handlers and HUD helpers from this hook are no-ops (App: `historyChartInteractive`). */
+  enabled,
   sampleSec,
   minWindowSec,
   maxWindowSec,
@@ -21,13 +23,15 @@ export function useHistoryInteraction({
   const lastRightDownTsRef = useRef(0);
 
   const showHistoryHud = useCallback((ms = 1600) => {
+    if (!enabled) return;
     setHistoryHudUntilTs(Date.now() + Math.max(200, ms));
-  }, [setHistoryHudUntilTs]);
+  }, [enabled, setHistoryHudUntilTs]);
 
   const holdHistoryHud = useCallback((on) => {
+    if (!enabled) return;
     setHistoryHudHold(Boolean(on));
     if (on) showHistoryHud(2200);
-  }, [setHistoryHudHold, showHistoryHud]);
+  }, [enabled, setHistoryHudHold, showHistoryHud]);
 
   const updateSelectionFromClientX = useCallback((clientX, rect) => {
     const width = Math.max(1, rect.width);
@@ -38,6 +42,8 @@ export function useHistoryInteraction({
   }, [effectiveOffsetSamples, visibleSamples, setSelectedOffset, sampleSec]);
 
   const onHistoryPointerDown = useCallback((ev) => {
+    if (!enabled) return;
+    if (totalSamples <= 0) return;
     const rect = ev.currentTarget.getBoundingClientRect();
     if (ev.button === 0) {
       dragModeRef.current = "select";
@@ -74,9 +80,11 @@ export function useHistoryInteraction({
     totalSamples,
     visibleSamples,
     effectiveOffsetSec,
+    enabled,
   ]);
 
   const onHistoryPointerMove = useCallback((ev) => {
+    if (!enabled) return;
     const mode = dragModeRef.current;
     if (!mode) return;
     const rect = ev.currentTarget.getBoundingClientRect();
@@ -90,18 +98,22 @@ export function useHistoryInteraction({
     const next = Math.max(0, Math.min(maxOffsetSamples * sampleSec, panStartRef.current.offset + dx * secPerPx));
     setHistoryOffsetSec(next);
     showHistoryHud(1600);
-  }, [showHistoryHud, updateSelectionFromClientX, visibleSamples, sampleSec, maxOffsetSamples, setHistoryOffsetSec]);
+  }, [enabled, showHistoryHud, updateSelectionFromClientX, visibleSamples, sampleSec, maxOffsetSamples, setHistoryOffsetSec]);
 
   const onHistoryPointerUp = useCallback((ev) => {
+    const mode = dragModeRef.current;
     dragModeRef.current = null;
-    holdHistoryHud(false);
-    showHistoryHud(900);
     try {
       ev.currentTarget.releasePointerCapture(ev.pointerId);
     } catch (_) {}
-  }, [holdHistoryHud, showHistoryHud]);
+    if (!enabled || !mode) return;
+    holdHistoryHud(false);
+    showHistoryHud(900);
+  }, [enabled, holdHistoryHud, showHistoryHud]);
 
   const onHistoryWheel = useCallback((ev) => {
+    if (!enabled) return;
+    if (totalSamples <= 0) return;
     ev.preventDefault();
     showHistoryHud(1600);
     const factor = ev.deltaY < 0 ? 0.85 : 1.18;
@@ -124,6 +136,7 @@ export function useHistoryInteraction({
     setHistoryWindowSec(next);
     setHistoryOffsetSec(nextOffsetSamples * sampleSec);
   }, [
+    enabled,
     showHistoryHud,
     effectiveOffsetSamples,
     visibleSamples,
