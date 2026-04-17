@@ -1,4 +1,4 @@
-import { FREQ_LABELS, SPEC_Y_TICKS, freqToXFrac, spectrumDbToTopFrac } from "../../scales";
+import { FREQ_LABELS, SPEC_Y_TICKS, freqToXFrac, spectrumDbToTopFrac, spectrumDbToYViewBox } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 
 function buildSpectrumAreaPath(path) {
@@ -31,7 +31,7 @@ export function SpectrumPanel({
         </div>
         <div className="relative min-h-0 min-w-0">
           <div
-            className="spectrum-grid ui-inset-chart-spectrum relative min-h-0 h-full rounded-lg bg-[var(--ui-color-inset-bg)]"
+            className="ui-inset-chart-spectrum relative min-h-0 h-full rounded-lg bg-[var(--ui-color-inset-bg)]"
             onPointerMove={(e) => onSpectrumHoverMove?.(e.clientX, e.currentTarget.getBoundingClientRect())}
             onPointerLeave={onSpectrumHoverLeave}
           >
@@ -67,6 +67,37 @@ export function SpectrumPanel({
                     />
                   </linearGradient>
                 </defs>
+                <g pointerEvents="none" aria-hidden>
+                  {SPEC_Y_TICKS.map(({ v }) => (
+                    <line
+                      key={`sp-grid-h-${v}`}
+                      x1={0}
+                      x2={1000}
+                      y1={spectrumDbToYViewBox(v)}
+                      y2={spectrumDbToYViewBox(v)}
+                      stroke="var(--ui-color-divider)"
+                      strokeWidth={1}
+                      vectorEffect="non-scaling-stroke"
+                      style={{ strokeOpacity: "var(--ui-spectrum-grid-h)" }}
+                    />
+                  ))}
+                  {FREQ_LABELS.map(([f]) => {
+                    const x = freqToXFrac(f) * 1000;
+                    return (
+                      <line
+                        key={`sp-grid-v-${f}`}
+                        x1={x}
+                        x2={x}
+                        y1={0}
+                        y2={260}
+                        stroke="var(--ui-color-divider)"
+                        strokeWidth={1}
+                        vectorEffect="non-scaling-stroke"
+                        style={{ strokeOpacity: "var(--ui-spectrum-grid-v)" }}
+                      />
+                    );
+                  })}
+                </g>
                 {displaySpectrumPath ? (
                   <>
                     <path

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LOUDNESS_DB_MAX, LOUDNESS_DB_MIN, loudnessFromTopFrac } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 
@@ -36,6 +37,37 @@ export function LoudnessPanel({
   onHistoryHoverMove,
   onHistoryHoverLeave,
 }) {
+  /** 与左侧纵轴实际绘制的刻度一致；改刻度列表或隐藏规则时只动此处，网格自动对齐 */
+  const historyYAxisTicksLabeled = useMemo(
+    () => historyYAxisTicks.filter((t) => !(t.v === targetLufs && !hasHistoryData)),
+    [historyYAxisTicks, targetLufs, hasHistoryData]
+  );
+
+  const historyGridRef = useRef(null);
+  /** 各 dB 刻度对应水平线的 top（px），与容器等高对齐整像素，减轻次像素抗锯齿导致的深浅不一 */
+  const [historyGridTopPx, setHistoryGridTopPx] = useState(() => ({}));
+
+  useLayoutEffect(() => {
+    const el = historyGridRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.getBoundingClientRect().height;
+      if (!(h > 0)) return;
+      const next = {};
+      for (const { v } of historyYAxisTicksLabeled) {
+        if (v === targetLufs && hasHistoryData) continue;
+        const frac = loudnessFromTopFrac(v);
+        const raw = Math.round(frac * h - 0.5);
+        next[v] = Math.max(0, Math.min(h - 1, raw));
+      }
+      setHistoryGridTopPx(next);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [historyYAxisTicksLabeled, hasHistoryData, targetLufs]);
+
   return (
     <article className="ui-article ui-min-h-history">
       <div className="ui-section-title ui-section-title-main shrink-0">Loudness</div>
@@ -47,12 +79,12 @@ export function LoudnessPanel({
           <div className="grid min-h-0 h-full grid-cols-[var(--ui-w-loudness-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-chart-x-axis-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-history">
             <div className="ui-w-loudness-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
               <div className="absolute inset-x-0 top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)]">
-                {historyYAxisTicks.map(({ v, lb }) => {
-                  if (v === targetLufs && !hasHistoryData) return null;
+                {historyYAxisTicksLabeled.map(({ v, lb }) => {
                   const isTargetTick = v === targetLufs;
                   const tickClass = isTargetTick
                     ? "absolute right-0 leading-none font-semibold text-[color:var(--ui-color-target-value)]"
                     : "absolute right-0 leading-none";
+                  /* 顶/底：字往图内长，避免 -50% 顶到标题或顶破圆角；中间刻度与水平线仍用同一纵坐标 */
                   if (v === LOUDNESS_DB_MAX) {
                     return (
                       <span key={v} className={`${tickClass} top-0`}>
@@ -76,7 +108,7 @@ export function LoudnessPanel({
               </div>
             </div>
             <div
-              className={`spectrum-grid ui-inset-chart relative min-h-0 min-w-0 rounded-lg bg-[var(--ui-color-inset-bg)]${historyChartInteractive ? "" : " pointer-events-none"}`}
+              className={`ui-inset-chart relative min-h-0 min-w-0 rounded-lg bg-[var(--ui-color-inset-bg)]${historyChartInteractive ? "" : " pointer-events-none"}`}
               onContextMenu={(e) => e.preventDefault()}
               onDoubleClick={() => {
                 if (!historyChartInteractive) return;
@@ -95,10 +127,30 @@ export function LoudnessPanel({
               onPointerCancel={onHistoryPointerUp}
               onPointerLeave={onHistoryHoverLeave}
             >
+              <div
+                ref={historyGridRef}
+                className="pointer-events-none absolute inset-x-[var(--ui-history-svg-pad)] top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)] z-0"
+              >
+                {historyYAxisTicksLabeled.map(({ v }) => {
+                  if (v === targetLufs && hasHistoryData) return null;
+                  const topPx = historyGridTopPx[v];
+                  return (
+                    <div
+                      key={`hist-grid-${v}`}
+                      className={`absolute left-0 right-0 h-px bg-[var(--ui-loudness-history-grid-line)]${topPx == null ? " -translate-y-1/2" : ""}`}
+                      style={
+                        topPx == null
+                          ? { top: `${loudnessFromTopFrac(v) * 100}%` }
+                          : { top: `${topPx}px` }
+                      }
+                    />
+                  );
+                })}
+              </div>
               <svg
                 viewBox="0 0 600 220"
                 preserveAspectRatio="none"
-                className="relative z-0 h-full w-full px-[var(--ui-history-svg-pad)] pt-[var(--ui-history-display-top-inset)] pb-[var(--ui-history-display-bottom-inset)]"
+                className="relative z-[1] h-full w-full px-[var(--ui-history-svg-pad)] pt-[var(--ui-history-display-top-inset)] pb-[var(--ui-history-display-bottom-inset)]"
               >
                 {histCurves.m && displayHistoryPathM && (
                   <path
@@ -121,7 +173,7 @@ export function LoudnessPanel({
               <div className="pointer-events-none absolute inset-x-[var(--ui-history-svg-pad)] top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)] z-10">
                 {hasHistoryData ? (
                   <div
-                    className="absolute left-0 right-0 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
+                    className="absolute left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
                     style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
                   />
                 ) : null}
@@ -143,7 +195,7 @@ export function LoudnessPanel({
                 ) : null}
                 {historyHover?.topPct != null ? (
                   <div
-                    className="absolute left-0 right-0 border-t border-dashed border-[color:color-mix(in_srgb,var(--ui-color-text-secondary)_38%,transparent)]"
+                    className="absolute left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed border-[color:color-mix(in_srgb,var(--ui-color-text-secondary)_38%,transparent)]"
                     style={{ top: `${historyHover.topPct}%` }}
                   />
                 ) : null}

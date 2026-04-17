@@ -24,8 +24,9 @@ export function VectorscopePanel({
               y1={vsGridDiagInset}
               x2={vsGridDiagFar}
               y2={vsGridDiagFar}
-              stroke="var(--ui-color-divider)"
+              stroke="var(--ui-vs-grid-diag-stroke)"
               strokeWidth="0.35"
+              strokeDasharray="var(--ui-vs-grid-diag-dash)"
               vectorEffect="non-scaling-stroke"
             />
             <line
@@ -33,8 +34,9 @@ export function VectorscopePanel({
               y1={vsGridDiagInset}
               x2={vsGridDiagInset}
               y2={vsGridDiagFar}
-              stroke="var(--ui-color-divider)"
+              stroke="var(--ui-vs-grid-diag-stroke)"
               strokeWidth="0.35"
+              strokeDasharray="var(--ui-vs-grid-diag-dash)"
               vectorEffect="non-scaling-stroke"
             />
           </svg>

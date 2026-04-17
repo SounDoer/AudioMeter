@@ -34,17 +34,6 @@ body {
   );
 }
 
-.spectrum-grid {
-  background-image:
-    linear-gradient(
-      to right,
-      rgba(255, 255, 255, var(--ui-spectrum-grid-v, 0.04)) 1px,
-      transparent 1px
-    ),
-    linear-gradient(to top, rgba(255, 255, 255, var(--ui-spectrum-grid-h, 0.03)) 1px, transparent 1px);
-  background-size: var(--ui-spectrum-grid-v-size, 56px) 100%, 100% var(--ui-spectrum-grid-h-size, 34px);
-}
-
 /* ---------- 语义布局 / 面板（供 App.jsx 使用） ---------- */
 .ui-page {
   display: flex;

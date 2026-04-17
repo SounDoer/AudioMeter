@@ -62,7 +62,7 @@ const DARK_THEME_COLORS = {
   textSubtle: "#8792a2", // Metrics 标签等更淡字，但避免在暗底上过隐
   panelBg: "#1f2937", // 各模块圆角卡片背景（Peak、History…）
   panelBgSplitter: "rgba(31, 41, 55, 0.8)", // 可拖拽分割条背景
-  insetBg: "#111827", // 图表深底（spectrum-grid 区域）
+  insetBg: "#111827", // 图表深底（内嵌谱图/History 等区域）
   insetDark: "rgba(3, 7, 18, 0.9)", // Metrics 每行深色条背景
   borderDefault: "rgba(51, 65, 85, 0.8)", // Metrics 行边框等
   divider: "#4b5563", // 页脚竖线、矢量轴等
@@ -341,6 +341,8 @@ export const UI_PREFERENCES = {
           shortTermOpacity: 0.95,
           selectionStroke: "#f59e0b",
           selectionStrokeWidth: 1.2,
+          /** History 与纵轴刻度对齐的水平参考线（可写任意 CSS <color>，含 color-mix） */
+          historyGridLineColor: "color-mix(in srgb, var(--ui-color-divider) 10%, transparent)",
         },
       },
     },
@@ -353,13 +355,16 @@ export const UI_PREFERENCES = {
           axisOpacity: 0.8,
           gridDiagInsetPct: 1.2,
           plotRadius: 240,
+          /** 底图对角虚线：CSS <color>；`gridDiagDash` 为 viewBox 0–100 下 stroke-dasharray 用户单位 */
+          gridDiagStroke: "color-mix(in srgb, var(--ui-color-divider) 80%, transparent)",
+          gridDiagDash: "2.6 3.4",
         },
       },
     },
     spectrum: {
       spectrumGrid: {
-        verticalLineOpacity: 0.04,
-        horizontalLineOpacity: 0.03,
+        verticalLineOpacity: 0.08,
+        horizontalLineOpacity: 0.08,
         verticalSpacingPx: 56,
         horizontalSpacingPx: 34,
       },
@@ -498,8 +503,6 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
 
   setCssVar("--ui-spectrum-grid-v", String(spectrumGrid.verticalLineOpacity));
   setCssVar("--ui-spectrum-grid-h", String(spectrumGrid.horizontalLineOpacity));
-  setCssVar("--ui-spectrum-grid-v-size", `${spectrumGrid.verticalSpacingPx}px`);
-  setCssVar("--ui-spectrum-grid-h-size", `${spectrumGrid.horizontalSpacingPx}px`);
 
   setCssVar("--ui-meter-grad-top", meterGradient.top);
   setCssVar("--ui-meter-grad-mid", meterGradient.mid);
@@ -581,10 +584,13 @@ export function applyUiPreferencesToDocument(prefs = UI_PREFERENCES, mode = "dar
   setCssVar("--ui-lh-stroke-st-w", String(lh.shortTermStrokeWidth));
   setCssVar("--ui-lh-stroke-st-op", String(lh.shortTermOpacity));
   setCssVar("--ui-lh-stroke-sel-w", String(lh.selectionStrokeWidth));
+  setCssVar("--ui-loudness-history-grid-line", lh.historyGridLineColor);
 
   const vs = charts.vectorscope;
   setCssVar("--ui-vs-stroke-w", String(vs.strokeWidth));
   setCssVar("--ui-vs-axis-op", String(vs.axisOpacity));
+  setCssVar("--ui-vs-grid-diag-stroke", vs.gridDiagStroke);
+  setCssVar("--ui-vs-grid-diag-dash", vs.gridDiagDash);
 
   const spectrum = charts.spectrum;
   setCssVar("--ui-sp-stroke-w", String(spectrum.strokeWidth));
