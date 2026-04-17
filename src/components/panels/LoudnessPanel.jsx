@@ -1,6 +1,36 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LOUDNESS_DB_MAX, LOUDNESS_DB_MIN, loudnessFromTopFrac } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
+import { fmtSec } from "../../math/formatMath";
+
+function MetricRow({ label, value, unit, isActive = false, onToggle }) {
+  const { valueColumnCh, unitColumnRem } = UI_PREFERENCES.modules.loudness.metrics;
+  const content = (
+    <>
+      <span className="ui-metric-label">{label}</span>
+      <span className="ui-metric-value" style={{ width: `${valueColumnCh}ch` }}>
+        {value}
+      </span>
+      <span className="ui-metric-unit" style={{ width: `${unitColumnRem}rem` }}>
+        {unit}
+      </span>
+    </>
+  );
+
+  if (onToggle) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className={isActive ? "ui-metric-row ui-metric-row-toggle on" : "ui-metric-row ui-metric-row-toggle"}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className="ui-metric-row">{content}</div>;
+}
 
 export function LoudnessPanel({
   loudnessHistWidthRatio,
@@ -26,13 +56,11 @@ export function LoudnessPanel({
   isHistoryHudVisible,
   clampedWindowSec,
   effectiveOffsetSec,
-  fmtSec,
   historyHover,
   historyTimeTicks,
   historyTickSteps,
   primaryMetrics,
   secondaryMetrics,
-  MetricRow,
   toggleCurve,
   onHistoryHoverMove,
   onHistoryHoverLeave,
