@@ -270,13 +270,22 @@ AudioMeter/
 在 `cpal` 之外包一层薄的 `AudioCapture` trait：
 
 ```rust
-// src-tauri/src/audio/capture.rs
-pub trait AudioCapture: Send {
-    fn list_devices(&self) -> Vec<DeviceInfo>;
-    fn start(&mut self, device_id: &str, config: StreamConfig) -> Result<()>;
-    fn stop(&mut self) -> Result<()>;
-    fn subscribe_pcm(&self) -> PcmReceiver;
+// src-tauri/src/audio/capture.rs（v1.0 实际收敛范围）
+pub trait AudioCaptureSession: Send {
+    fn request_clear_peak_history(&self);
 }
+pub trait AudioCapture: Send + Sync {
+    fn list_devices(&self) -> Result<Vec<DeviceInfo>, String>;
+    fn start_session(
+        &self,
+        device_id: &str,
+        frame_tx: tauri::ipc::Channel<AudioFramePayload>,
+        app: tauri::AppHandle,
+        meter_history: MeterHistoryBuf,
+    ) -> Result<Box<dyn AudioCaptureSession>, String>;
+}
+// 具体类型 `CaptureSession` 只在 `cpal_backend.rs`；trait 返回 `Box<dyn AudioCaptureSession>` 打破循环依赖。
+// `build_device_list` 为 `pub(crate)`，外部只经 `AudioCapture::list_devices`。
 ```
 
 **为什么要这层抽象**：
@@ -302,7 +311,7 @@ pub struct PcmFrame {
 
 **用户体验**：用户选哪个设备就自动切换到对应通道数——选 stereo 扬声器显示 2 通道，选 5.1 设备显示 6 通道，选 mono 麦克风显示 1 通道。
 
-**已知开放问题**（v1.0 不解决，记一下）：通道数 > 2 时 Vectorscope（矢量示波器）原本意义失效（只能表现 L vs R 相位）。可能的处理方式：隐藏、降级成"选两个通道对比"、升级成多通道相关矩阵。到时再定。
+**多声道与 Vectorscope（v1.0 已落地）**：`channels > 2` 时，Rust 侧 **Peak（采样峰值 L/R）/ Spectrum（立体声 FFT 环）/ Loudness（BS.1770 立体声路径）/ Vectorscope + 相关** 一律从交错 PCM **每帧取前两路**（与常见「表头 = ch1/ch2」降级一致）。**未做**：隐藏 VS、或 UI 任选两路、或多通道相关矩阵——仍列为后续产品项（见 §13 候选）。
 
 ---
 
@@ -681,6 +690,7 @@ interface LoudnessSlowPayload {
 | 2026-04 | — | §10.1：GitHub Releases 发版流程（tag / workflow_dispatch）；README 维护者发版小节 |
 | 2026-04 | — | §11.1：响度历史主 ring 在 Rust，Channel `loudnessHistTick` + `clear_audio_history` |
 | 2026-04 | — | `MeterHistoryEntry` 统一 ring；`get_meter_history`；Clear 级联重置 LoudnessMeter / SpectrumEngine / VS |
+| 2026-04 | — | §5：`session.rs` 并入 `cpal_backend.rs`；`AudioCapture` + `AudioCaptureSession`（`start_session` → `Box<dyn …>`）；`build_device_list` `pub(crate)`；多声道 `ch>2` 时 VS/Spectrum/Peak/Loudness 取每帧前两路 |
 
 ---
 

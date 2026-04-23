@@ -2,14 +2,15 @@
 
 use tauri::{AppHandle, State};
 
+use crate::audio::capture::AudioCapture;
 use crate::audio::device::DeviceInfo;
-use crate::audio::session::{build_device_list, CaptureSession};
+use crate::audio::CpalBackend;
 use crate::ipc::types::{AudioFramePayload, MeterHistoryEntry};
 use crate::state::AppState;
 
 #[tauri::command]
 pub fn list_audio_devices() -> Result<Vec<DeviceInfo>, String> {
-  build_device_list()
+  CpalBackend.list_devices()
 }
 
 #[tauri::command]
@@ -36,7 +37,7 @@ pub fn audio_start(
     h.clear();
   }
   let mh = state.inner().meter_history.clone();
-  let session = CaptureSession::start(&device_id, on_frame, app, mh)?;
+  let session = CpalBackend.start_session(&device_id, on_frame, app, mh)?;
   {
     let mut g = state
       .inner()

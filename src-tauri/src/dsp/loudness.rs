@@ -290,6 +290,28 @@ impl LoudnessMeter {
     out
   }
 
+  /// BS.1770 立体声路径：从 **N 路交错** 每帧取前两路再 `push_interleaved`（v1.0；N>2 见架构 §5）。
+  pub fn push_interleaved_multichannel(
+    &mut self,
+    interleaved: &[f32],
+    channels: u16,
+  ) -> Option<LoudnessBlock> {
+    let ch = channels.max(1) as usize;
+    if ch == 1 {
+      return self.push_mono_duplex(interleaved);
+    }
+    let frames = interleaved.len() / ch;
+    if frames == 0 {
+      return None;
+    }
+    let mut tmp = Vec::with_capacity(frames * 2);
+    for f in 0..frames {
+      tmp.push(interleaved[f * ch]);
+      tmp.push(interleaved[f * ch + 1]);
+    }
+    self.push_interleaved(&tmp)
+  }
+
   /// Mono duplicate to stereo.
   pub fn push_mono_duplex(&mut self, mono: &[f32]) -> Option<LoudnessBlock> {
     let mut tmp = Vec::with_capacity(mono.len() * 2);

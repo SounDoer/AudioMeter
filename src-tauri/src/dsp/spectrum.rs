@@ -159,10 +159,23 @@ impl SpectrumEngine {
   }
 
   /// Returns `(smooth_db, peak_db)` for SVG paths on the frontend, or `None` until the ring is full.
-  pub fn push_interleaved(&mut self, interleaved: &[f32], now_sec: f64) -> Option<(Vec<f64>, Vec<f64>)> {
-    let frames = interleaved.len() / 2;
+  /// `channels` 路/帧；**N>2** 时每帧取前两路进立体声 FFT 环（与架构文档 v1.0 表头策略一致）。
+  pub fn push_interleaved(
+    &mut self,
+    interleaved: &[f32],
+    channels: u16,
+    now_sec: f64,
+  ) -> Option<(Vec<f64>, Vec<f64>)> {
+    let ch = channels.max(1) as usize;
+    let frames = interleaved.len() / ch;
     for i in 0..frames {
-      self.push_sample_pair(interleaved[i * 2], interleaved[i * 2 + 1]);
+      let l = interleaved[i * ch];
+      let r = if ch >= 2 {
+        interleaved[i * ch + 1]
+      } else {
+        l
+      };
+      self.push_sample_pair(l, r);
     }
     if self.ring_filled < FFT_LEN {
       return None;
@@ -247,7 +260,7 @@ impl SpectrumEngine {
       tmp.push(s);
       tmp.push(s);
     }
-    self.push_interleaved(&tmp, now_sec)
+    self.push_interleaved(&tmp, 2, now_sec)
   }
 
   pub fn band_centers(&self) -> Vec<f64> {

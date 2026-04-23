@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use crate::dsp::loudness::LoudnessBlock;
 use crate::dsp::paths::spectrum_paths_from_bands;
-use crate::dsp::peak::{sample_peak_db_mono, sample_peak_db_stereo};
+use crate::dsp::peak::{sample_peak_db_interleaved, sample_peak_db_mono};
 use crate::dsp::{LoudnessMeter, SpectrumEngine, VectorscopeState};
 use crate::ipc::types::{AudioFramePayload, LoudnessSlowPayload, MeterHistoryBuf, MeterHistoryEntry};
 
@@ -98,10 +98,17 @@ impl MeterPipeline {
     }
   }
 
-  fn feed_vs_stereo(&mut self, interleaved: &[f32]) {
-    let frames = interleaved.len() / 2;
+  fn feed_vs_interleaved(&mut self, interleaved: &[f32], channels: u16) {
+    let ch = channels.max(1) as usize;
+    let frames = interleaved.len() / ch;
     for i in 0..frames {
-      self.push_vs_pair(interleaved[i * 2], interleaved[i * 2 + 1]);
+      let l = interleaved[i * ch];
+      let r = if ch >= 2 {
+        interleaved[i * ch + 1]
+      } else {
+        l
+      };
+      self.push_vs_pair(l, r);
     }
   }
 
@@ -135,11 +142,17 @@ impl MeterPipeline {
         self.last_spectrum_peak = pk;
       }
     } else {
-      if let Some(lb) = self.loudness.push_interleaved(interleaved) {
+      if let Some(lb) = self
+        .loudness
+        .push_interleaved_multichannel(interleaved, self.channels)
+      {
         self.apply_loudness_block(&lb);
       }
-      self.feed_vs_stereo(interleaved);
-      if let Some((sm, pk)) = self.spectrum.push_interleaved(interleaved, now_sec) {
+      self.feed_vs_interleaved(interleaved, self.channels);
+      if let Some((sm, pk)) = self
+        .spectrum
+        .push_interleaved(interleaved, self.channels, now_sec)
+      {
         self.last_band_centers = self.spectrum.band_centers();
         self.last_spectrum_smooth = sm;
         self.last_spectrum_peak = pk;
@@ -149,7 +162,7 @@ impl MeterPipeline {
     let (sl, sr) = if ch == 1 {
       sample_peak_db_mono(interleaved)
     } else {
-      sample_peak_db_stereo(interleaved)
+      sample_peak_db_interleaved(interleaved, self.channels)
     };
 
     if sl.is_finite() {

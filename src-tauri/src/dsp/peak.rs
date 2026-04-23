@@ -1,12 +1,17 @@
 //! Block sample peaks (dBFS) from interleaved PCM.
 
-pub fn sample_peak_db_stereo(interleaved_lr: &[f32]) -> (f64, f64) {
+/// 交错 PCM：`channels` 路/帧；峰值表头取 **每帧前两路**（与 v1.0 立体声表头一致；`channels==1` 走 mono）。
+pub fn sample_peak_db_interleaved(interleaved: &[f32], channels: u16) -> (f64, f64) {
+  let ch = channels.max(1) as usize;
+  if ch == 1 {
+    return sample_peak_db_mono(interleaved);
+  }
   let mut ml = 0.0_f64;
   let mut mr = 0.0_f64;
-  let frames = interleaved_lr.len() / 2;
+  let frames = interleaved.len() / ch;
   for i in 0..frames {
-    let al = interleaved_lr[i * 2].abs() as f64;
-    let ar = interleaved_lr[i * 2 + 1].abs() as f64;
+    let al = interleaved[i * ch].abs() as f64;
+    let ar = interleaved[i * ch + 1].abs() as f64;
     if al > ml {
       ml = al;
     }

@@ -3,11 +3,11 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use crate::audio::session::CaptureSession;
+use crate::audio::capture::AudioCaptureSession;
 use crate::ipc::types::MeterHistoryBuf;
 
 pub struct AppState {
-  pub capture: Mutex<Option<CaptureSession>>,
+  pub capture: Mutex<Option<Box<dyn AudioCaptureSession>>>,
   pub meter_history: MeterHistoryBuf,
 }
 
