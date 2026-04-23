@@ -127,11 +127,7 @@ fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig
   let host = cpal::default_host();
   if let Some(def) = host.default_output_device() {
     let def_name = def.name().map_err(|e| e.to_string())?;
-    for (_, device) in host
-      .output_devices()
-      .map_err(|e| e.to_string())?
-      .enumerate()
-    {
+    for device in host.output_devices().map_err(|e| e.to_string())? {
       let Ok(name) = device.name() else {
         continue;
       };
@@ -144,11 +140,7 @@ fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig
     }
   }
   let host = cpal::default_host();
-  for (_, device) in host
-    .output_devices()
-    .map_err(|e| e.to_string())?
-    .enumerate()
-  {
+  for device in host.output_devices().map_err(|e| e.to_string())? {
     if let Ok(cfg) = device.default_output_config() {
       return Ok((device, cfg));
     }
