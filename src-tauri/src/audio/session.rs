@@ -7,6 +7,10 @@ use std::thread::JoinHandle;
 
 use super::device::DeviceInfo;
 
+use crate::engine::MeterPipeline;
+use crate::ipc::types::AudioFramePayload;
+use tauri::Emitter;
+
 fn is_name_heuristic_loopback(name: &str) -> bool {
   let n = name.to_lowercase();
   n.contains("loopback")
@@ -96,7 +100,8 @@ pub fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
   let mut out = Vec::new();
 
   for (idx, device, cfg) in collect_outputs()? {
-    let label = device.name().map_err(|e| e.to_string())?;
+    let name = device.name().map_err(|e| e.to_string())?;
+    let label = format!("{name} — what's playing");
     out.push(DeviceInfo {
       id: format!("out:{idx}"),
       label,
@@ -171,6 +176,27 @@ fn resolve_device(device_id: &str) -> Result<(cpal::Device, cpal::SupportedStrea
   Err(format!("Unknown device id: {device_id}"))
 }
 
+pub fn unpack_pcm_chunk(bytes: &[u8]) -> Option<(u32, u16, Vec<f32>)> {
+  if bytes.len() < 12 {
+    return None;
+  }
+  let sample_rate = u32::from_le_bytes(bytes[0..4].try_into().ok()?);
+  let channels = u16::from_le_bytes(bytes[4..6].try_into().ok()?);
+  let frame_count = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
+  let ch = channels.max(1) as usize;
+  let need = 12usize.saturating_add(frame_count as usize * ch * 4);
+  if bytes.len() < need {
+    return None;
+  }
+  let mut v = Vec::with_capacity(frame_count as usize * ch);
+  let off = 12usize;
+  for i in 0..frame_count as usize * ch {
+    let start = off + i * 4;
+    v.push(f32::from_le_bytes(bytes.get(start..start + 4)?.try_into().ok()?));
+  }
+  Some((sample_rate, channels, v))
+}
+
 fn pack_pcm_chunk(sample_rate: u32, channels: u16, samples: &[f32]) -> Vec<u8> {
   let ch = channels.max(1) as usize;
   let frame_count = (samples.len() / ch) as u32;
@@ -188,25 +214,34 @@ fn pack_pcm_chunk(sample_rate: u32, channels: u16, samples: &[f32]) -> Vec<u8> {
 fn run_capture_worker(
   device: cpal::Device,
   supported: cpal::SupportedStreamConfig,
-  on_pcm: tauri::ipc::Channel<Vec<u8>>,
+  sample_rate: u32,
+  channels: u16,
+  frame_tx: tauri::ipc::Channel<AudioFramePayload>,
+  app: tauri::AppHandle,
   stop_rx: std::sync::mpsc::Receiver<()>,
 ) -> Result<(), String> {
-  let sample_rate = supported.sample_rate().0;
-  let channels = supported.channels();
   let stream_config = StreamConfig {
     channels,
     sample_rate: supported.sample_rate(),
     buffer_size: cpal::BufferSize::Default,
   };
 
-  // Large enough that brief JS stalls do not drop realtime audio (bridge may block on IPC).
   let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(256);
-  let pcm_ch = on_pcm;
 
   let bridge = std::thread::spawn(move || {
+    let mut pipeline = MeterPipeline::new(sample_rate, channels);
     while let Ok(chunk) = audio_rx.recv() {
-      if pcm_ch.send(chunk).is_err() {
-        break;
+      let Some((_sr, _ch, floats)) = unpack_pcm_chunk(&chunk) else {
+        continue;
+      };
+      let (frame, slow) = pipeline.push_pcm_f32(&floats);
+      if let Some(f) = frame {
+        if frame_tx.send(f).is_err() {
+          break;
+        }
+      }
+      if let Some(s) = slow {
+        let _ = app.emit("loudness-slow", &s);
       }
     }
   });
@@ -288,13 +323,29 @@ impl Drop for CaptureSession {
 }
 
 impl CaptureSession {
-  pub fn start(device_id: &str, on_pcm: tauri::ipc::Channel<Vec<u8>>) -> Result<Self, String> {
+  pub fn start(
+    device_id: &str,
+    frame_tx: tauri::ipc::Channel<AudioFramePayload>,
+    app: tauri::AppHandle,
+  ) -> Result<Self, String> {
     let (device, supported) = resolve_device(device_id)?;
+    let sample_rate = supported.sample_rate().0;
+    let channels = supported.channels();
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
 
     let join = std::thread::Builder::new()
       .name("audiometer-capture".into())
-      .spawn(move || run_capture_worker(device, supported, on_pcm, stop_rx))
+      .spawn(move || {
+        run_capture_worker(
+          device,
+          supported,
+          sample_rate,
+          channels,
+          frame_tx,
+          app,
+          stop_rx,
+        )
+      })
       .map_err(|e| e.to_string())?;
 
     Ok(CaptureSession {

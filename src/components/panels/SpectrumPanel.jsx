@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { FREQ_LABELS, SPEC_Y_TICKS, freqToXFrac, spectrumDbToTopFrac, spectrumDbToYViewBox } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 
@@ -14,6 +15,7 @@ export function SpectrumPanel({
   onSpectrumHoverMove,
   onSpectrumHoverLeave,
 }) {
+  const spectrumSvgRef = useRef(null);
   const displaySpectrumAreaPath = buildSpectrumAreaPath(displaySpectrumPath);
 
   return (
@@ -32,11 +34,17 @@ export function SpectrumPanel({
         <div className="relative min-h-0 min-w-0">
           <div
             className="ui-inset-chart-spectrum relative min-h-0 h-full rounded-lg bg-[var(--ui-color-inset-bg)]"
-            onPointerMove={(e) => onSpectrumHoverMove?.(e.clientX, e.currentTarget.getBoundingClientRect())}
             onPointerLeave={onSpectrumHoverLeave}
           >
-            <div className="absolute inset-0 min-h-0 min-w-0 px-[var(--ui-spectrum-svg-pad)] pt-[var(--ui-spectrum-display-top-inset)] pb-[var(--ui-spectrum-display-bottom-inset)]">
+            <div
+              className="absolute inset-0 min-h-0 min-w-0 px-[var(--ui-spectrum-svg-pad)] pt-[var(--ui-spectrum-display-top-inset)] pb-[var(--ui-spectrum-display-bottom-inset)]"
+              onPointerMove={(e) => {
+                const r = spectrumSvgRef.current?.getBoundingClientRect();
+                if (r && onSpectrumHoverMove) onSpectrumHoverMove(e.clientX, r);
+              }}
+            >
               <svg
+                ref={spectrumSvgRef}
                 viewBox="0 0 1000 260"
                 preserveAspectRatio="none"
                 className="block h-full w-full min-h-0 min-w-0"

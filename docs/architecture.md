@@ -312,8 +312,18 @@ pub struct PcmFrame {
 |---|---|---|
 | **Peak** | 采样峰值 (L/R)、峰值保持、TP MAX | True Peak 用 4x 过采样（EBU R128 / ITU-R BS.1770） |
 | **Loudness** | Momentary / Short-term / Integrated / M Max / ST Max / LRA / PSR / PLR | ITU-R BS.1770-4 + EBU R128 gating（-70 LUFS absolute + -10 LU relative） |
-| **Spectrum** | 实时频率响应曲线 | FFT + 窗函数（Hann 或 Blackman-Harris），对数频率轴 |
+| **Spectrum** | 实时频率响应曲线（RTA 显示口径） | 见下节 **「Spectrum / RTA（实现口径）」** |
 | **Vectorscope** | L vs R 李萨如图 + Correlation | 相关系数标准 Pearson 公式 |
+
+### Spectrum / RTA（实现口径 · 已拍板）
+
+与**专业音频 / 母带类频谱软件**的常见做法对齐，**不**按 **IEC 61260** 计量级「逐档数字带通滤波器组 + Class 1/2 验收」实现（那是噪声计 / 合规分析仪路径）。
+
+| 采用（v1.0） | 说明 |
+|---|---|
+| **FFT 型 RTA 显示** | 短时 **rFFT + Hann 窗** → 各 bin 幅度经 **N 归一** 后转 dB；在 **按倍频程几何划分的 f_lo～f_hi** 带内对**线性功率**求和再 `10·log10` 得到每档读数；再叠加 **Z/A/C**、邻频/时间平滑。与多数 DAW / 监听类插件的「常 Q / 倍频程条带」观感一致，**低延迟、实现成本可控**。 |
+| **与 IEC 61260 的关系** | IEC 61260-1 规定的是**带通滤波器**的相对衰减与允差；若未来要**对外宣称**符合该标准，须改为（或并行提供）**标准滤波器组或经认证的等效结构**，单独立项。 |
+| **与 Loudness 的关系** | Spectrum 为 **dBFS 域**带内能量示意；**LUFS** 为 **K 计权 + gating + 积分时间常数**；**数值不可横向等同**。 |
 
 ### 迁移策略
 
@@ -637,6 +647,7 @@ interface LoudnessSlowPayload {
 | 日期 | 作者 | 变更 |
 |---|---|---|
 | 2026-04 | SounDoer + Claude（grill-me session） | 初版：完成 v1.0 全部架构决策 |
+| 2026-04 | — | §6：Spectrum 明确为「专业频谱软件常用 FFT-RTA 显示」，v1.0 不采用 IEC 61260 滤波器组路径 |
 
 ---
 
@@ -662,6 +673,7 @@ interface LoudnessSlowPayload {
 | 离线文件分析 | 定位是实时监测 | §0 |
 | 多设备同时监测 | 非 v1.0 范围 | §0 |
 | Linux 支持 | 用户基数不值得 | §9 |
+| IEC 61260 计量级倍频程滤波器（v1.0） | 与监听/制作类软件常用 FFT-RTA 不一致；认证与工程量超出 v1.0；保留为可选未来项 | §6 |
 
 ---
 

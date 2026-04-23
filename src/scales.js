@@ -37,13 +37,17 @@ export function loudnessHistY(v, viewH = 220) {
   return viewH * loudnessFromTopFrac(v);
 }
 
-/** Spectrum：viewBox 1000×260，0 dB 在 y=0（顶端），-100 dB 在 y=260（底端） */
+/** Spectrum：viewBox 1000×260；dB→y 映射在上下留白内，避免 0 dB 曲线贴 SVG 顶边 */
 export const SPEC_VIEW_H = 260;
+/** viewBox 内顶端留白（px），0 dB 映射到该 y 而非 0 */
+export const SPEC_VIEW_TOP_PAD = 10;
+/** viewBox 内底端留白（px） */
+export const SPEC_VIEW_BOTTOM_PAD = 4;
 export const SPEC_DB_MIN = -100;
 export const SPEC_DB_MAX = 0;
 const SPEC_DB_RNG = SPEC_DB_MAX - SPEC_DB_MIN;
-/** 有效绘图区占满整个 viewBox 高度（0 dB → y=0，-100 dB → y=260） */
-export const SPEC_PLOT_H = 260;
+/** 用于 dB→y 映射的有效高度（viewBox 高度减去上下留白） */
+export const SPEC_PLOT_H = SPEC_VIEW_H - SPEC_VIEW_TOP_PAD - SPEC_VIEW_BOTTOM_PAD;
 
 /** React Spectrum：FFT→RTA 呈现层默认参数（与 UI 主题无关，见 App tick） */
 export const SPECTRUM_SETTINGS = {
@@ -62,7 +66,7 @@ export const SPECTRUM_SETTINGS = {
 
 export function spectrumDbToYViewBox(d) {
   const dd = Math.max(SPEC_DB_MIN, Math.min(SPEC_DB_MAX, Number.isFinite(d) ? d : SPEC_DB_MIN));
-  return SPEC_VIEW_H - ((dd - SPEC_DB_MIN) / SPEC_DB_RNG) * SPEC_PLOT_H;
+  return SPEC_VIEW_H - SPEC_VIEW_BOTTOM_PAD - ((dd - SPEC_DB_MIN) / SPEC_DB_RNG) * SPEC_PLOT_H;
 }
 
 /** 刻度线相对整个 viewBox 高度的 top 百分比（与 spectrum 曲线同一坐标系） */

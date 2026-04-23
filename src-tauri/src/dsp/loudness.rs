@@ -1,1 +1,305 @@
-//! ITU-R BS.1770 / EBU R128 loudness (Phase 2).
+//! ITU-R BS.1770 / EBU R128 style loudness (ported from `loudness-meter.js`).
+
+use super::filters::KWeightStereo;
+
+const IBL_CAP: usize = 36_000;
+const STH_CAP: usize = 36_000;
+
+fn lufs_from_mean_squares(m0: f64, m1: f64) -> f64 {
+  let s = m0 + m1;
+  if s <= 0.0 {
+    f64::NEG_INFINITY
+  } else {
+    -0.691 + 10.0 * s.log10()
+  }
+}
+
+fn init_true_peak_filters() -> (usize, usize, Vec<Vec<f64>>) {
+  let p = 4_usize;
+  let t = 32_usize;
+  let n = p * t;
+  let mut h = vec![0.0_f64; n];
+  let ctr = (n - 1) as f64 / 2.0;
+  for (i, hi) in h.iter_mut().enumerate().take(n) {
+    let n0 = i as f64 - ctr;
+    let x = n0 / p as f64;
+    let sinc = if x.abs() < 1e-12 {
+      1.0
+    } else {
+      (std::f64::consts::PI * x).sin() / (std::f64::consts::PI * x)
+    };
+    let bh = 0.35875
+      - 0.48829 * (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos()
+      + 0.14128 * (4.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos()
+      - 0.01168 * (6.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos();
+    *hi = sinc * bh;
+  }
+  let mut tp_ph = Vec::with_capacity(p);
+  for ph_idx in 0..p {
+    let mut ph = vec![0.0_f64; t];
+    for (tt, slot) in ph.iter_mut().enumerate().take(t) {
+      *slot = h[ph_idx + tt * p];
+    }
+    let s: f64 = ph.iter().sum();
+    if s.abs() > 1e-10 {
+      for v in &mut ph {
+        *v /= s;
+      }
+    }
+    tp_ph.push(ph);
+  }
+  (t, p, tp_ph)
+}
+
+pub struct LoudnessMeter {
+  kf: KWeightStereo,
+  bsz: usize,
+  ba: [f64; 2],
+  bn: usize,
+  rn: usize,
+  ring: Vec<f64>,
+  rh: usize,
+  rc: usize,
+  ibl: Vec<[f64; 2]>,
+  sth: Vec<f64>,
+  tp_block: f64,
+  tp_block_ch: [f64; 2],
+  tp_t: usize,
+  tp_p: usize,
+  tp_ph: Vec<Vec<f64>>,
+  tp_h: [Vec<f64>; 2],
+  tp_wp: [usize; 2],
+}
+
+impl LoudnessMeter {
+  pub fn new(sample_rate: f64) -> Self {
+    let sr = sample_rate;
+    let bsz = (sr * 0.1).round() as usize;
+    let rn = 60;
+    let (tp_t, tp_p, tp_ph) = init_true_peak_filters();
+    let tp_h = [vec![0.0_f64; tp_t], vec![0.0_f64; tp_t]];
+    Self {
+      kf: KWeightStereo::new(sr),
+      bsz: bsz.max(1),
+      ba: [0.0, 0.0],
+      bn: 0,
+      rn,
+      ring: vec![0.0_f64; rn * 2],
+      rh: 0,
+      rc: 0,
+      ibl: Vec::with_capacity(1024),
+      sth: Vec::with_capacity(1024),
+      tp_block: 0.0,
+      tp_block_ch: [0.0, 0.0],
+      tp_t,
+      tp_p,
+      tp_ph,
+      tp_h,
+      tp_wp: [0, 0],
+    }
+  }
+
+  fn tp_sample(&mut self, x: f64, ch: usize) -> f64 {
+    let t = self.tp_t;
+    let wp = self.tp_wp[ch];
+    self.tp_h[ch][wp] = x;
+    self.tp_wp[ch] = (wp + 1) % t;
+    let mut mx = x.abs();
+    for p in 1..self.tp_p {
+      let ph = &self.tp_ph[p];
+      let mut y = 0.0;
+      for (tt, coeff) in ph.iter().enumerate().take(t) {
+        let idx = (wp + t - tt) % t;
+        y += coeff * self.tp_h[ch][idx];
+      }
+      let ay = y.abs();
+      if ay > mx {
+        mx = ay;
+      }
+    }
+    mx
+  }
+
+  fn integrated(&self) -> f64 {
+    if self.ibl.is_empty() {
+      return f64::NEG_INFINITY;
+    }
+    let mut s0 = 0.0;
+    let mut s1 = 0.0;
+    let mut n = 0_usize;
+    for x in &self.ibl {
+      if lufs_from_mean_squares(x[0], x[1]) > -70.0 {
+        s0 += x[0];
+        s1 += x[1];
+        n += 1;
+      }
+    }
+    if n == 0 {
+      return f64::NEG_INFINITY;
+    }
+    let ga = -0.691 + 10.0 * ((s0 / n as f64) + (s1 / n as f64)).log10() - 10.0;
+    s0 = 0.0;
+    s1 = 0.0;
+    n = 0;
+    for x in &self.ibl {
+      let l = lufs_from_mean_squares(x[0], x[1]);
+      if l > -70.0 && l > ga {
+        s0 += x[0];
+        s1 += x[1];
+        n += 1;
+      }
+    }
+    if n == 0 {
+      f64::NEG_INFINITY
+    } else {
+      -0.691 + 10.0 * ((s0 / n as f64) + (s1 / n as f64)).log10()
+    }
+  }
+
+  fn lra(&self) -> f64 {
+    let h: Vec<f64> = self
+      .sth
+      .iter()
+      .copied()
+      .filter(|l| l.is_finite() && *l > -70.0)
+      .collect();
+    if h.len() < 2 {
+      return 0.0;
+    }
+    let mean: f64 = h.iter().map(|l| 10_f64.powf(l / 10.0)).sum::<f64>() / h.len() as f64;
+    let gr = 10.0 * mean.log10() - 20.0;
+    let mut r: Vec<f64> = h.into_iter().filter(|l| *l > gr).collect();
+    if r.len() < 2 {
+      return 0.0;
+    }
+    r.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let p95 = r[(r.len() as f64 * 0.95).floor() as usize].min(r[r.len() - 1]);
+    let p10 = r[(r.len() as f64 * 0.1).floor() as usize];
+    (p95 - p10).max(0.0)
+  }
+
+  /// Stereo samples interleaved L,R,... Returns `Some` each ~100ms with block loudness.
+  pub fn push_interleaved(&mut self, interleaved_lr: &[f32]) -> Option<LoudnessBlock> {
+    let mut out = None;
+    let frames = interleaved_lr.len() / 2;
+    for i in 0..frames {
+      let xl = interleaved_lr[i * 2] as f64;
+      let xr = interleaved_lr[i * 2 + 1] as f64;
+      let (kwl, kwr) = self.kf.tick_lr(xl, xr);
+      self.ba[0] += kwl * kwl;
+      self.ba[1] += kwr * kwr;
+      let tp0 = self.tp_sample(xl, 0);
+      let tp1 = self.tp_sample(xr, 1);
+      if tp0 > self.tp_block {
+        self.tp_block = tp0;
+      }
+      if tp1 > self.tp_block {
+        self.tp_block = tp1;
+      }
+      if tp0 > self.tp_block_ch[0] {
+        self.tp_block_ch[0] = tp0;
+      }
+      if tp1 > self.tp_block_ch[1] {
+        self.tp_block_ch[1] = tp1;
+      }
+      self.bn += 1;
+      if self.bn >= self.bsz {
+        let m0 = self.ba[0] / self.bn as f64;
+        let m1 = self.ba[1] / self.bn as f64;
+        let idx = self.rh * 2;
+        self.ring[idx] = m0;
+        self.ring[idx + 1] = m1;
+        self.rh = (self.rh + 1) % self.rn;
+        self.rc = (self.rc + 1).min(self.rn);
+        self.ibl.push([m0, m1]);
+        if self.ibl.len() > IBL_CAP {
+          self.ibl.remove(0);
+        }
+        let mut a0 = 0.0;
+        let mut a1 = 0.0;
+        let mut an = 0_usize;
+        for b in 0..4.min(self.rc) {
+          let idx = ((self.rh + self.rn - 1 - b) % self.rn) * 2;
+          a0 += self.ring[idx];
+          a1 += self.ring[idx + 1];
+          an += 1;
+        }
+        let momentary = if an > 0 {
+          lufs_from_mean_squares(a0 / an as f64, a1 / an as f64)
+        } else {
+          f64::NEG_INFINITY
+        };
+        a0 = 0.0;
+        a1 = 0.0;
+        an = 0;
+        for b in 0..30.min(self.rc) {
+          let idx = ((self.rh + self.rn - 1 - b) % self.rn) * 2;
+          a0 += self.ring[idx];
+          a1 += self.ring[idx + 1];
+          an += 1;
+        }
+        let short_term = if an > 0 {
+          lufs_from_mean_squares(a0 / an as f64, a1 / an as f64)
+        } else {
+          f64::NEG_INFINITY
+        };
+        if short_term.is_finite() {
+          self.sth.push(short_term);
+          if self.sth.len() > STH_CAP {
+            self.sth.remove(0);
+          }
+        }
+        let tp_now = if self.tp_block > 0.0 {
+          20.0 * self.tp_block.log10()
+        } else {
+          f64::NEG_INFINITY
+        };
+        let tp_now_l = if self.tp_block_ch[0] > 0.0 {
+          20.0 * self.tp_block_ch[0].log10()
+        } else {
+          f64::NEG_INFINITY
+        };
+        let tp_now_r = if self.tp_block_ch[1] > 0.0 {
+          20.0 * self.tp_block_ch[1].log10()
+        } else {
+          f64::NEG_INFINITY
+        };
+        out = Some(LoudnessBlock {
+          momentary,
+          short_term,
+          integrated: self.integrated(),
+          lra: self.lra(),
+          true_peak: tp_now,
+          true_peak_l: tp_now_l,
+          true_peak_r: tp_now_r,
+        });
+        self.ba = [0.0, 0.0];
+        self.bn = 0;
+        self.tp_block = 0.0;
+        self.tp_block_ch = [0.0, 0.0];
+      }
+    }
+    out
+  }
+
+  /// Mono duplicate to stereo.
+  pub fn push_mono_duplex(&mut self, mono: &[f32]) -> Option<LoudnessBlock> {
+    let mut tmp = Vec::with_capacity(mono.len() * 2);
+    for &s in mono {
+      tmp.push(s);
+      tmp.push(s);
+    }
+    self.push_interleaved(&tmp)
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct LoudnessBlock {
+  pub momentary: f64,
+  pub short_term: f64,
+  pub integrated: f64,
+  pub lra: f64,
+  pub true_peak: f64,
+  pub true_peak_l: f64,
+  pub true_peak_r: f64,
+}

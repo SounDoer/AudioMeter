@@ -7,32 +7,15 @@ export async function listAudioDevices() {
   return invoke("list_audio_devices");
 }
 
-/** @param {{ deviceId: string; onPcmBytes: (bytes: Uint8Array) => void }} opts */
-/** Tauri 2 Channel delivers `{ message, index }` (and `{ end: true }` when done), not a bare `Uint8Array`. */
-function channelPayloadToUint8Array(msg) {
-  if (msg && typeof msg === "object" && "end" in msg && msg.end) {
-    return null;
-  }
-  const payload = msg && typeof msg === "object" && "message" in msg ? msg.message : msg;
-  if (payload instanceof Uint8Array) return payload;
-  if (payload instanceof ArrayBuffer) return new Uint8Array(payload);
-  if (ArrayBuffer.isView(payload)) {
-    return new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
-  }
-  if (Array.isArray(payload)) {
-    return new Uint8Array(payload);
-  }
-  return null;
-}
-
-export async function startAudioCapture({ deviceId, onPcmBytes }) {
-  const onPcm = new Channel();
-  onPcm.onmessage = (msg) => {
-    const bytes = channelPayloadToUint8Array(msg);
-    if (bytes?.byteLength) onPcmBytes(bytes);
+/** @param {{ deviceId: string; onFrame: (payload: object) => void }} opts */
+export async function startAudioCapture({ deviceId, onFrame }) {
+  const onAudio = new Channel();
+  onAudio.onmessage = (msg) => {
+    const p = msg && typeof msg === "object" && "message" in msg ? msg.message : msg;
+    if (p && typeof p === "object") onFrame(p);
   };
-  await invoke("audio_start", { deviceId, onPcm });
-  return onPcm;
+  await invoke("audio_start", { deviceId, onFrame: onAudio });
+  return onAudio;
 }
 
 export function stopAudioCapture() {

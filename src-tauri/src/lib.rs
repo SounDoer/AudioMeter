@@ -4,6 +4,10 @@ mod engine;
 mod ipc;
 mod state;
 
+use std::time::Duration;
+
+use tauri::Emitter;
+
 pub use audio::{AudioCapture, CpalBackend, DeviceInfo, PcmFrame};
 
 use state::AppState;
@@ -25,6 +29,22 @@ pub fn run() {
             .build(),
         )?;
       }
+      let handle = app.handle().clone();
+      std::thread::Builder::new()
+        .name("audiometer-device-watch".into())
+        .spawn(move || {
+          let mut prev: Option<Vec<crate::audio::DeviceInfo>> = None;
+          loop {
+            std::thread::sleep(Duration::from_secs(2));
+            if let Ok(list) = crate::audio::session::build_device_list() {
+              if prev.as_ref() != Some(&list) {
+                prev = Some(list.clone());
+                let _ = handle.emit("device-list-changed", list);
+              }
+            }
+          }
+        })
+        .map_err(|e| format!("device watch thread: {e}"))?;
       Ok(())
     })
     .run(tauri::generate_context!())

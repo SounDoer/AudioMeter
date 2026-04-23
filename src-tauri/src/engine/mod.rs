@@ -1,4 +1,6 @@
-//! Orchestrates capture → DSP → IPC throttling (Phase 1+).
+//! Orchestrates capture → DSP → IPC throttling.
 
-pub mod pipeline;
+pub mod meter_pipeline;
 pub mod scheduler;
+
+pub use meter_pipeline::MeterPipeline;

@@ -10,6 +10,8 @@ import {
   spectrumDbToYViewBox,
   spectrumDbToTopFrac,
   SPEC_VIEW_H,
+  SPEC_VIEW_TOP_PAD,
+  SPEC_VIEW_BOTTOM_PAD,
   freqToXFrac,
   buildRtaBands,
   getWeightingDb,
@@ -46,16 +48,27 @@ describe("loudnessFromTopFrac", () => {
 });
 
 describe("spectrumDbToYViewBox", () => {
-  it("0 dB maps to y=0 (top)", () => expect(spectrumDbToYViewBox(0)).toBe(0));
-  it("-100 dB maps to y=SPEC_VIEW_H (bottom)", () => expect(spectrumDbToYViewBox(-100)).toBe(SPEC_VIEW_H));
-  it("clamps values above 0 dB", () => expect(spectrumDbToYViewBox(10)).toBe(0));
-  it("clamps values below -100 dB", () => expect(spectrumDbToYViewBox(-200)).toBe(SPEC_VIEW_H));
-  it("-50 dB maps to midpoint", () => expect(spectrumDbToYViewBox(-50)).toBeCloseTo(SPEC_VIEW_H / 2));
+  it("0 dB maps below viewBox top by SPEC_VIEW_TOP_PAD", () => expect(spectrumDbToYViewBox(0)).toBe(SPEC_VIEW_TOP_PAD));
+  it("-100 dB maps above viewBox bottom by SPEC_VIEW_BOTTOM_PAD", () => {
+    expect(spectrumDbToYViewBox(-100)).toBe(SPEC_VIEW_H - SPEC_VIEW_BOTTOM_PAD);
+  });
+  it("clamps values above 0 dB", () => expect(spectrumDbToYViewBox(10)).toBe(SPEC_VIEW_TOP_PAD));
+  it("clamps values below -100 dB", () => {
+    expect(spectrumDbToYViewBox(-200)).toBe(SPEC_VIEW_H - SPEC_VIEW_BOTTOM_PAD);
+  });
+  it("-50 dB maps to vertical midpoint of plot band", () => {
+    const midY = SPEC_VIEW_TOP_PAD + (SPEC_VIEW_H - SPEC_VIEW_TOP_PAD - SPEC_VIEW_BOTTOM_PAD) / 2;
+    expect(spectrumDbToYViewBox(-50)).toBeCloseTo(midY);
+  });
 });
 
 describe("spectrumDbToTopFrac", () => {
-  it("0 dB maps to 0", () => expect(spectrumDbToTopFrac(0)).toBe(0));
-  it("-100 dB maps to 1", () => expect(spectrumDbToTopFrac(-100)).toBe(1));
+  it("0 dB maps to fraction of viewBox height at top pad", () => {
+    expect(spectrumDbToTopFrac(0)).toBeCloseTo(SPEC_VIEW_TOP_PAD / SPEC_VIEW_H);
+  });
+  it("-100 dB maps to fraction just below full height", () => {
+    expect(spectrumDbToTopFrac(-100)).toBeCloseTo((SPEC_VIEW_H - SPEC_VIEW_BOTTOM_PAD) / SPEC_VIEW_H);
+  });
   it("consistent with spectrumDbToYViewBox", () => {
     expect(spectrumDbToTopFrac(-40)).toBeCloseTo(spectrumDbToYViewBox(-40) / SPEC_VIEW_H);
   });

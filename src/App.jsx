@@ -20,6 +20,7 @@ import { PillButton } from "./components/PillButton";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { isTauri } from "./ipc/env.js";
 import { listAudioDevices } from "./ipc/commands.js";
+import { onDeviceListChanged } from "./ipc/events.js";
 import { PeakPanel } from "./components/panels/PeakPanel";
 import { LoudnessPanel } from "./components/panels/LoudnessPanel";
 import { SpectrumPanel } from "./components/panels/SpectrumPanel";
@@ -383,6 +384,23 @@ export default function App() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten = () => {};
+    (async () => {
+      const u = await onDeviceListChanged((list) => {
+        if (!disposed) setAudioDevices(Array.isArray(list) ? list : []);
+      });
+      if (!disposed) unlisten = u;
+      else u();
+    })();
+    return () => {
+      disposed = true;
+      unlisten();
     };
   }, []);
 

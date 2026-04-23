@@ -1,0 +1,266 @@
+//! PCM → meters; drives `AudioFramePayload` / slow loudness emit rates.
+
+use std::collections::VecDeque;
+use std::time::Instant;
+
+use crate::dsp::loudness::LoudnessBlock;
+use crate::dsp::paths::spectrum_paths_from_bands;
+use crate::dsp::peak::{sample_peak_db_mono, sample_peak_db_stereo};
+use crate::dsp::{LoudnessMeter, SpectrumEngine, VectorscopeState};
+use crate::ipc::types::{AudioFramePayload, LoudnessSlowPayload};
+
+const VS_CAP: usize = 4096;
+const FRAME_EMIT_MS: u128 = 16;
+const SLOW_EMIT_MS: u128 = 500;
+
+pub struct LoudnessHistoryRing {
+  cap: usize,
+  pub q: VecDeque<(f32, f32)>,
+}
+
+impl LoudnessHistoryRing {
+  pub fn new(cap: usize) -> Self {
+    Self {
+      cap,
+      q: VecDeque::with_capacity(cap.min(1024)),
+    }
+  }
+
+  pub fn push(&mut self, m: f32, st: f32) {
+    if self.q.len() >= self.cap {
+      self.q.pop_front();
+    }
+    self.q.push_back((m, st));
+  }
+}
+
+pub struct MeterPipeline {
+  channels: u16,
+  loudness: LoudnessMeter,
+  spectrum: SpectrumEngine,
+  vs: VectorscopeState,
+  vs_l: Vec<f32>,
+  vs_r: Vec<f32>,
+  mono_scratch: Vec<f32>,
+  last_loudness: Option<LoudnessBlock>,
+  m_max: f64,
+  st_max: f64,
+  tp_max_db: f64,
+  history: LoudnessHistoryRing,
+  t0: Instant,
+  last_frame_emit: Instant,
+  last_slow_emit: Instant,
+  last_spectrum_smooth: Vec<f64>,
+  last_spectrum_peak: Vec<f64>,
+  last_band_centers: Vec<f64>,
+}
+
+impl MeterPipeline {
+  pub fn new(sample_rate: u32, channels: u16) -> Self {
+    let sr = sample_rate as f64;
+    Self {
+      channels,
+      loudness: LoudnessMeter::new(sr),
+      spectrum: SpectrumEngine::new(sr),
+      vs: VectorscopeState::new(),
+      vs_l: Vec::with_capacity(VS_CAP),
+      vs_r: Vec::with_capacity(VS_CAP),
+      mono_scratch: Vec::new(),
+      last_loudness: None,
+      m_max: f64::NEG_INFINITY,
+      st_max: f64::NEG_INFINITY,
+      tp_max_db: f64::NEG_INFINITY,
+      history: LoudnessHistoryRing::new(36_000),
+      t0: Instant::now(),
+      last_frame_emit: Instant::now(),
+      last_slow_emit: Instant::now(),
+      last_spectrum_smooth: Vec::new(),
+      last_spectrum_peak: Vec::new(),
+      last_band_centers: Vec::new(),
+    }
+  }
+
+  fn feed_vs_mono(&mut self, mono: &[f32]) {
+    for &s in mono {
+      self.push_vs_pair(s, s);
+    }
+  }
+
+  fn feed_vs_stereo(&mut self, interleaved: &[f32]) {
+    let frames = interleaved.len() / 2;
+    for i in 0..frames {
+      self.push_vs_pair(interleaved[i * 2], interleaved[i * 2 + 1]);
+    }
+  }
+
+  fn push_vs_pair(&mut self, l: f32, r: f32) {
+    self.vs_l.push(l);
+    self.vs_r.push(r);
+    while self.vs_l.len() > VS_CAP {
+      self.vs_l.remove(0);
+      self.vs_r.remove(0);
+    }
+  }
+
+  /// Process one PCM chunk from capture. Returns `(frame, slow)` when ready to send on IPC.
+  pub fn push_pcm_f32(&mut self, interleaved: &[f32]) -> (Option<AudioFramePayload>, Option<LoudnessSlowPayload>) {
+    let now_sec = self.t0.elapsed().as_secs_f64();
+    let ch = self.channels.max(1);
+    if ch == 1 {
+      self.mono_scratch.clear();
+      self.mono_scratch.extend_from_slice(interleaved);
+      let m = self.loudness.push_mono_duplex(&self.mono_scratch);
+      if let Some(ref lb) = m {
+        self.apply_loudness_block(lb);
+      }
+      self.feed_vs_mono(interleaved);
+      if let Some((sm, pk)) = self
+        .spectrum
+        .push_mono_duplex(interleaved, now_sec)
+      {
+        self.last_band_centers = self.spectrum.band_centers();
+        self.last_spectrum_smooth = sm;
+        self.last_spectrum_peak = pk;
+      }
+    } else {
+      if let Some(lb) = self.loudness.push_interleaved(interleaved) {
+        self.apply_loudness_block(&lb);
+      }
+      self.feed_vs_stereo(interleaved);
+      if let Some((sm, pk)) = self.spectrum.push_interleaved(interleaved, now_sec) {
+        self.last_band_centers = self.spectrum.band_centers();
+        self.last_spectrum_smooth = sm;
+        self.last_spectrum_peak = pk;
+      }
+    }
+
+    let (sl, sr) = if ch == 1 {
+      sample_peak_db_mono(interleaved)
+    } else {
+      sample_peak_db_stereo(interleaved)
+    };
+
+    let mut slow_out = None;
+    if self.last_slow_emit.elapsed().as_millis() >= SLOW_EMIT_MS {
+      self.last_slow_emit = Instant::now();
+      let integ = self
+        .last_loudness
+        .as_ref()
+        .map(|l| l.integrated)
+        .filter(|v| v.is_finite());
+      let integrated = integ.filter(|&v| v > -120.0);
+      let st = self.last_loudness.as_ref().map(|l| l.short_term).unwrap_or(f64::NEG_INFINITY);
+      let tp = self.last_loudness.as_ref().map(|l| l.true_peak).unwrap_or(f64::NEG_INFINITY);
+      let psr = if tp.is_finite() && st.is_finite() {
+        Some(tp - st)
+      } else {
+        None
+      };
+      let integ_plr = integrated.unwrap_or(f64::NEG_INFINITY);
+      let plr = if tp.is_finite() && integ_plr.is_finite() {
+        Some(tp - integ_plr)
+      } else {
+        None
+      };
+      slow_out = Some(LoudnessSlowPayload {
+        lufs_integrated: integrated,
+        lufs_m_max: self.m_max,
+        lufs_st_max: self.st_max,
+        lra: self.last_loudness.as_ref().map(|l| l.lra).unwrap_or(0.0),
+        psr,
+        plr,
+      });
+    }
+
+    if self.last_frame_emit.elapsed().as_millis() < FRAME_EMIT_MS {
+      return (None, slow_out);
+    }
+    self.last_frame_emit = Instant::now();
+
+    let lb = self.last_loudness.clone();
+    let (lm, lst, integ, lra, tpl, tpr, _tpg) = match &lb {
+      Some(l) => (
+        l.momentary,
+        l.short_term,
+        l.integrated,
+        l.lra,
+        l.true_peak_l,
+        l.true_peak_r,
+        l.true_peak,
+      ),
+      None => (
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+        0.0,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+      ),
+    };
+
+    let (corr, vpath) = if !self.vs_l.is_empty() {
+      self.vs.process(&self.vs_l, &self.vs_r)
+    } else {
+      (0.0, String::new())
+    };
+
+    let centers = &self.last_band_centers;
+    let smooth = &self.last_spectrum_smooth;
+    let peak = &self.last_spectrum_peak;
+    let (spath, spk) = if !centers.is_empty() && smooth.len() == centers.len() {
+      let pk = if peak.len() == centers.len() {
+        peak.as_slice()
+      } else {
+        smooth.as_slice()
+      };
+      spectrum_paths_from_bands(centers, smooth, pk, false)
+    } else {
+      (String::new(), String::new())
+    };
+
+    let peak_db = vec![sl, sr];
+    let peak_hold_db = peak_db.clone();
+
+    let frame = AudioFramePayload {
+      peak_db,
+      peak_hold_db,
+      true_peak_max_dbtp: self.tp_max_db,
+      lufs_momentary: lm,
+      lufs_short_term: lst,
+      integrated: integ,
+      lra,
+      true_peak_l: tpl,
+      true_peak_r: tpr,
+      sample_l_db: sl,
+      sample_r_db: sr,
+      correlation: corr,
+      vectorscope_path: vpath,
+      spectrum_path: spath,
+      spectrum_peak_path: spk,
+      spectrum_band_centers_hz: centers.clone(),
+      spectrum_smooth_db: smooth.clone(),
+      timestamp_ms: self.t0.elapsed().as_millis() as u64,
+    };
+    (Some(frame), slow_out)
+  }
+
+  fn apply_loudness_block(&mut self, lb: &LoudnessBlock) {
+    if lb.momentary.is_finite() {
+      self.m_max = self.m_max.max(lb.momentary);
+    }
+    if lb.short_term.is_finite() {
+      self.st_max = self.st_max.max(lb.short_term);
+    }
+    if lb.true_peak.is_finite() {
+      self.tp_max_db = self.tp_max_db.max(lb.true_peak);
+    }
+    self.last_loudness = Some(lb.clone());
+    if lb.momentary.is_finite() || lb.short_term.is_finite() {
+      self.history.push(
+        lb.momentary as f32,
+        lb.short_term as f32,
+      );
+    }
+  }
+}
