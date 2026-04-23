@@ -22,6 +22,13 @@ npm run build
 npm run desktop
 ```
 
+Windows NSIS 安装包（与 CI `release.yml` 一致）：
+
+```bash
+npm run build
+npm run desktop:release-nsis
+```
+
 Rust（在 `src-tauri` 目录下）：
 
 ```bash
