@@ -18,6 +18,8 @@ import { useSnapshot } from "./hooks/useSnapshot";
 import { useHoverState } from "./hooks/useHoverState";
 import { PillButton } from "./components/PillButton";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { isTauri } from "./ipc/env.js";
+import { listAudioDevices } from "./ipc/commands.js";
 import { PeakPanel } from "./components/panels/PeakPanel";
 import { LoudnessPanel } from "./components/panels/LoudnessPanel";
 import { SpectrumPanel } from "./components/panels/SpectrumPanel";
@@ -26,6 +28,7 @@ import { VectorscopePanel } from "./components/panels/VectorscopePanel";
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 const HISTORY_TIME_TICK_STEPS = 4;
+const CAPTURE_DEVICE_STORE_KEY = "audiometer.captureDeviceId";
 
 export default function App() {
   const buildVersionRaw = import.meta.env.VITE_APP_VERSION || "dev";
@@ -35,6 +38,15 @@ export default function App() {
   const { settingsOpen, setSettingsOpen, uiMode, setUiMode, standard, setStandard, uiModeRef } = useSettings();
 
   const [running, setRunning] = useState(false);
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [captureDeviceId, setCaptureDeviceId] = useState(() => {
+    try {
+      const raw = localStorage.getItem(CAPTURE_DEVICE_STORE_KEY);
+      if (raw === "default") return "default";
+      if (raw && /^(in|out):\d+$/.test(raw)) return raw;
+    } catch (_) {}
+    return "default";
+  });
   const [selectedOffset, setSelectedOffset] = useState(-1);
   const [historyWindowSec, setHistoryWindowSec] = useState(UI_PREFERENCES.modules.loudness.history.defaultWindowSec);
   const [historyOffsetSec, setHistoryOffsetSec] = useState(0);
@@ -358,6 +370,33 @@ export default function App() {
     selectedOffsetRef.current = selectedOffset;
   }, [selectedOffset]);
 
+  useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await listAudioDevices();
+        if (!cancelled) setAudioDevices(Array.isArray(list) ? list : []);
+      } catch (_) {
+        if (!cancelled) setAudioDevices([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!audioDevices.length) return;
+    if (captureDeviceId === "default") return;
+    if (!audioDevices.some((d) => d.id === captureDeviceId)) {
+      setCaptureDeviceId("default");
+      try {
+        localStorage.setItem(CAPTURE_DEVICE_STORE_KEY, "default");
+      } catch (_) {}
+    }
+  }, [audioDevices, captureDeviceId]);
+
   /** 与 Loudness History 快照一致：该模式下读数/矢量/频谱来自选中时刻，并非实时输入 */
   useEffect(() => {
     if (!running || selectedOffset < 0) return;
@@ -366,6 +405,7 @@ export default function App() {
 
   useAudioEngine({
     running,
+    captureDeviceId,
     histMaxSamples: HIST_MAX_SAMPLES,
     audioRef,
     spectrumStateRef,
@@ -401,7 +441,52 @@ export default function App() {
           <div className="ui-app-title">
             Audio<span className="ui-app-title-brand">Meter</span>
           </div>
-          <div className="flex-1" />
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3 pr-2">
+            {isTauri() && (
+              <div className="flex min-w-0 max-w-[min(22rem,42vw)] items-center gap-2">
+                <label htmlFor="capture-device-select" className="shrink-0 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)]">
+                  Input
+                </label>
+                <select
+                  id="capture-device-select"
+                  className="ui-select min-w-0 flex-1 text-[length:var(--ui-fs-metric-meta)]"
+                  value={captureDeviceId}
+                  disabled={!audioDevices.length}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCaptureDeviceId(v);
+                    try {
+                      localStorage.setItem(CAPTURE_DEVICE_STORE_KEY, v);
+                    } catch (_) {}
+                  }}
+                >
+                  <option value="default">Automatic (default system output)</option>
+                  {audioDevices.some((d) => d.isSystemOutputMonitor) ? (
+                    <optgroup label="System outputs (playback)">
+                      {audioDevices
+                        .filter((d) => d.isSystemOutputMonitor)
+                        .map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ) : null}
+                  {audioDevices.some((d) => !d.isSystemOutputMonitor) ? (
+                    <optgroup label="Microphones & other inputs">
+                      {audioDevices
+                        .filter((d) => !d.isSystemOutputMonitor)
+                        .map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.label}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ) : null}
+                </select>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-[var(--ui-header-action-gap)]">
             <PillButton onClick={clearAll}>Clear</PillButton>
             <PillButton accent liveSnap={startMode === "live"} onClick={onStartClick}>

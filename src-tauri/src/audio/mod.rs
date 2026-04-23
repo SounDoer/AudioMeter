@@ -3,6 +3,7 @@
 pub mod capture;
 pub mod cpal_backend;
 pub mod device;
+pub mod session;
 
 pub use capture::{AudioCapture, PcmFrame};
 pub use cpal_backend::CpalBackend;

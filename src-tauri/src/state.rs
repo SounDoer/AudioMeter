@@ -1,4 +1,17 @@
-//! Global application state (engine, device selection, etc.). Filled in Phase 1+.
+//! Global application state (engine, device selection, etc.).
 
-#[derive(Default)]
-pub struct AppState;
+use std::sync::Mutex;
+
+use crate::audio::session::CaptureSession;
+
+pub struct AppState {
+  pub capture: Mutex<Option<CaptureSession>>,
+}
+
+impl Default for AppState {
+  fn default() -> Self {
+    Self {
+      capture: Mutex::new(None),
+    }
+  }
+}

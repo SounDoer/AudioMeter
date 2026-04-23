@@ -12,6 +12,11 @@ use state::AppState;
 pub fn run() {
   tauri::Builder::default()
     .manage(AppState::default())
+    .invoke_handler(tauri::generate_handler![
+      ipc::commands::list_audio_devices,
+      ipc::commands::audio_start,
+      ipc::commands::audio_stop,
+    ])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
