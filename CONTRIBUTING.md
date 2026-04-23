@@ -47,6 +47,10 @@ npm run check
 
 `npm run version:check` 会校验上述三处一致；CI 中也会运行。若改了 `Cargo.toml` 依赖，请在 `src-tauri` 下执行 `cargo check` 并视情况提交 `Cargo.lock`。
 
+## Git commits and PRs
+
+Use **English only** for commit messages, PR titles/descriptions, and any text that accompanies `git push` (no Chinese in those strings).
+
 ## CI 说明
 
 - **Pull request / push 到 `main`**：见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)（前端 + Ubuntu 上 Rust；Windows 上 Rust `fmt` / `clippy` / `test`）。
