@@ -178,7 +178,8 @@ AudioMeter/
 │   │   └── useLayout.js             # 分割线状态 + 本地存储
 │   ├── ipc/                         # ★ 前后端通信层（唯一入口）
 │   │   ├── commands.js              # 封装所有 invoke 调用
-│   │   └── events.js                # 封装所有 listen / Channel 订阅
+│   │   ├── events.js                # 封装所有 listen / Channel 订阅
+│   │   └── types.js                 # 与 Rust payload 对齐的 JSDoc / 常量（可选）
 │   ├── styles/
 │   └── utils/                       # 纯函数工具（dB 转换、格式化等）
 │
@@ -208,12 +209,13 @@ AudioMeter/
 │       │   ├── peak.rs              # 采样峰值 + True Peak（过采样）
 │       │   ├── loudness.rs          # LUFS: K-weighting + gating
 │       │   ├── spectrum.rs          # FFT + 窗函数
+│       │   ├── paths.rs             # 频谱 SVG path（与前端 scales 对齐）
 │       │   ├── vectorscope.rs       # L/R → XY + 相关系数
 │       │   └── filters.rs           # K-weighting 等滤波器
 │       │
 │       ├── engine/                  # 【编排层】
 │       │   ├── mod.rs
-│       │   ├── pipeline.rs          # 音频线程主循环
+│       │   ├── meter_pipeline.rs    # PCM → 各表头 + Channel 帧 / 慢响度 emit
 │       │   └── scheduler.rs         # 向前端推送的节流
 │       │
 │       ├── ipc/                     # 【前后端通信】
@@ -564,6 +566,16 @@ interface LoudnessSlowPayload {
 
 **Phase 2 可延后**：Phase 1 结束时用户可感知的 v1.0 功能已全齐。Phase 2 是架构健康度工作，为 Phase 4+ 铺路。
 
+### 11.1 实现进度快照（对照仓库，随开发更新）
+
+| 文档章节 / Phase | 状态 | 说明 |
+|---|---|---|
+| Phase 0–1：Tauri 壳 + 采集 | 已完成 | `cpal` + WASAPI loopback；前端走 `src/ipc/` |
+| Phase 2：DSP 在 Rust、删 worklet | **核心已完成** | `public/worklets/*` 已移除；Channel 推算好的指标；**全量「~1h ring + command 取历史」尚未做** |
+| §6 历史 ring 在 Rust | **部分** | `engine/meter_pipeline.rs` 内 `LoudnessHistoryRing` 已存在，**响度历史图主缓冲仍在前端**（`useAudioEngine` 按节拍 push）；待 IPC 与 UI 迁移动作为主数据源 |
+| Phase 3：Windows 打包 | **进行中** | `.github/workflows/release.yml`：`workflow_dispatch` + `v*` tag → NSIS 构建；artifact + tag 时上传 Release |
+| `AudioCapture` trait | 已有骨架 | `audio/capture.rs` + `cpal_backend.rs`（与 `session.rs` 并存，后续可收敛） |
+
 ---
 
 ## 12. v1.0 架构为未来预留的扩展点（**写代码时务必遵守**）
@@ -648,6 +660,7 @@ interface LoudnessSlowPayload {
 |---|---|---|
 | 2026-04 | SounDoer + Claude（grill-me session） | 初版：完成 v1.0 全部架构决策 |
 | 2026-04 | — | §6：Spectrum 明确为「专业频谱软件常用 FFT-RTA 显示」，v1.0 不采用 IEC 61260 滤波器组路径 |
+| 2026-04 | — | §4 目录树：`pipeline.rs` → `meter_pipeline.rs`，补 `dsp/paths.rs`；新增 §11.1 实现进度；补充 Phase 3 `release.yml` 说明 |
 
 ---
 
