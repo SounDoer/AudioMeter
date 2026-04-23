@@ -1,5 +1,12 @@
 # AudioMeter
 
+> **桌面版（Windows）**：`main` 分支正在按 [`docs/architecture.md`](docs/architecture.md) 迁移到 **Tauri 2 + Rust**（系统 WASAPI Loopback、零虚拟声卡为 v1.0 目标）。本地运行桌面壳：`npm install` → `npm run desktop`（需安装 [Rust](https://rustup.rs/) 与 Windows 上 Tauri 前置依赖）。  
+> **网页版**：不再随 `main` 演进。最后冻结的浏览器版代码在 **`legacy-web` 分支**（标签 **`v0.9.0-web-final`**）；GitHub Pages 构建由该分支触发。若仍使用浏览器版，请查看该分支的 README。
+
+---
+
+以下为 **legacy 网页版** 的说明（在 `legacy-web` 分支上仍然适用）。
+
 无需安装的浏览器实时音频分析工具，打开即用。支持 **峰值表（Peak）**、**LUFS 响度**（Momentary / Short-term / Integrated / LRA / True Peak）、**频谱分析（Spectrum）** 与 **矢量示波器（Vectorscope）**。音频仅在本机处理，不上传任何服务器。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -161,21 +168,32 @@
 
 ### 本地运行
 
+**桌面（`main`）**
+
 ```bash
 git clone https://github.com/SounDoer/AudioMeter.git
 cd AudioMeter
 npm install
+npm run desktop
+```
+
+首次需安装 [Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/)（Windows 含 WebView2、Visual Studio C++ Build Tools 等）。开发时 Vite 固定端口 **1420**。
+
+**仅前端 / 旧网页流程**
+
+```bash
 npm run dev
 ```
 
-浏览器访问终端输出中的本地地址（通常为 `http://localhost:5173/`）。
+浏览器访问终端输出中的本地地址（纯 `vite` 时通常为 `http://localhost:5173/`；`npm run desktop` 时为 `http://localhost:1420/`）。
 
 ### 其他命令
 
 ```bash
-npm run build    # 构建生产版本，输出到 dist/
-npm test         # 运行单元测试（Vitest）
-npm run lint     # ESLint 检查
+npm run build           # 构建生产版本，输出到 dist/
+npm run desktop:build   # Tauri 打包（Windows 安装包等）
+npm test                # 运行单元测试（Vitest）
+npm run lint            # ESLint 检查
 ```
 
 ### 仓库结构

@@ -1,0 +1,668 @@
+# AudioMeter — Architecture & Roadmap
+
+> **文档用途**：这是 AudioMeter 从"无需安装的网页工具"重构为"正式 Windows 桌面软件"的架构决策档案。内容覆盖技术选型、项目结构、通信协议、分发策略和路线图。
+>
+> **面向读者**：项目作者本人 + 未来参与开发的 AI agent / 协作者。每项决策都附带了原因和被否决的替代方案，便于任何人快速理解"为什么是现在这样"。
+>
+> **文档状态**：重构启动前的决策冻结版。开工后如有调整，在本文末尾维护 Changelog。
+
+---
+
+## 0. 项目定位（必读）
+
+**AudioMeter 是一个纯监测类的音频仪表工具，定位为声音设计师桌面常驻的参考表头。**
+
+### 核心承诺
+
+- **纯监测、不处理音频**：只读系统正在播放的信号，给出测量数据。永远不动声音本身。
+- **Windows 优先**：v1.0 只发 Windows，macOS 放在 v1.5。不考虑 Linux。
+- **独立应用形态**：永远不做 VST / AU / AAX 插件，不进 DAW 宿主。
+- **用户无需安装虚拟声卡**：这是 v1.0 相对于网页版和 Youlean standalone 的核心体验提升。
+
+### 明确不做的（避免未来被反复提起）
+
+| 不做 | 原因 |
+|---|---|
+| 离线音频文件分析 | 定位是实时监测工具，不是分析工具 |
+| 真实 EQ / 任何音频处理 | 一旦处理声音，"从哪里输出"是无解的架构难题（见 §9.2） |
+| VST / AU / AAX 插件 | 放弃 DAW 生态，专注独立软件形态 |
+| 多设备同时监测 / A-B 信号源对比 | v1.0 范围外，可能永远不做 |
+| 商店上架（Microsoft Store / Mac App Store） | 避开沙箱限制，保持技术自由度 |
+| Linux 支持 | 用户基数小，维护成本不值得 |
+
+---
+
+## 1. 技术栈
+
+**Tauri 2 + Rust（后端）+ React / Vite（前端）**
+
+### 为什么是这个组合
+
+**Rust**：
+
+- 无 GC，音频回调线程可做 realtime-safe 处理（对 LUFS 等连续测量关键）。
+- Cargo 工具链现代，Rust 音频生态（`cpal`、`rustfft`、`hound`、`dasp` 等）足够支撑长期演进。
+- 内存安全由编译器保证，长期维护风险低。
+
+**Tauri 2**：
+
+- 用系统自带 webview（Windows 上是 Edge WebView2），不打包 Chromium，安装包 ~10MB 量级。
+- 前后端进程分离：Rust 做音频采集 + DSP，React 只负责 UI，职责清晰。
+- 现有的 React 组件、math 工具、UI 交互逻辑能整体复用。
+
+### 被否决的替代方案
+
+| 方案 | 否决原因 |
+|---|---|
+| **Electron** | 严肃音频分析类工具在 Electron 上几乎没有先例（Slack/Discord 的"音频"只是被动播放/编解码）。音频路径里要避开 GC 抖动需要把所有 DSP 压进原生模块，本质上是"用 Electron 做了一个 Tauri 形状的东西"。安装包 100MB+ 体验也差。 |
+| **JUCE（C++）** | JUCE 最大价值是"一套代码编成 Standalone/VST/AU/AAX 插件"。本项目明确不做插件，这个优势完全浪费。剩下的"工业级实时音频基础设施"Rust 生态也能提供。现有 React UI 全部丢弃成本过高。 |
+| **Qt / 其他原生 UI** | UI 生态远不如 Web，开发效率低，现有代码零复用。 |
+| **Flutter / .NET MAUI** | 桌面音频生态不成熟，路径上没看到严肃案例。 |
+
+### 关于"Tauri + Rust 做音频工具没有先例"这件事
+
+事实是：Tauri 社区里几乎没有严肃的音频仪表 / 分析类工具（awesome-tauri 清单里音频相关的只有混音播放器、字幕工具、屏幕录制等）。这意味着**某些问题我们是第一次踩**（比如 Tauri Channel 在高频推送下的延迟特征）。此决策是在充分知道这一点之后做出的——理由是 Rust 的音频生态（库层面）足够用，且长期维护性优于 Electron。
+
+---
+
+## 2. 系统架构总览
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                      Tauri Application                     │
+│                                                            │
+│  ┌──────────────────┐         ┌─────────────────────────┐  │
+│  │   Frontend       │         │   Rust Backend          │  │
+│  │   (WebView2)     │◄────────┤                         │  │
+│  │                  │ Channel │  ┌─────────────────┐    │  │
+│  │  React + Vite    │  60Hz   │  │ Audio Engine    │    │  │
+│  │                  │         │  │                 │    │  │
+│  │  • Panels        │         │  │  ┌───────────┐  │    │  │
+│  │  • Controls      │◄────────┤  │  │ cpal      │  │    │  │
+│  │  • Settings      │  Event  │  │  │ WASAPI    │  │    │  │
+│  │  • History UI    │   2Hz   │  │  │ Loopback  │  │    │  │
+│  │                  │         │  │  └─────┬─────┘  │    │  │
+│  │                  │────────►│  │        │        │    │  │
+│  │                  │ invoke  │  │        ▼        │    │  │
+│  │                  │(command)│  │  ┌───────────┐  │    │  │
+│  └──────────────────┘         │  │  │ DSP       │  │    │  │
+│                               │  │  │ Pipeline  │  │    │  │
+│                               │  │  └───────────┘  │    │  │
+│                               │  └─────────────────┘    │  │
+│                               └─────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
+          ▲
+          │ WASAPI Loopback（Windows 原生，无需虚拟声卡）
+          │
+  ┌───────┴────────┐
+  │  System Audio  │
+  │   (播放中)      │
+  └────────────────┘
+```
+
+### 数据流简述
+
+1. **采集**：Rust 通过 `cpal` 打开 WASAPI Loopback，从系统输出设备直接读取 PCM 流。
+2. **DSP**：PCM 进入 Rust 音频线程，并行计算 Peak / True Peak / LUFS / FFT / Correlation 等指标。
+3. **推送**：
+   - 高频指标（~60Hz）通过 Tauri Channel 推给前端。
+   - 慢指标（~2Hz）和状态变化通过 Tauri Event 广播。
+4. **渲染**：前端 React 订阅数据，画面板。
+5. **控制反向**：前端按钮（START / STOP / 设备切换等）通过 `invoke` 命令调 Rust。
+
+---
+
+## 3. 术语表（重要，避免歧义）
+
+| 术语 | 定义 |
+|---|---|
+| **系统音频捕获** | 泛指"监听系统正在播放的声音"这个**目标**。不指定具体技术。 |
+| **loopback** | 特指 **WASAPI Loopback**——Windows 原生 API，允许应用直接把输出设备当输入读。**不需要任何第三方驱动**。v1.0 的核心技术。 |
+| **虚拟声卡 / Virtual Audio Device** | VB-Cable、BlackHole、Loopback by Rogue Amoeba 等第三方驱动方案。旧网页版依赖这种方式，v1.0 要消灭这个依赖。 |
+| **Core Audio Taps** | macOS 14.2+ 的原生系统音频捕获 API，地位类似 Windows 的 WASAPI Loopback。v1.5 的目标。 |
+| **realtime-safe** | 音频回调线程中不做任何可能阻塞或不可预测延迟的操作（无内存分配、无锁、无 syscall 等）。 |
+
+---
+
+## 4. 项目结构
+
+### 仓库策略
+
+- **原地重构**：保留 `SounDoer/AudioMeter` 仓库本身（URL、Stars、Issues、git 历史都延续）。
+- **main 分支目录结构彻底重新设计**，不被旧代码约束。
+- **旧网页版代码移到 `legacy-web` 分支**冻结，打一个 tag `v0.9.0-web-final`。
+- **GitHub Pages 继续指向 `legacy-web` 分支的 build**，让老用户仍能用。
+- README 明确标注"网页版已停止维护，桌面版见 Releases"。
+
+### 核心原则
+
+1. **现有代码只有"在新结构里仍然是最佳解"才能留下**。不为沉没成本妥协。
+2. **`public/worklets/loudness-meter.js` 绝不带进新架构**（Phase 2 必须删除）。
+3. **组件边界按新的关注点重新切分**，不受旧 hooks / components 结构束缚。
+
+### 目录树
+
+```
+AudioMeter/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                   # lint + test（前端 + Rust）
+│       └── release.yml              # 打包 Windows 安装包
+├── .editorconfig
+├── .gitignore                       # 含 src-tauri/target/、dist/
+├── LICENSE                          # MIT 保持不变
+├── README.md                        # 重写：桌面版介绍 + 旧网页版链接
+│
+├── index.html                       # Vite 入口
+├── package.json                     # 前端依赖
+├── package-lock.json
+├── vite.config.js
+├── eslint.config.js
+│
+├── src/                             # 前端 React 代码
+│   ├── main.jsx                     # React 挂载入口
+│   ├── App.jsx                      # 顶层组件（页面编排）
+│   ├── components/
+│   │   ├── panels/
+│   │   │   ├── PeakPanel.jsx
+│   │   │   ├── LoudnessPanel.jsx
+│   │   │   ├── SpectrumPanel.jsx
+│   │   │   └── VectorscopePanel.jsx
+│   │   ├── Controls/                # START/STOP/LIVE/Clear/Settings 按钮栏
+│   │   ├── Splitters/               # 可拖动分割线
+│   │   └── Settings/                # 设置面板
+│   ├── hooks/
+│   │   ├── useAudioEngine.js        # 订阅 Rust emit 的音频指标
+│   │   ├── useHistoryBuffer.js      # 历史数据（可能从旧版复用）
+│   │   ├── useSnapshot.js           # 快照模式逻辑
+│   │   └── useLayout.js             # 分割线状态 + 本地存储
+│   ├── ipc/                         # ★ 前后端通信层（唯一入口）
+│   │   ├── commands.js              # 封装所有 invoke 调用
+│   │   └── events.js                # 封装所有 listen / Channel 订阅
+│   ├── styles/
+│   └── utils/                       # 纯函数工具（dB 转换、格式化等）
+│
+├── public/                          # 静态资源（图标等）
+│   └── (不再有 worklets/)
+│
+├── src-tauri/                       # Rust 后端
+│   ├── Cargo.toml
+│   ├── Cargo.lock
+│   ├── tauri.conf.json              # 窗口、权限、bundle 配置
+│   ├── build.rs
+│   ├── icons/                       # 应用图标（多平台多尺寸）
+│   ├── capabilities/                # Tauri 2.x 权限声明
+│   │   └── default.json
+│   └── src/
+│       ├── main.rs                  # 入口
+│       ├── lib.rs                   # 桌面/移动共用入口
+│       │
+│       ├── audio/                   # 【音频采集层】
+│       │   ├── mod.rs
+│       │   ├── capture.rs           # AudioCapture trait（抽象层）
+│       │   ├── cpal_backend.rs      # cpal 具体实现（Windows loopback）
+│       │   └── device.rs            # 设备枚举、选择、热插拔
+│       │
+│       ├── dsp/                     # 【DSP 计算层】
+│       │   ├── mod.rs
+│       │   ├── peak.rs              # 采样峰值 + True Peak（过采样）
+│       │   ├── loudness.rs          # LUFS: K-weighting + gating
+│       │   ├── spectrum.rs          # FFT + 窗函数
+│       │   ├── vectorscope.rs       # L/R → XY + 相关系数
+│       │   └── filters.rs           # K-weighting 等滤波器
+│       │
+│       ├── engine/                  # 【编排层】
+│       │   ├── mod.rs
+│       │   ├── pipeline.rs          # 音频线程主循环
+│       │   └── scheduler.rs         # 向前端推送的节流
+│       │
+│       ├── ipc/                     # 【前后端通信】
+│       │   ├── mod.rs
+│       │   ├── commands.rs          # #[tauri::command] 定义
+│       │   ├── events.rs            # emit 事件类型
+│       │   └── types.rs             # 前后端共享数据结构（serde）
+│       │
+│       └── state.rs                 # 全局 AppState
+│
+├── tests/                           # 前端测试（Vitest）
+│
+└── docs/
+    ├── architecture.md              # 本文档
+    └── dsp-notes.md                 # DSP 算法实现注记（EBU R128 公式等）
+```
+
+### 分层设计的关键决策
+
+**按"关注点"而非"面板"切分**：
+
+- `audio/` 只管"从系统拿到 PCM 流"
+- `dsp/` 只管"把 PCM 转成各种指标"，每个文件对应一个指标族
+- `engine/` 编排 audio + dsp，是唯一一个"懂全局"的模块
+- `ipc/` 是边界层，规定前后端协议
+
+**好处**：加新表头时只在 `dsp/` 加一个文件，不会像网页版那样 hooks 和 panel 互相交织。
+
+**前端 `ipc/` 层的硬约束**：任何 React 组件或 hook **不得直接**调 `invoke()` 或 `listen()`。所有 Tauri API 走 `src/ipc/`。好处：换协议时只改一处；测试时可 mock；保持 UI 代码"不知道自己在 Tauri 里"。
+
+---
+
+## 5. 音频采集层
+
+### 采集库：`cpal`
+
+使用 [`cpal`](https://github.com/RustAudio/cpal) 作为跨平台音频 I/O 库。
+
+**理由**：
+
+- Rust 音频圈事实标准，文档、example、AI 熟悉度都最高。
+- v0.15+ 原生支持 WASAPI Loopback（Windows 上直接把 output device 当 input stream 打开）。
+- 同一套 API 未来可对接 macOS Core Audio（v1.5 复用成本低）。
+
+**被否决的替代**：
+
+- **`wasapi` crate**：控制力更强但只管 Windows，macOS 要再学一套，工作量不划算。
+- **直接 FFI 调 Win32 / Core Audio**：开发量爆炸，无必要。
+
+### 抽象层设计
+
+在 `cpal` 之外包一层薄的 `AudioCapture` trait：
+
+```rust
+// src-tauri/src/audio/capture.rs
+pub trait AudioCapture: Send {
+    fn list_devices(&self) -> Vec<DeviceInfo>;
+    fn start(&mut self, device_id: &str, config: StreamConfig) -> Result<()>;
+    fn stop(&mut self) -> Result<()>;
+    fn subscribe_pcm(&self) -> PcmReceiver;
+}
+```
+
+**为什么要这层抽象**：
+
+- v1.5 加 macOS Core Audio Taps 时，只是新增一个 `CoreAudioBackend` 实现，上层 DSP 代码不动。
+- 如果某天发现 `cpal` 在某平台有硬伤，可以局部换实现。
+- **不是过度设计**——这层非常薄，只是把 cpal 的 API 归口，未来可换。
+
+### PCM 数据结构：为多声道做准备（**重要**）
+
+v1.0 实际显示立体声，但底层数据结构**必须**支持任意通道数：
+
+```rust
+pub struct PcmFrame {
+    pub samples: Vec<f32>,      // interleaved: [L0, R0, L1, R1, ...] 或多声道
+    pub channels: u16,          // ← 关键：跟着设备走，不写死
+    pub sample_rate: u32,
+    pub timestamp_ns: u64,
+}
+```
+
+**UI 渲染原则**：前端面板按"收到几个通道画几个通道"，不硬编码 L / R。
+
+**用户体验**：用户选哪个设备就自动切换到对应通道数——选 stereo 扬声器显示 2 通道，选 5.1 设备显示 6 通道，选 mono 麦克风显示 1 通道。
+
+**已知开放问题**（v1.0 不解决，记一下）：通道数 > 2 时 Vectorscope（矢量示波器）原本意义失效（只能表现 L vs R 相位）。可能的处理方式：隐藏、降级成"选两个通道对比"、升级成多通道相关矩阵。到时再定。
+
+---
+
+## 6. DSP 层
+
+### 需要实现的指标（v1.0 完整保留网页版功能）
+
+| 面板 | 指标 | 算法要点 |
+|---|---|---|
+| **Peak** | 采样峰值 (L/R)、峰值保持、TP MAX | True Peak 用 4x 过采样（EBU R128 / ITU-R BS.1770） |
+| **Loudness** | Momentary / Short-term / Integrated / M Max / ST Max / LRA / PSR / PLR | ITU-R BS.1770-4 + EBU R128 gating（-70 LUFS absolute + -10 LU relative） |
+| **Spectrum** | 实时频率响应曲线 | FFT + 窗函数（Hann 或 Blackman-Harris），对数频率轴 |
+| **Vectorscope** | L vs R 李萨如图 + Correlation | 相关系数标准 Pearson 公式 |
+
+### 迁移策略
+
+当前网页版 `public/worklets/loudness-meter.js` 是参考实现。**算法是对的，只是要从 JS 翻成 Rust**。这是纯体力活，无算法风险。
+
+**推荐 Rust 侧使用的库**：
+
+- `rustfft` — FFT
+- `biquad` 或手写 — K-weighting 滤波器（二阶 IIR）
+- 无锁环形缓冲：`ringbuf` crate
+
+### 历史数据：ring buffer 下沉到 Rust（**为未来功能铺路**）
+
+现在网页版的历史数据在前端 JS 管理。v1.0 要**把历史 buffer 移到 Rust 侧**：
+
+- Rust 维护一个内存中的 ring buffer（默认容量 ~1 小时）
+- 所有 DSP 输出**同时**：emit 给前端用于画图 + 写入 ring buffer
+- 前端通过专用 command 按需访问历史（快照模式、未来的导出、对比）
+
+**为什么要下沉**：
+
+- 未来的"数据导出"、"两段时间对比"、"长时间分析"都基于这个 buffer，都在 Rust 做更合适。
+- 前端只是 buffer 的一个 consumer，不再持有主数据。
+
+---
+
+## 7. 前后端通信协议
+
+### 三种通信机制的分工
+
+| 场景 | 机制 | 频率 |
+|---|---|---|
+| 前端触发操作（START / 设备切换 / 清除历史等） | `invoke` command | 按需 |
+| 高频音频指标（Peak / M&ST Loudness / Spectrum / Vectorscope） | **Tauri Channel** | ~60 Hz |
+| 慢指标（Integrated / LRA / Max / PSR / PLR） | **Tauri Event** | ~2 Hz |
+| 全局通知（设备列表变化、引擎状态、错误） | **Tauri Event** | 按需 |
+
+### 为什么这么分
+
+**Channel** 用于高频单向流：Tauri 2 新增特性，专为此场景设计，比 Event 轻量。
+
+**Event** 用于低频广播：未来多窗口时多个窗口都能收到，天然适合。
+
+**不全用 Event**：Event 是广播语义，多窗口时每个 listener 都收到全量高频数据会浪费带宽。
+
+**不全用 Channel**：Channel 生命周期绑在单次 command 调用上，不适合全局通知。
+
+### 数据粒度：Rust 永远推"算好的指标"，不推 PCM（**架构硬约束**）
+
+这是**不妥协的**原则。
+
+- ✅ 正确：Rust 算完 LUFS / FFT / Correlation，推给前端的是少量已经成型的数值。
+- ❌ 错误：Rust 把 PCM 推给前端、前端 JS 里算 FFT。
+
+**理由**：
+
+1. 前端是 webview，JS 单线程，大量 DSP 会拖慢 UI。
+2. Phase 2 迁移目标就是消灭前端 DSP（删除 AudioWorklet）。
+3. 协议按"推指标"设计，Phase 1→2 过渡只是 Rust 侧加实现，协议不变。
+
+### Payload 形状（示意）
+
+**Channel `audio-frame`（~60Hz）**：
+
+```typescript
+interface AudioFramePayload {
+  // Per-channel 指标（用数组，不是 {l, r}，支持多声道）
+  peak_db: number[];           // 每通道瞬时峰值
+  peak_hold_db: number[];      // 每通道峰值保持
+  true_peak_max_dbtp: number;  // 全局 TP max
+
+  // Loudness 高频部分
+  lufs_momentary: number;
+  lufs_short_term: number;
+
+  // Vectorscope
+  correlation: number;         // -1 ~ +1
+  vectorscope_points: [number, number][];  // 降采样后的 XY 点
+
+  // Spectrum
+  spectrum_db: number[];       // 已是 dB 值，长度固定（如 512）
+
+  timestamp_ms: number;
+}
+```
+
+**Event `loudness-slow`（~2Hz）**：
+
+```typescript
+interface LoudnessSlowPayload {
+  lufs_integrated: number | null;   // 数据不足时为 null
+  lufs_m_max: number;
+  lufs_st_max: number;
+  lra: number;
+  psr: number;
+  plr: number;
+}
+```
+
+**Event 状态类**：
+
+```typescript
+"device-list-changed"    // payload: DeviceInfo[]
+"engine-state-changed"   // payload: { state: "running"|"stopped"|"error", error?: string }
+"sample-rate-changed"    // payload: number
+```
+
+### 序列化：v1.0 用 JSON，必要时切 MessagePack
+
+- Tauri 默认 JSON 序列化，开发体验好、调试友好。
+- 估算带宽：60Hz × ~4KB = ~240KB/s，JSON 膨胀后 ~500–700KB/s，现代机器无压力。
+- Phase 2 压测发现瓶颈再切 MessagePack（`rmp-serde` + `@msgpack/msgpack`）——几十行代码的事，不是架构级改动。
+
+---
+
+## 8. 设备选择 UX（Windows loopback）
+
+### 核心问题
+
+用户打开软件首次点 START，怎么知道自己监听的是"麦克风"还是"系统正在播的声音"？
+
+### 方案：统一下拉菜单 + 分组
+
+```
+┌─ Input Source ──────────────────────────────┐
+│  🎤 Microphones                              │
+│     Realtek Audio Input                      │
+│     USB Microphone                           │
+│                                              │
+│  🔊 System Outputs (Loopback)                │
+│     Speakers (Realtek) — what's playing     │
+│     Headphones (USB) — what's playing       │
+└──────────────────────────────────────────────┘
+```
+
+### 行为要点
+
+1. **麦克风和 loopback 合在一个下拉**，不做 tab 切换——用户要选的就是"信号源"，底层技术无关。
+2. **Loopback 设备用原名 + "— what's playing" 后缀**，语义立刻清楚。
+3. **首次启动默认选中"默认输出设备的 loopback"**——这是 99% 用户真正想要的。
+4. **热插拔监听**：设备列表动态更新（cpal 有设备变化事件）。
+5. **记住上次选择**：用 `tauri-plugin-store` 持久化，下次启动恢复。
+
+### v1.0 有意跳过的细节
+
+- 采样率协商（用设备默认）
+- exclusive mode（用 shared mode，普通仪表足够）
+- WASAPI event-driven vs polling（用默认 polling）
+- 多声道 UI 细节（见 §5 开放问题）
+
+---
+
+## 9. 平台支持
+
+### v1.0：仅 Windows
+
+- Windows 10 1809 及以上（WebView2 runtime 要求）
+- 用 cpal 的 WASAPI backend 开 loopback
+- 不装任何虚拟声卡
+
+### v1.5：macOS（独立里程碑）
+
+**不进 v1.0 的理由**：
+
+1. macOS 13 及以下**没有**原生 loopback API，必须靠 BlackHole 等虚拟声卡——这等于"消灭虚拟声卡依赖"这个 v1.0 承诺在 macOS 上还兑现不了。
+2. macOS 14.2+ 的 Core Audio Taps API 才是原生解决方案，但需要 Objective-C FFI，`cpal` 支持还在跟进中。
+3. Apple Developer 账号（$99/年）+ 公证（notarization）流程是独立工作量。
+
+**v1.5 实现策略**：
+
+- 新增 `CoreAudioBackend` 实现 `AudioCapture` trait
+- macOS 13 及以下：兼容 BlackHole（检测到该设备时自动归入 loopback 分组）
+- macOS 14+：优先用 Core Audio Taps，BlackHole 装了也当作备选
+- UI 对用户完全透明（还是那个统一下拉菜单）
+
+### 永不支持
+
+- Linux：用户基数小
+- iOS / Android：定位是桌面常驻工具
+
+---
+
+## 10. 分发与更新（v1.0）
+
+| 项目 | v1.0 方案 | 未来 |
+|---|---|---|
+| **安装包格式** | NSIS `.exe` 主发布 + portable `.exe` 附带 | 同 |
+| **代码签名** | **不签名**（Release 页说明 SmartScreen 处理方法） | 有预算再说 |
+| **自动更新** | **不做**，靠 GitHub Release 通知 | v1.1 加 `tauri-plugin-updater`（Ed25519 签名，免费） |
+| **发布渠道** | GitHub Releases | 同 |
+
+### 不签名的代价（用户知情）
+
+- Windows SmartScreen 首次运行会警告（用户点"更多信息 → 仍要运行"）
+- 部分杀毒软件可能拦截（国内 360 / 金山等）
+- README / Release 说明里必须明确写清楚处理方法
+
+### 不做自动更新的理由
+
+- v1.0 用户基数 0，更新机制投入产出比极低
+- Tauri updater 需要 Ed25519 密钥管理、CI 签名步骤、`latest.json` 生成，有初始工程量
+- v1.1 有实际用户反馈后再做更到位
+
+---
+
+## 11. 迁移路径（Phase 0 → Phase 3）
+
+### Phase 0：骨架搭建（1–2 天）
+
+- `legacy-web` 分支保留旧代码 + 打 tag `v0.9.0-web-final`
+- main 分支用 `npm create tauri-app` 起新骨架（或手动加 `src-tauri/`）
+- 把现有 React UI **原封不动**跑进 Tauri 窗口——此时音频层仍是 Web Audio，没变
+- **验收**：双击 .exe 看到现在所有四个面板，功能和网页版一致（仍需虚拟声卡）
+
+### Phase 1：Rust 音频层接入（核心工作）
+
+- Rust 用 `cpal` 开 WASAPI loopback，通过 Tauri Channel 推 PCM 或初步指标到前端
+- 前端 hooks 层加"数据源切换"：Web Audio（保底）↔ Tauri event
+- **DSP 暂时还在前端**（AudioWorklet 继续用），只是输入源换成 Rust 推来的 PCM
+- **验收**：不装虚拟声卡，选系统输出设备就能监测，所有表头正常工作
+
+### Phase 2：DSP 下沉到 Rust（架构正本清源）
+
+- 把 `loudness-meter.js` 翻译成 Rust：K-weighting、400ms / 3s 滑窗、gating
+- FFT 用 `rustfft`，Peak / True Peak / Correlation 全部下沉
+- Rust 只 emit 聚合后的指标值，不再传原始 PCM
+- **删除** `public/worklets/loudness-meter.js`
+- 历史 ring buffer 下沉到 Rust
+- **验收**：CPU 占用明显下降，前端主线程几乎无 DSP 负担
+
+### Phase 3：v1.0 发布
+
+- Windows 安装包打包（NSIS `.exe` + portable `.exe`）
+- 写 Release 说明（含 SmartScreen 处理方法）
+- 更新 README（桌面版介绍 + 旧网页版链接）
+- 在 README 顶部加一行声明指向 `legacy-web` 分支
+- GitHub Pages 继续指向 `legacy-web` 分支的 build
+
+**Phase 2 可延后**：Phase 1 结束时用户可感知的 v1.0 功能已全齐。Phase 2 是架构健康度工作，为 Phase 4+ 铺路。
+
+---
+
+## 12. v1.0 架构为未来预留的扩展点（**写代码时务必遵守**）
+
+| 扩展点 | 在代码里怎么体现 | 为谁服务 |
+|---|---|---|
+| **AudioCapture trait 抽象层** | `src-tauri/src/audio/capture.rs` 定义 trait，`cpal_backend.rs` 实现 | v1.5 macOS 后端 |
+| **PCM 数据结构带 `channels` 字段** | `PcmFrame { samples, channels, sample_rate, timestamp_ns }` | 多声道设备支持 |
+| **面板组件完全自包含** | 每个 Panel 组件不依赖 `App.jsx` 的外部状态，能作为独立窗口内容 | v1.1 浮窗 |
+| **Tauri 多窗口基础铺好** | Rust 侧状态管理和 event 分发按"多个 listener"设计 | v1.1 浮窗 |
+| **PCM tap 点** | 采集后、DSP 前留一个 `broadcast::channel<PcmFrame>`，v1.0 空闲 | 未来录音功能 |
+| **历史 ring buffer 在 Rust** | DSP 输出同时 emit + 写 buffer | 数据导出、对比、长时间分析 |
+
+### 为多窗口做准备的代价
+
+为 v1.1 浮窗做架构准备，会让 v1.0 工作量 **+20% 左右**。但作者明确说"希望成为声音设计师常驻桌面的工具"，投入值得。
+
+**v1.0 UX 仍是单主窗口四合一**——但代码结构是多窗口就绪的。v1.1 加"右键面板 → 在独立窗口打开"功能时不用大改。
+
+---
+
+## 13. 未来路线图（v1.0 后，不排序）
+
+**v1.1**：浮窗 / 多窗口（面板可独立出去、always-on-top、独立窗口配置持久化）
+
+**v1.5**：macOS 支持（BlackHole 兼容 + Core Audio Taps on macOS 14+）
+
+**其他候选**（顺序由未来决定）：
+
+- 多声道 UI 完善（Vectorscope 在多声道下的处理策略）
+- 监测期间录音（订阅 PCM tap，写 WAV）
+- 数据导出（CSV / 截图 / 分析报告）
+- 两段时间对比模式
+- Spectrogram 面板（瀑布图，纯前端新增）
+- 更多指标：相位、RMS、Crest Factor、立体声宽度、频谱一致性等
+- 系统托盘小表（极简模式）
+- OBS 联动 / 导出 overlay
+
+---
+
+## 14. 给 AI Agent 的工作指南
+
+### 开工前必做
+
+1. **先读这个 `architecture.md` 整份文档**，然后再读项目代码。
+2. 读 `src-tauri/Cargo.toml` 和 `package.json` 看当前依赖状态。
+3. 读 `src/ipc/` 和 `src-tauri/src/ipc/` 理解前后端边界。
+
+### 硬性约束（不要违反，违反请立刻停下和用户确认）
+
+1. **Rust 侧绝不往前端推 PCM**，一律推算好的指标。
+2. **前端组件不得直接调 `invoke` 或 `listen`**，所有 Tauri API 走 `src/ipc/`。
+3. **PCM 数据结构必须带 `channels` 字段**，不硬编码 stereo。
+4. **不引入"处理声音"的代码路径**——本项目永不做 EQ / 任何音频处理。
+5. **不改变目录结构**（`audio/` / `dsp/` / `engine/` / `ipc/` 的分层），新功能按关注点归入已有模块。
+
+### 常见任务的推荐处理方式
+
+- **"加一个新表头 / 新指标"**：
+  1. 在 `src-tauri/src/dsp/` 下新建 `<指标>.rs`
+  2. 在 `engine/pipeline.rs` 里把它挂进主循环
+  3. 在 `ipc/types.rs` 加对应 payload 字段
+  4. 前端新建对应 Panel 组件 + 在 `ipc/events.js` 订阅
+- **"改现有 UI 布局"**：只动 `src/components/` 和 `src/App.jsx`，不碰后端。
+- **"性能优化"**：先用 `cargo flamegraph` 或前端 Performance 面板找瓶颈，别瞎优化。
+- **"bug：表头跳动 / 不准确"**：先检查是前端渲染问题还是 Rust 算法问题，办法是看 Rust 端 emit 的原始数值日志。
+
+### 环境与工具
+
+- Rust：stable toolchain
+- Node：LTS
+- 包管理：`npm` + `cargo`
+- 前端构建：Vite
+- Tauri CLI：v2.x
+- 测试：Vitest（前端），`cargo test`（后端）
+
+---
+
+## 15. Changelog（文档本身的修订记录）
+
+| 日期 | 作者 | 变更 |
+|---|---|---|
+| 2026-04 | SounDoer + Claude（grill-me session） | 初版：完成 v1.0 全部架构决策 |
+
+---
+
+## 附录 A：被讨论过但否决的方案汇总
+
+这一节用来防止未来重复讨论同一个问题。每条都对应上文某个决策的反方案。
+
+| 否决项 | 否决原因 | 对应章节 |
+|---|---|---|
+| Electron | 音频路径 GC 抖动风险；严肃音频仪表无先例；包大 | §1 |
+| JUCE | 核心价值是插件生态；本项目不做插件；React UI 全丢弃 | §1 |
+| `wasapi` crate | 只管 Windows，macOS 仍要另学一套 | §5 |
+| 全部用 Event / 全部用 Channel | Event 广播浪费带宽；Channel 生命周期不合适低频通知 | §7 |
+| 推 PCM 让前端算 DSP | 前端卡顿、违背 Phase 2 目标 | §7 |
+| MessagePack（v1.0） | JSON 已够用，过早优化 | §7 |
+| 新开仓库 | 丢失 git 历史、Stars、Issues | §4 |
+| Monorepo（web + desktop 共存） | 过度设计，网页版明确将弃用 | §4 |
+| 保留网页版目录结构 | 不为沉没成本妥协 | §4 |
+| 商店上架 | 沙箱限制影响未来功能自由度 | §0 |
+| 代码签名（v1.0） | ROI 低，0 用户阶段不划算 | §10 |
+| 自动更新（v1.0） | 用户基数 0，工程成本不划算 | §10 |
+| 真实 EQ / 音频处理 | "声音从哪输出"是架构死局；定位偏移；开发量 3-4× | §0, §13 |
+| 离线文件分析 | 定位是实时监测 | §0 |
+| 多设备同时监测 | 非 v1.0 范围 | §0 |
+| Linux 支持 | 用户基数不值得 | §9 |
+
+---
+
+**文档结束。**

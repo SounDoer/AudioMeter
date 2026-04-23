@@ -2,7 +2,7 @@ name: Deploy React UI to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: ["legacy-web"]
     paths:
       - "src/**"
       - "public/**"
