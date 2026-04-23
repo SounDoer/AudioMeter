@@ -529,6 +529,23 @@ interface LoudnessSlowPayload {
 - Tauri updater 需要 Ed25519 密钥管理、CI 签名步骤、`latest.json` 生成，有初始工程量
 - v1.1 有实际用户反馈后再做更到位
 
+### 10.1 GitHub Releases 发版流程（路线 A · 当前采用）
+
+工作流文件：`.github/workflows/release.yml`。
+
+| 触发方式 | 行为 |
+|---|---|
+| `git push origin v*`（**推荐**，`v` 前缀 + SemVer，如 `v0.0.3`） | 在 `windows-latest` 上执行 `npm ci` → `npm run build` → `tauri build --bundles nsis`；上传 **artifact** `windows-nsis`；并用 `softprops/action-gh-release` 为该 tag **创建或更新 GitHub Release**，附加 `src-tauri/target/release/bundle/nsis/*.exe`。 |
+| 仅 Actions 里 **Run workflow**（`workflow_dispatch`） | 同样构建并上传 **artifact**，**不会**自动挂到 Releases（便于试打安装包、不污染版本列表）。 |
+
+**维护者操作清单（对外发版）**：
+
+1. 将 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`（及必要时 `Cargo.lock`）中的 **版本号改成一致**。
+2. 提交并 `git push origin main`。
+3. `git tag -a vX.Y.Z -m "AudioMeter X.Y.Z"`，再 `git push origin vX.Y.Z`。
+4. 等待 **Release (Windows)** 成功；在 **Releases** 核对附件与版本说明。
+5. 在 Release 说明中写明 **§10 不签名 / SmartScreen** 等用户须知（可复制 README 相关句或简短重写）。
+
 ---
 
 ## 11. 迁移路径（Phase 0 → Phase 3）
@@ -573,7 +590,7 @@ interface LoudnessSlowPayload {
 | Phase 0–1：Tauri 壳 + 采集 | 已完成 | `cpal` + WASAPI loopback；前端走 `src/ipc/` |
 | Phase 2：DSP 在 Rust、删 worklet | **核心已完成** | `public/worklets/*` 已移除；Channel 推算好的指标；**全量「~1h ring + command 取历史」尚未做** |
 | §6 历史 ring 在 Rust | **部分** | `engine/meter_pipeline.rs` 内 `LoudnessHistoryRing` 已存在，**响度历史图主缓冲仍在前端**（`useAudioEngine` 按节拍 push）；待 IPC 与 UI 迁移动作为主数据源 |
-| Phase 3：Windows 打包 | **进行中** | `.github/workflows/release.yml`：`workflow_dispatch` + `v*` tag → NSIS 构建；artifact + tag 时上传 Release |
+| Phase 3：Windows 打包 | **进行中** | `.github/workflows/release.yml`；**发版步骤见 §10.1**（`v*` tag → NSIS + Release 附件；`workflow_dispatch` 仅 artifact） |
 | `AudioCapture` trait | 已有骨架 | `audio/capture.rs` + `cpal_backend.rs`（与 `session.rs` 并存，后续可收敛） |
 
 ---
@@ -661,6 +678,7 @@ interface LoudnessSlowPayload {
 | 2026-04 | SounDoer + Claude（grill-me session） | 初版：完成 v1.0 全部架构决策 |
 | 2026-04 | — | §6：Spectrum 明确为「专业频谱软件常用 FFT-RTA 显示」，v1.0 不采用 IEC 61260 滤波器组路径 |
 | 2026-04 | — | §4 目录树：`pipeline.rs` → `meter_pipeline.rs`，补 `dsp/paths.rs`；新增 §11.1 实现进度；补充 Phase 3 `release.yml` 说明 |
+| 2026-04 | — | §10.1：GitHub Releases 发版流程（tag / workflow_dispatch）；README 维护者发版小节 |
 
 ---
 

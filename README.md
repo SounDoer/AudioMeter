@@ -3,6 +3,23 @@
 > **桌面版（Windows）**：`main` 分支正在按 [`docs/architecture.md`](docs/architecture.md) 迁移到 **Tauri 2 + Rust**（系统 WASAPI Loopback、零虚拟声卡为 v1.0 目标）。本地运行桌面壳：`npm install` → `npm run desktop`（需安装 [Rust](https://rustup.rs/) 与 Windows 上 Tauri 前置依赖）。  
 > **网页版**：不再随 `main` 演进。最后冻结的浏览器版代码在 **`legacy-web` 分支**（标签 **`v0.9.0-web-final`**）；GitHub Pages 构建由该分支触发。若仍使用浏览器版，请查看该分支的 README。
 
+### 维护者：发版到 GitHub Releases（Windows · NSIS）
+
+正式对外发安装包时，用 **打 Git 标签** 触发 CI（见 [`docs/architecture.md`](docs/architecture.md) §10.1）：
+
+1. **对齐版本号**：同时修改 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 中的 `version`；在 `src-tauri` 目录执行 `cargo check`，若有变动则一并提交 `Cargo.lock`。
+2. **提交并推送** `main`。
+3. **打附注标签并推送**（示例 `v0.0.3`，请换成真实版本）：
+
+   ```bash
+   git tag -a v0.0.3 -m "AudioMeter 0.0.3"
+   git push origin v0.0.3
+   ```
+
+4. 在仓库 **Actions** 中查看 **Release (Windows)** 运行结果；成功后到 **Releases** 页面下载 NSIS 生成的 `.exe`。
+
+说明：**仅**在 Actions 里手动运行 **Release (Windows)**（`workflow_dispatch`）时，只会得到该次运行的 **Artifacts**，不会自动创建带附件的公开 Release；要给用户装包，请使用 **`v*` 标签推送** 这一条路径。Release 正文建议写明未代码签名时 Windows SmartScreen 的处理方式（见 `docs/architecture.md` §10）。
+
 ---
 
 以下为 **legacy 网页版** 的说明（在 `legacy-web` 分支上仍然适用）。
