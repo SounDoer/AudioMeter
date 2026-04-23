@@ -1,6 +1,6 @@
 //! Block sample peaks (dBFS) from interleaved PCM.
 
-/// 交错 PCM：`channels` 路/帧；峰值表头取 **每帧前两路**（与 v1.0 立体声表头一致；`channels==1` 走 mono）。
+/// Interleaved PCM: `channels` samples per frame; peak meters use **first two channels per frame** (v1.0 stereo-style; `channels==1` uses the mono path).
 pub fn sample_peak_db_interleaved(interleaved: &[f32], channels: u16) -> (f64, f64) {
   let ch = channels.max(1) as usize;
   if ch == 1 {

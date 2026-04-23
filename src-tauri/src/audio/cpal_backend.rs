@@ -1,7 +1,7 @@
-//! cpal / WASAPI loopback：**输出**设备用 `build_input_stream` → loopback；**输入**为麦克风等。
-//! 实现 `AudioCapture`；采集线程与 `CaptureSession` 均在本模块（原 `session.rs` 已并入）。
+//! cpal / WASAPI loopback: **render** devices are opened with `build_input_stream` as loopback; **capture** devices are mics, etc.
+//! Implements `AudioCapture`; the capture thread and `CaptureSession` live here (formerly `session.rs`).
 //!
-//! WASAPI：`render device + input stream` ⇒ `AUDCLNT_STREAMFLAGS_LOOPBACK`。
+//! WASAPI: `render device + input stream` ⇒ `AUDCLNT_STREAMFLAGS_LOOPBACK`.
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{SampleFormat, StreamConfig};
@@ -96,7 +96,7 @@ fn pick_input_by_index(
   Err(format!("Input device index not found: {target}"))
 }
 
-/// 可选源：先系统 **输出**（loopback），再 **输入**（麦克风、线路、虚拟线缆等）。
+/// Selectable sources: system **outputs** (loopback) first, then **inputs** (mics, line in, virtual cables, etc.).
 pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
   let mut out = Vec::new();
 
@@ -392,7 +392,7 @@ impl CaptureSession {
   }
 }
 
-/// 零大小类型：当前唯一后端实现。
+/// Zero-sized type: the only capture backend in v1.0.
 pub struct CpalBackend;
 
 impl AudioCapture for CpalBackend {

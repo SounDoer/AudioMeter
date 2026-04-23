@@ -1,19 +1,19 @@
 /**
- * 全局 UI 可调参数（单文件）——`applyUiPreferencesToDocument` 写入 `--ui-*`；布局与主题与 `layoutPersistKey` 一并持久化。
+ * Single-file tunable UI tokens: `applyUiPreferencesToDocument` writes `--ui-*` CSS variables; layout + theme persist via `layoutPersistKey`.
  *
- * 结构分区（Ctrl+F）：
- * - `layoutPersistKey` — localStorage 键（换键即放弃该键下旧数据）
- * - `layout` — 整体：shell、splitters、三栏拖拽、顶底栏、article、spacingRem、heightsRem、widthsPx、settingsModal
- * - `typography` / `radii` — 字号字重、圆角
- * - `themes` — 按主题 id：`colors` + 可选 `charts`、`spectrumGrid`、`meterGradient` 覆盖
- * - `modules.peak` — 表盘渐变（可被主题覆盖）
- * - `modules.loudness` — History 默认窗长、Metrics 行、响度曲线 charts
+ * Sections (Ctrl+F):
+ * - `layoutPersistKey` — localStorage key (changing key abandons data under the old key)
+ * - `layout` — shell, splitters, three-column drag, header/footer, article, spacingRem, heightsRem, widthsPx, settingsModal
+ * - `typography` / `radii` — type scale, radii
+ * - `themes` — per theme id: `colors` plus optional `charts`, `spectrumGrid`, `meterGradient` overrides
+ * - `modules.peak` — dial gradients (theme may override)
+ * - `modules.loudness` — History default window, Metrics rows, loudness chart tokens
  * - `modules.vector` — Vectorscope charts
- * - `modules.spectrum` — 谱图底网 + Spectrum charts
+ * - `modules.spectrum` — spectrum grid + Spectrum charts
  *
- * 运行时：`getResolvedCharts(prefs, uiMode)` = 三模块 charts 底稿 + `themes[mode].charts` 合并。
+ * Runtime: `getResolvedCharts(prefs, uiMode)` merges module chart defaults with `themes[mode].charts`.
  *
- * 调试：DevTools → `<html>` → Computed 里 `--ui-` 变量。
+ * Debug: DevTools → `<html>` → Computed → filter `--ui-`.
  */
 function setCssVar(name, value) {
   if (value === undefined || value === null) return;
@@ -33,7 +33,7 @@ function mergeShallow(base, override) {
   return { ...base, ...(override || {}) };
 }
 
-/** 三模块图表底稿 → `mergeCharts` 用的扁平形状（不含主题覆盖） */
+/** Flat chart defaults from the three modules for `mergeCharts` (before theme overlay) */
 function chartsBaseFromPrefs(prefs) {
   const { loudness, vector, spectrum } = prefs.modules;
   return {
@@ -44,7 +44,7 @@ function chartsBaseFromPrefs(prefs) {
 }
 
 /**
- * 当前主题下的完整 charts（模块默认 + `themes[mode].charts`）。
+ * Resolved charts for the active theme (module defaults + `themes[mode].charts`).
  * @param {typeof UI_PREFERENCES} prefs
  * @param {"dark"|"light"} mode
  */
@@ -53,56 +53,56 @@ export function getResolvedCharts(prefs = UI_PREFERENCES, mode = "dark") {
   return mergeCharts(chartsBaseFromPrefs(prefs), prefs.themes[m]?.charts);
 }
 
-/** 深色主题：页面/面板/文字/Peak 线/图例/设置弹层等（写入 --ui-color-*） */
+/** Dark theme: page/panel/text/Peak lines/legends/settings (maps to --ui-color-*) */
 const DARK_THEME_COLORS = {
-  pageBg: "#111827", // 整页最外背景
-  textPrimary: "#f3f4f6", // 主标题、正文高对比字
-  textSecondary: "#d1d5db", // 次要说明
-  textMuted: "#b3bcc8", // 再弱一级（小节标题、刻度感）- 提高扫读可见性
-  textSubtle: "#8792a2", // Metrics 标签等更淡字，但避免在暗底上过隐
-  panelBg: "#1f2937", // 各模块圆角卡片背景（Peak、History…）
-  panelBgSplitter: "rgba(31, 41, 55, 0.8)", // 可拖拽分割条背景
-  insetBg: "#111827", // 图表深底（内嵌谱图/History 等区域）
-  insetDark: "rgba(3, 7, 18, 0.9)", // Metrics 每行深色条背景
-  borderDefault: "rgba(51, 65, 85, 0.8)", // Metrics 行边框等
-  divider: "#4b5563", // 页脚竖线、矢量轴等
-  brand: "#3b82f6", // 主按钮「选中」、链接强调
-  brandLight: "#60a5fa", // Logo「Meter」高亮
-  brandHover: "#60a5fa", // 主按钮悬停
-  controlBg: "#374151", // 设置里下拉、Close、主题未选中等灰底
-  peakSamplePeak: "rgba(251, 191, 36, 0.95)", // Peak 条上采样峰值横线
-  peakTruePeak: "rgba(207, 250, 254, 0.7)", // True peak 横线
-  tpMaxText: "#67e8f9", // 底部 TP MAX 数值强调色
+  pageBg: "#111827", // outer page background
+  textPrimary: "#f3f4f6", // primary body/title text
+  textSecondary: "#d1d5db", // secondary copy
+  textMuted: "#b3bcc8", // tertiary (section titles, ticks) — tuned for scan on dark bg
+  textSubtle: "#8792a2", // metrics labels — still readable on dark inset
+  panelBg: "#1f2937", // rounded module cards (Peak, History, …)
+  panelBgSplitter: "rgba(31, 41, 55, 0.8)", // draggable splitter track
+  insetBg: "#111827", // deep plot wells (spectrum / history)
+  insetDark: "rgba(3, 7, 18, 0.9)", // metrics row inset background
+  borderDefault: "rgba(51, 65, 85, 0.8)", // default hairlines / borders
+  divider: "#4b5563", // footer rules, vector axes, etc.
+  brand: "#3b82f6", // primary accent / selected controls
+  brandLight: "#60a5fa", // logo “Meter” accent
+  brandHover: "#60a5fa", // primary hover
+  controlBg: "#374151", // settings selects, Close, unselected theme chips
+  peakSamplePeak: "rgba(251, 191, 36, 0.95)", // sample-peak hairline on peak meter
+  peakTruePeak: "rgba(207, 250, 254, 0.7)", // true-peak hairline
+  tpMaxText: "#67e8f9", // TP MAX readout emphasis
   correlation: {
-    bad: "#f87171", // 相关度偏低
-    mid: "#fcd34d", // 相关度中间
-    good: "#6ee7b7", // 相关度良好
+    bad: "#f87171", // low correlation
+    mid: "#fcd34d", // mid correlation
+    good: "#6ee7b7", // good correlation
   },
-  loudnessTargetLine: "rgba(74, 222, 128, 0.85)", // History 目标 LUFS 虚线（绿）
-  settingsOverlay: "rgba(0, 0, 0, 0.6)", // 设置弹窗背后遮罩
-  settingsRowBg: "rgba(17, 24, 39, 0.7)", // 设置里每一行选项条背景
-  legendHistOnBg: "#374151", // History 图例按钮「开」
+  loudnessTargetLine: "rgba(74, 222, 128, 0.85)", // history target LUFS guide (green)
+  settingsOverlay: "rgba(0, 0, 0, 0.6)", // modal scrim
+  settingsRowBg: "rgba(17, 24, 39, 0.7)", // settings list row background
+  legendHistOnBg: "#374151", // loudness history legend “on” chip
   legendHistOnText: "#f3f4f6",
-  legendHistOffBg: "#111827", // History 图例按钮「关」
+  legendHistOffBg: "#111827", // loudness history legend “off” chip
   legendHistOffText: "#9ca3af",
-  metricRowBg: "rgba(31, 41, 55, 0.28)", // Metrics 普通条目背景（弱化，融入面板）
-  metricRowBorder: "rgba(71, 85, 105, 0.5)", // Metrics 普通条目边框
-  metricRowHoverBg: "rgba(30, 41, 59, 0.42)", // Metrics 按钮 hover 背景
-  metricRowToggleOnBg: "rgba(30, 58, 138, 0.22)", // Metrics 按钮选中背景
-  metricRowToggleOnBorder: "#3b82f6", // Metrics 按钮选中边框
-  metricRowToggleOnGlow: "rgba(59, 130, 246, 0.35)", // Metrics 按钮选中发光
-  metricLabelText: "#94a3b8", // Metrics 名称
-  metricValueText: "#f8fafc", // Metrics 数值
-  metricUnitText: "#cbd5e1", // Metrics 单位
-  metricToggleOnLabelText: "#dbeafe", // Metrics 选中名称
-  metricToggleOnUnitText: "#bfdbfe", // Metrics 选中单位
-  targetLabel: "#d1d5db", // 「Target」文字
-  targetValue: "#4ade80", // History 纵轴目标 LUFS 刻度（绿）
-  controlHoverBg: "#6b7280", // 浅交互控件 hover 底色
-  settingsDialogShadow: "0 25px 50px -12px rgb(0 0 0 / 0.5)", // 设置弹窗阴影
+  metricRowBg: "rgba(31, 41, 55, 0.28)", // metrics row idle background
+  metricRowBorder: "rgba(71, 85, 105, 0.5)", // metrics row border
+  metricRowHoverBg: "rgba(30, 41, 59, 0.42)", // metrics row hover
+  metricRowToggleOnBg: "rgba(30, 58, 138, 0.22)", // metrics row selected background
+  metricRowToggleOnBorder: "#3b82f6", // metrics row selected border
+  metricRowToggleOnGlow: "rgba(59, 130, 246, 0.35)", // metrics row selected glow
+  metricLabelText: "#94a3b8", // metric name
+  metricValueText: "#f8fafc", // metric value
+  metricUnitText: "#cbd5e1", // metric unit
+  metricToggleOnLabelText: "#dbeafe", // metric name when row selected
+  metricToggleOnUnitText: "#bfdbfe", // metric unit when row selected
+  targetLabel: "#d1d5db", // “Target” label
+  targetValue: "#4ade80", // history axis target ticks (green)
+  controlHoverBg: "#6b7280", // light control hover fill
+  settingsDialogShadow: "0 25px 50px -12px rgb(0 0 0 / 0.5)", // settings dialog shadow
 };
 
-/** 浅色主题：语义与 DARK_THEME_COLORS 一一对应，数值为浅底可读配色 */
+/** Light theme: same roles as DARK_THEME_COLORS with light-surface-friendly values */
 const LIGHT_THEME_COLORS = {
   pageBg: "#e5e7eb",
   textPrimary: "#111827",
@@ -127,7 +127,7 @@ const LIGHT_THEME_COLORS = {
     mid: "#ca8a04",
     good: "#15803d",
   },
-  loudnessTargetLine: "rgba(22, 163, 74, 0.8)", // History 目标虚线（绿）
+  loudnessTargetLine: "rgba(22, 163, 74, 0.8)", // history target guide (green)
   settingsOverlay: "rgba(15, 23, 42, 0.35)",
   settingsRowBg: "rgba(243, 244, 246, 0.95)",
   legendHistOnBg: "#e5e7eb",
@@ -146,9 +146,9 @@ const LIGHT_THEME_COLORS = {
   metricToggleOnLabelText: "#1e40af",
   metricToggleOnUnitText: "#1d4ed8",
   targetLabel: "#4b5563",
-  targetValue: "#15803d", // History 纵轴目标刻度（绿）
-  controlHoverBg: "#d3ddea", // 浅交互控件 hover 底色
-  settingsDialogShadow: "0 16px 34px -14px rgb(15 23 42 / 0.28)", // 设置弹窗阴影（浅色更轻）
+  targetValue: "#15803d", // history axis target ticks (green)
+  controlHoverBg: "#d3ddea", // light control hover fill
+  settingsDialogShadow: "0 16px 34px -14px rgb(15 23 42 / 0.28)", // lighter dialog shadow on light chrome
 };
 
 export const UI_PREFERENCES = {
@@ -341,7 +341,7 @@ export const UI_PREFERENCES = {
           shortTermOpacity: 0.95,
           selectionStroke: "#f59e0b",
           selectionStrokeWidth: 1.2,
-          /** History 与纵轴刻度对齐的水平参考线（可写任意 CSS <color>，含 color-mix） */
+          /** Horizontal history guides aligned to the left axis ticks (any CSS <color>, including color-mix) */
           historyGridLineColor: "color-mix(in srgb, var(--ui-color-divider) 10%, transparent)",
         },
       },
@@ -355,7 +355,7 @@ export const UI_PREFERENCES = {
           axisOpacity: 0.8,
           gridDiagInsetPct: 1.2,
           plotRadius: 240,
-          /** 底图对角虚线：CSS <color>；`gridDiagDash` 为 viewBox 0–100 下 stroke-dasharray 用户单位 */
+          /** Diagonal grid dashes: CSS <color>; `gridDiagDash` is stroke-dasharray in 0–100 viewBox user units */
           gridDiagStroke: "color-mix(in srgb, var(--ui-color-divider) 80%, transparent)",
           gridDiagDash: "2.6 3.4",
         },
@@ -381,7 +381,7 @@ export const UI_PREFERENCES = {
   },
 };
 
-/** 与 App 持久化逻辑一致，用于首屏避免主题闪烁 */
+/** Matches App persistence so first paint does not flash the wrong theme */
 export function readPersistedUiMode(prefs) {
   const p = prefs ?? UI_PREFERENCES;
   try {

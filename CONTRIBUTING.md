@@ -56,9 +56,15 @@ npm run check
 
 `npm run version:check` 会校验上述三处一致；CI 中也会运行。若改了 `Cargo.toml` 依赖，请在 `src-tauri` 下执行 `cargo check` 并视情况提交 `Cargo.lock`。
 
+## Code comments
+
+All **comments and docstrings in source code** (`*.rs`, `*.js`, `*.jsx`, `*.css`, etc.) must be **English** (line/block/JSDoc, Rust `///` / `//!`). **String literals** that must match localized OS or UI text (e.g. Windows device name heuristics) are exempt.
+
 ## Git commits and PRs
 
 Use **English only** for commit messages, PR titles/descriptions, and any text that accompanies `git push` (no Chinese in those strings).
+
+**Changelist (CL) descriptions**—the full narrative in a pull request body (or any equivalent review “description” field)—must also be **English** (what changed, why, risks or follow-ups in clear technical prose).
 
 ## CI 说明
 

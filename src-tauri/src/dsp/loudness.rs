@@ -289,7 +289,7 @@ impl LoudnessMeter {
     out
   }
 
-  /// BS.1770 立体声路径：从 **N 路交错** 每帧取前两路再 `push_interleaved`（v1.0；N>2 见架构 §5）。
+  /// BS.1770 stereo path: from **N-channel interleaved** PCM, take the first two samples per frame then `push_interleaved` (v1.0; N>2 see architecture §5).
   pub fn push_interleaved_multichannel(
     &mut self,
     interleaved: &[f32],

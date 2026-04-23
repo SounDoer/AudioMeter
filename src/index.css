@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* 默认值与 uiPreferences.applyUiPreferencesToDocument 注入的 --ui-* 对齐 */
+/* Defaults aligned with --ui-* tokens injected by uiPreferences.applyUiPreferencesToDocument */
 :root {
   font-family: var(--ui-font-sans, Inter, system-ui, sans-serif);
 }
@@ -34,7 +34,7 @@ body {
   );
 }
 
-/* ---------- 语义布局 / 面板（供 App.jsx 使用） ---------- */
+/* ---------- Semantic layout / panels (consumed by App.jsx) ---------- */
 .ui-page {
   display: flex;
   height: 100dvh;
@@ -336,7 +336,7 @@ body {
   background-color: var(--ui-color-brand-hover);
 }
 
-/* 时停回看：主按钮为 LIVE，与 snap 曲线同色并轻微闪烁 */
+/* History snapshot: primary control is LIVE, same hue as snap trace with subtle pulse */
 .ui-pill-accent.ui-pill-live-snap {
   background-color: var(--ui-chart-vectorscope-snap);
   color: #fff;

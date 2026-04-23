@@ -1,55 +1,55 @@
 /**
- * 统一 React UI 内各仪表的坐标映射关系，保证刻度与曲线严格对齐。
+ * Shared scale math for React meters so ticks and plotted curves stay aligned.
  */
 
-/** Peak / Loudness History 共用：-60～+3 dB（与 peak.js MMIN/MMAX 一致） */
+/** Peak / Loudness History shared axis: -60 to +3 dB (matches legacy peak.js MMIN/MMAX). */
 export const PEAK_DB_MIN = -60;
 export const PEAK_DB_MAX = 3;
 const PEAK_DB_RNG = PEAK_DB_MAX - PEAK_DB_MIN;
 
-/** 0..1，+3 dB → 1，-60 dB → 0 */
+/** 0..1 linear position: +3 dB → 1, -60 dB → 0 */
 export function peakFrac(v) {
   const c = Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, Number.isFinite(v) ? v : PEAK_DB_MIN));
   return (c - PEAK_DB_MIN) / PEAK_DB_RNG;
 }
 
 /**
- * 从表盘/坐标区顶部向下的归一化位置：+3 dB → 0，-60 dB → 1。
- * 坐标关系采用同一 (1 - frac) 变换，便于不同组件复用。
+ * Normalized position from the top of the dial/plot: +3 dB → 0, -60 dB → 1.
+ * Same (1 - frac) mapping as other meters for reuse across components.
  */
 export function peakFromTopFrac(v) {
   return 1 - peakFrac(v);
 }
 
-/** Loudness History 独立坐标：-64～0 dB（更贴近常见 LUFS 读数刻度） */
+/** Loudness History axis: -64 to 0 dB (typical LUFS readout range). */
 export const LOUDNESS_DB_MIN = -64;
 export const LOUDNESS_DB_MAX = 0;
 const LOUDNESS_DB_RNG = LOUDNESS_DB_MAX - LOUDNESS_DB_MIN;
 
-/** Loudness：从顶部向下的归一化位置，-3 dB → 0，-64 dB → 1 */
+/** Loudness: from-top normalized position; -3 dB → 0, -64 dB → 1 on this axis. */
 export function loudnessFromTopFrac(v) {
   const c = Math.max(LOUDNESS_DB_MIN, Math.min(LOUDNESS_DB_MAX, Number.isFinite(v) ? v : LOUDNESS_DB_MIN));
   return 1 - (c - LOUDNESS_DB_MIN) / LOUDNESS_DB_RNG;
 }
 
-/** Loudness History SVG viewBox 高度 220 时的 y（与 App buildHistoryPath 一致） */
+/** Loudness History y for SVG viewBox height 220 (must match App buildHistoryPath). */
 export function loudnessHistY(v, viewH = 220) {
   return viewH * loudnessFromTopFrac(v);
 }
 
-/** Spectrum：viewBox 1000×260；dB→y 映射在上下留白内，避免 0 dB 曲线贴 SVG 顶边 */
+/** Spectrum viewBox height 260; dB→y uses top/bottom padding so 0 dB does not hug the SVG edge */
 export const SPEC_VIEW_H = 260;
-/** viewBox 内顶端留白（px），0 dB 映射到该 y 而非 0 */
+/** Top padding inside viewBox (px); 0 dB maps to this y, not 0 */
 export const SPEC_VIEW_TOP_PAD = 10;
-/** viewBox 内底端留白（px） */
+/** Bottom padding inside viewBox (px) */
 export const SPEC_VIEW_BOTTOM_PAD = 4;
 export const SPEC_DB_MIN = -100;
 export const SPEC_DB_MAX = 0;
 const SPEC_DB_RNG = SPEC_DB_MAX - SPEC_DB_MIN;
-/** 用于 dB→y 映射的有效高度（viewBox 高度减去上下留白） */
+/** Plot height for dB→y (viewBox height minus vertical padding) */
 export const SPEC_PLOT_H = SPEC_VIEW_H - SPEC_VIEW_TOP_PAD - SPEC_VIEW_BOTTOM_PAD;
 
-/** React Spectrum：FFT→RTA 呈现层默认参数（与 UI 主题无关，见 App tick） */
+/** React Spectrum: default FFT→RTA display params (not theme tokens; see App tick) */
 export const SPECTRUM_SETTINGS = {
   resolution: "1/24", // 1/3 | 1/6 | 1/12 | 1/24 | 1/48
   weighting: "z", // z | a | c
@@ -69,7 +69,7 @@ export function spectrumDbToYViewBox(d) {
   return SPEC_VIEW_H - SPEC_VIEW_BOTTOM_PAD - ((dd - SPEC_DB_MIN) / SPEC_DB_RNG) * SPEC_PLOT_H;
 }
 
-/** 刻度线相对整个 viewBox 高度的 top 百分比（与 spectrum 曲线同一坐标系） */
+/** Tick line top as fraction of full viewBox height (same coords as spectrum trace) */
 export function spectrumDbToTopFrac(d) {
   return spectrumDbToYViewBox(d) / SPEC_VIEW_H;
 }
@@ -78,7 +78,7 @@ const LOG20 = Math.log10(20);
 const LOG20K = Math.log10(20000);
 const LOG_DEN = LOG20K - LOG20;
 
-/** 频率 Hz → [0,1]，用于对数横轴刻度位置 */
+/** Frequency Hz → [0,1] for log horizontal axis tick placement */
 export function freqToXFrac(f) {
   const ff = Math.max(20, Math.min(20000, f));
   return (Math.log10(ff) - LOG20) / LOG_DEN;
@@ -143,7 +143,7 @@ export function getWeightingDb(freqHz, mode = "z") {
   return 0;
 }
 
-/** Peak 表盘左侧主刻度 */
+/** Peak meter main ticks (left rail) */
 export const PEAK_TICKS = [
   { v: 3, lb: "+3" },
   { v: 0, lb: "0" },
@@ -154,7 +154,7 @@ export const PEAK_TICKS = [
   { v: -60, lb: "-60" },
 ];
 
-/** Loudness History 左侧刻度（dB 值落在 -60～+3 内方可与曲线对齐） */
+/** Loudness History left ticks (keep dB in -60..+3 to align with the drawn curve) */
 export const LOUDNESS_TICKS = [
   { v: 0, lb: "0" },
   { v: -6, lb: "-6" },
@@ -167,7 +167,7 @@ export const LOUDNESS_TICKS = [
   { v: -63, lb: "-63" },
 ];
 
-/** Spectrum 左侧 dB 刻度（-100～0） */
+/** Spectrum left dB ticks (-100 to 0) */
 export const SPEC_Y_TICKS = [
   { v: 0, lb: "0" },
   { v: -20, lb: "-20" },
@@ -176,7 +176,7 @@ export const SPEC_Y_TICKS = [
   { v: -80, lb: "-80" },
 ];
 
-/** Spectrum 频率标签 */
+/** Spectrum frequency axis labels */
 export const FREQ_LABELS = [
   [20, "20"],
   [50, "50"],

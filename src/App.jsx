@@ -425,7 +425,7 @@ export default function App() {
     }
   }, [audioDevices, captureDeviceId]);
 
-  /** 与 Loudness History 快照一致：该模式下读数/矢量/频谱来自选中时刻，并非实时输入 */
+  /** Matches Loudness History snapshot mode: meters/spectrum/vector read the selected instant, not live input */
   useEffect(() => {
     if (!running || selectedOffset < 0) return;
     setStatus("History snapshot (not live input)");

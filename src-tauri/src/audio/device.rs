@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct DeviceInfo {
   pub id: String,
   pub label: String,
-  /// WASAPI loopback on a **render** endpoint (`out:*`). True for real “系统输出在播什么”.
+  /// WASAPI loopback on a **render** endpoint (`out:*`). True when this row is real system-playback monitoring.
   pub is_system_output_monitor: bool,
   /// Legacy: name-based heuristic (Stereo Mix, “loopback” in name, etc.) on **capture** endpoints.
   pub is_loopback: bool,

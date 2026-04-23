@@ -1,6 +1,6 @@
 //! `AudioCapture` abstraction over platform backends (see `docs/architecture.md` §5).
 //!
-//! Concrete **cpal / WASAPI** implementation lives in `cpal_backend.rs`; macOS 可另增实现同一 trait。
+//! Concrete **cpal / WASAPI** implementation lives in `cpal_backend.rs`; macOS may add another impl of the same traits.
 
 use tauri::ipc::Channel;
 use tauri::AppHandle;
@@ -17,12 +17,12 @@ pub struct PcmFrame {
   pub timestamp_ns: u64,
 }
 
-/// 一次活跃采集；从 `AppState` 中移除并 drop 即停流。
+/// One active capture session; removing it from `AppState` and dropping it stops the stream.
 pub trait AudioCaptureSession: Send {
   fn request_clear_peak_history(&self);
 }
 
-/// 设备枚举 + 启动采集（v1.0 仅 `CpalBackend`）；会话以 trait object 返回，避免 `capture` ↔ 具体后端循环依赖。
+/// List devices + start capture (v1.0: `CpalBackend` only); returns a session as a trait object to avoid circular deps between `capture` and concrete backends.
 pub trait AudioCapture: Send + Sync {
   fn list_devices(&self) -> Result<Vec<DeviceInfo>, String>;
 

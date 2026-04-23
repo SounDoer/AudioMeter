@@ -1,8 +1,8 @@
-//! **FFT 型 RTA 显示**（与 `src/scales.js` 的 `buildRtaBands` + 旧版 `spectrumMath` 一致）：与专业频谱插件常见做法一致，
-//! **不是** IEC 61260 计量级逐带滤波器组。产品口径见 **`docs/architecture.md` §6「Spectrum / RTA（实现口径）」**。
+//! **FFT-style RTA display** (aligned with `src/scales.js` `buildRtaBands` + legacy `spectrumMath`): matches common pro-spectrum-plugin practice,
+//! **not** IEC 61260 metrology-grade per-band filter banks. Product wording: **`docs/architecture.md` §6 Spectrum / RTA**.
 //!
-//! 要点：rFFT + Hann → bin 幅度 **2/N（内档）/ 1/N（DC、Nyquist）** 归一后转 dB → 各几何带 `[f_lo, f_hi]` 内线性功率和
-//! 再 `10·log10` → Z/A/C 与平滑。`realfft` 不按 N 缩放，缺少归一会导致 dB 顶满钳位。
+//! Summary: rFFT + Hann → bin magnitudes scaled **2/N (interior) / 1/N (DC, Nyquist)** to dB → linear power sum in each `[f_lo, f_hi]` band
+//! then `10·log10` → Z/A/C weighting and smoothing. `realfft` does not apply N scaling for you; missing normalization clips the dB top.
 
 use realfft::RealFftPlanner;
 use rustfft::num_complex::Complex;
@@ -161,7 +161,7 @@ impl SpectrumEngine {
   }
 
   /// Returns `(smooth_db, peak_db)` for SVG paths on the frontend, or `None` until the ring is full.
-  /// `channels` 路/帧；**N>2** 时每帧取前两路进立体声 FFT 环（与架构文档 v1.0 表头策略一致）。
+  /// `channels` samples per frame; when **N>2**, only the first two channels per frame feed the stereo FFT ring (v1.0 meter policy; see architecture §5).
   pub fn push_interleaved(
     &mut self,
     interleaved: &[f32],
@@ -201,7 +201,7 @@ impl SpectrumEngine {
     let mut mag_db = vec![0.0_f64; bin_count];
     for (k, c) in self.scratch_spec.iter().enumerate() {
       let m = (c.re * c.re + c.im * c.im).sqrt() as f64;
-      // 实信号 rFFT：DC / Nyquist 为实部；内档用 2/N 与单边谱能量惯例一致（满幅正弦主峰 |X|≈N/2）。
+      // Real-signal rFFT: DC / Nyquist bins are real; interior uses 2/N per one-sided energy convention (full-scale sine peak |X|≈N/2).
       let m_norm = if k == 0 || k + 1 == bin_count {
         m / n
       } else {

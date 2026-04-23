@@ -76,14 +76,14 @@ export function LoudnessPanel({
   onHistoryHoverMove,
   onHistoryHoverLeave,
 }) {
-  /** 与左侧纵轴实际绘制的刻度一致；改刻度列表或隐藏规则时只动此处，网格自动对齐 */
+  /** Must match the left-axis ticks actually drawn; change tick list or hide rules here only—grid follows */
   const historyYAxisTicksLabeled = useMemo(
     () => historyYAxisTicks.filter((t) => !(t.v === targetLufs && !hasHistoryData)),
     [historyYAxisTicks, targetLufs, hasHistoryData]
   );
 
   const historyGridRef = useRef(null);
-  /** 各 dB 刻度对应水平线的 top（px），与容器等高对齐整像素，减轻次像素抗锯齿导致的深浅不一 */
+  /** Per-tick horizontal guide line top (px), full container height on whole pixels to reduce subpixel AA banding */
   const [historyGridTopPx, setHistoryGridTopPx] = useState(() => ({}));
 
   useLayoutEffect(() => {
@@ -126,7 +126,7 @@ export function LoudnessPanel({
                   const tickClass = isTargetTick
                     ? "absolute right-0 leading-none font-semibold text-[color:var(--ui-color-target-value)]"
                     : "absolute right-0 leading-none";
-                  /* 顶/底：字往图内长，避免 -50% 顶到标题或顶破圆角；中间刻度与水平线仍用同一纵坐标 */
+                  /* Top/bottom: nudge labels inward so -50% translate does not collide with title or clip rounded corners; mid ticks share y with guides */
                   if (v === LOUDNESS_DB_MAX) {
                     return (
                       <span key={v} className={`${tickClass} top-0`}>
