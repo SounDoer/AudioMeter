@@ -1,4 +1,25 @@
 /**
+ * @typedef {object} MeterHistoryEntry
+ * @property {number} lufsMomentary
+ * @property {number} lufsShortTerm
+ * @property {number} integrated
+ * @property {number} lra
+ * @property {number} truePeakL
+ * @property {number} truePeakR
+ * @property {number} truePeakMaxDbtp
+ * @property {number} sampleLDb
+ * @property {number} sampleRDb
+ * @property {number} samplePeakMaxL
+ * @property {number} samplePeakMaxR
+ * @property {number} correlation
+ * @property {string} vectorscopePath
+ * @property {string} spectrumPath
+ * @property {string} spectrumPeakPath
+ * @property {number[]} spectrumBandCentersHz
+ * @property {number[]} spectrumSmoothDb
+ */
+
+/**
  * @typedef {object} AudioFramePayload
  * @property {number[]} peakDb
  * @property {number[]} peakHoldDb
@@ -18,7 +39,7 @@
  * @property {number[]} spectrumBandCentersHz
  * @property {number[]} spectrumSmoothDb
  * @property {number} timestampMs
- * @property {{ lufsMomentary: number, lufsShortTerm: number }|null|undefined} loudnessHistTick
+ * @property {MeterHistoryEntry|null|undefined} loudnessHistTick
  */
 
 /**

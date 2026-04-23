@@ -1,13 +1,12 @@
 //! PCM → meters; drives `AudioFramePayload` / slow loudness emit rates.
 
-use std::collections::VecDeque;
 use std::time::Instant;
 
 use crate::dsp::loudness::LoudnessBlock;
 use crate::dsp::paths::spectrum_paths_from_bands;
 use crate::dsp::peak::{sample_peak_db_mono, sample_peak_db_stereo};
 use crate::dsp::{LoudnessMeter, SpectrumEngine, VectorscopeState};
-use crate::ipc::types::{AudioFramePayload, LoudnessHistTick, LoudnessSlowPayload};
+use crate::ipc::types::{AudioFramePayload, LoudnessSlowPayload, MeterHistoryBuf, MeterHistoryEntry};
 
 const VS_CAP: usize = 4096;
 const FRAME_EMIT_MS: u128 = 16;
@@ -15,27 +14,6 @@ const SLOW_EMIT_MS: u128 = 500;
 /// Match `useAudioEngine.js` HIST_PUSH_MS / `App.jsx` HIST_SAMPLE_SEC cadence (~10 Hz).
 const HIST_EMIT_MS: u128 = 95;
 const HIST_RING_CAP: usize = 36_000;
-
-pub struct LoudnessHistoryRing {
-  cap: usize,
-  pub q: VecDeque<(f32, f32)>,
-}
-
-impl LoudnessHistoryRing {
-  pub fn new(cap: usize) -> Self {
-    Self {
-      cap,
-      q: VecDeque::with_capacity(cap.min(1024)),
-    }
-  }
-
-  pub fn push(&mut self, m: f32, st: f32) {
-    if self.q.len() >= self.cap {
-      self.q.pop_front();
-    }
-    self.q.push_back((m, st));
-  }
-}
 
 pub struct MeterPipeline {
   channels: u16,
@@ -49,7 +27,9 @@ pub struct MeterPipeline {
   m_max: f64,
   st_max: f64,
   tp_max_db: f64,
-  history: LoudnessHistoryRing,
+  sample_peak_max_l: f64,
+  sample_peak_max_r: f64,
+  meter_history: MeterHistoryBuf,
   t0: Instant,
   last_frame_emit: Instant,
   last_slow_emit: Instant,
@@ -61,7 +41,7 @@ pub struct MeterPipeline {
 }
 
 impl MeterPipeline {
-  pub fn new(sample_rate: u32, channels: u16) -> Self {
+  pub fn new(sample_rate: u32, channels: u16, meter_history: MeterHistoryBuf) -> Self {
     let sr = sample_rate as f64;
     Self {
       channels,
@@ -75,7 +55,9 @@ impl MeterPipeline {
       m_max: f64::NEG_INFINITY,
       st_max: f64::NEG_INFINITY,
       tp_max_db: f64::NEG_INFINITY,
-      history: LoudnessHistoryRing::new(HIST_RING_CAP),
+      sample_peak_max_l: f64::NEG_INFINITY,
+      sample_peak_max_r: f64::NEG_INFINITY,
+      meter_history,
       t0: Instant::now(),
       last_frame_emit: Instant::now(),
       last_slow_emit: Instant::now(),
@@ -87,14 +69,27 @@ impl MeterPipeline {
     }
   }
 
-  /// Clears loudness history ring and peak maxima (UI Clear / architecture §6).
+  /// Clears shared history deque, peak maxima, loudness/spectrum/vectorscope DSP state (UI Clear).
   pub fn clear_peak_and_history(&mut self) {
-    self.history.q.clear();
+    if let Ok(mut g) = self.meter_history.lock() {
+      g.clear();
+    }
     self.pending_loudness_hist = None;
     self.last_hist_emit = Instant::now() - std::time::Duration::from_millis(200);
     self.m_max = f64::NEG_INFINITY;
     self.st_max = f64::NEG_INFINITY;
     self.tp_max_db = f64::NEG_INFINITY;
+    self.sample_peak_max_l = f64::NEG_INFINITY;
+    self.sample_peak_max_r = f64::NEG_INFINITY;
+    self.loudness.reset();
+    self.spectrum.reset();
+    self.vs.reset();
+    self.vs_l.clear();
+    self.vs_r.clear();
+    self.last_loudness = None;
+    self.last_band_centers.clear();
+    self.last_spectrum_smooth.clear();
+    self.last_spectrum_peak.clear();
   }
 
   fn feed_vs_mono(&mut self, mono: &[f32]) {
@@ -156,6 +151,13 @@ impl MeterPipeline {
     } else {
       sample_peak_db_stereo(interleaved)
     };
+
+    if sl.is_finite() {
+      self.sample_peak_max_l = self.sample_peak_max_l.max(sl);
+    }
+    if sr.is_finite() {
+      self.sample_peak_max_r = self.sample_peak_max_r.max(sr);
+    }
 
     let mut slow_out = None;
     if self.last_slow_emit.elapsed().as_millis() >= SLOW_EMIT_MS {
@@ -240,10 +242,36 @@ impl MeterPipeline {
     let peak_db = vec![sl, sr];
     let peak_hold_db = peak_db.clone();
 
-    let loudness_hist_tick = self.pending_loudness_hist.take().map(|(m, st)| LoudnessHistTick {
-      lufs_momentary: m,
-      lufs_short_term: st,
-    });
+    let loudness_hist_tick = if let Some((m, st)) = self.pending_loudness_hist.take() {
+      let entry = MeterHistoryEntry {
+        lufs_momentary: m,
+        lufs_short_term: st,
+        integrated: integ,
+        lra,
+        true_peak_l: tpl,
+        true_peak_r: tpr,
+        true_peak_max_dbtp: self.tp_max_db,
+        sample_l_db: sl,
+        sample_r_db: sr,
+        sample_peak_max_l: self.sample_peak_max_l,
+        sample_peak_max_r: self.sample_peak_max_r,
+        correlation: corr,
+        vectorscope_path: vpath.clone(),
+        spectrum_path: spath.clone(),
+        spectrum_peak_path: spk.clone(),
+        spectrum_band_centers_hz: centers.clone(),
+        spectrum_smooth_db: smooth.clone(),
+      };
+      if let Ok(mut g) = self.meter_history.lock() {
+        while g.len() >= HIST_RING_CAP {
+          g.pop_front();
+        }
+        g.push_back(entry.clone());
+      }
+      Some(entry)
+    } else {
+      None
+    };
 
     let frame = AudioFramePayload {
       peak_db,
@@ -288,7 +316,6 @@ impl MeterPipeline {
       return;
     }
     self.last_hist_emit = now;
-    self.history.push(lb.momentary as f32, lb.short_term as f32);
     self.pending_loudness_hist = Some((lb.momentary, lb.short_term));
   }
 }

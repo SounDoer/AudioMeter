@@ -21,6 +21,7 @@ pub fn run() {
       ipc::commands::audio_start,
       ipc::commands::audio_stop,
       ipc::commands::clear_audio_history,
+      ipc::commands::get_meter_history,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

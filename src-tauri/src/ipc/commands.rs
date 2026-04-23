@@ -4,7 +4,7 @@ use tauri::{AppHandle, State};
 
 use crate::audio::device::DeviceInfo;
 use crate::audio::session::{build_device_list, CaptureSession};
-use crate::ipc::types::AudioFramePayload;
+use crate::ipc::types::{AudioFramePayload, MeterHistoryEntry};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -19,14 +19,32 @@ pub fn audio_start(
   on_frame: tauri::ipc::Channel<AudioFramePayload>,
   state: State<'_, AppState>,
 ) -> Result<(), String> {
-  let mut g = state
-    .inner()
-    .capture
-    .lock()
-    .map_err(|_| "state lock poisoned".to_string())?;
-  *g = None;
-  let session = CaptureSession::start(&device_id, on_frame, app)?;
-  *g = Some(session);
+  {
+    let mut g = state
+      .inner()
+      .capture
+      .lock()
+      .map_err(|_| "state lock poisoned".to_string())?;
+    *g = None;
+  }
+  {
+    let mut h = state
+      .inner()
+      .meter_history
+      .lock()
+      .map_err(|_| "meter history lock poisoned".to_string())?;
+    h.clear();
+  }
+  let mh = state.inner().meter_history.clone();
+  let session = CaptureSession::start(&device_id, on_frame, app, mh)?;
+  {
+    let mut g = state
+      .inner()
+      .capture
+      .lock()
+      .map_err(|_| "state lock poisoned".to_string())?;
+    *g = Some(session);
+  }
   Ok(())
 }
 
@@ -41,7 +59,7 @@ pub fn audio_stop(state: State<'_, AppState>) -> Result<(), String> {
   Ok(())
 }
 
-/// Clear loudness history ring + peak maxima on the capture thread (matches UI Clear for native path).
+/// Clear meter history deque + DSP state on the capture thread (matches UI Clear for native path).
 #[tauri::command]
 pub fn clear_audio_history(state: State<'_, AppState>) -> Result<(), String> {
   let g = state
@@ -53,4 +71,15 @@ pub fn clear_audio_history(state: State<'_, AppState>) -> Result<(), String> {
     sess.request_clear_peak_history();
   }
   Ok(())
+}
+
+/// Full meter history ring (export / reconnect); same rows as `loudness_hist_tick` stream.
+#[tauri::command]
+pub fn get_meter_history(state: State<'_, AppState>) -> Result<Vec<MeterHistoryEntry>, String> {
+  let g = state
+    .inner()
+    .meter_history
+    .lock()
+    .map_err(|_| "meter history lock poisoned".to_string())?;
+  Ok(g.iter().cloned().collect())
 }

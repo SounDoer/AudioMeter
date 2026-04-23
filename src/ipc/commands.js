@@ -26,3 +26,8 @@ export function stopAudioCapture() {
 export function clearAudioHistory() {
   return invoke("clear_audio_history");
 }
+
+/** @returns {Promise<import("./types.js").MeterHistoryEntry[]>} */
+export function getMeterHistory() {
+  return invoke("get_meter_history");
+}

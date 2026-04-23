@@ -10,7 +10,7 @@ use std::thread::JoinHandle;
 use super::device::DeviceInfo;
 
 use crate::engine::MeterPipeline;
-use crate::ipc::types::AudioFramePayload;
+use crate::ipc::types::{AudioFramePayload, MeterHistoryBuf};
 use tauri::Emitter;
 
 fn is_name_heuristic_loopback(name: &str) -> bool {
@@ -222,6 +222,7 @@ struct RunCaptureArgs {
   app: tauri::AppHandle,
   stop_rx: std::sync::mpsc::Receiver<()>,
   clear_peak_history: Arc<AtomicBool>,
+  meter_history: MeterHistoryBuf,
 }
 
 fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
@@ -234,6 +235,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     app,
     stop_rx,
     clear_peak_history,
+    meter_history,
   } = args;
   let stream_config = StreamConfig {
     channels,
@@ -244,7 +246,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
   let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(256);
 
   let bridge = std::thread::spawn(move || {
-    let mut pipeline = MeterPipeline::new(sample_rate, channels);
+    let mut pipeline = MeterPipeline::new(sample_rate, channels, meter_history);
     while let Ok(chunk) = audio_rx.recv() {
       if clear_peak_history.load(Ordering::Acquire) {
         clear_peak_history.store(false, Ordering::Release);
@@ -347,6 +349,7 @@ impl CaptureSession {
     device_id: &str,
     frame_tx: tauri::ipc::Channel<AudioFramePayload>,
     app: tauri::AppHandle,
+    meter_history: MeterHistoryBuf,
   ) -> Result<Self, String> {
     let (device, supported) = resolve_device(device_id)?;
     let sample_rate = supported.sample_rate().0;
@@ -367,6 +370,7 @@ impl CaptureSession {
           app,
           stop_rx,
           clear_peak_history: clear_worker,
+          meter_history,
         })
       })
       .map_err(|e| e.to_string())?;

@@ -52,6 +52,7 @@ fn init_true_peak_filters() -> (usize, usize, Vec<Vec<f64>>) {
 }
 
 pub struct LoudnessMeter {
+  sample_rate: f64,
   kf: KWeightStereo,
   bsz: usize,
   ba: [f64; 2],
@@ -79,6 +80,7 @@ impl LoudnessMeter {
     let (tp_t, tp_p, tp_ph) = init_true_peak_filters();
     let tp_h = [vec![0.0_f64; tp_t], vec![0.0_f64; tp_t]];
     Self {
+      sample_rate: sr,
       kf: KWeightStereo::new(sr),
       bsz: bsz.max(1),
       ba: [0.0, 0.0],
@@ -97,6 +99,12 @@ impl LoudnessMeter {
       tp_h,
       tp_wp: [0, 0],
     }
+  }
+
+  /// Full meter state reset (UI Clear): K-weighting blocks, gating buffers, true-peak accumulators.
+  pub fn reset(&mut self) {
+    let sr = self.sample_rate;
+    *self = LoudnessMeter::new(sr);
   }
 
   fn tp_sample(&mut self, x: f64, ch: usize) -> f64 {

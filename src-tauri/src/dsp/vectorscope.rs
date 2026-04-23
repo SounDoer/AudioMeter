@@ -9,6 +9,10 @@ impl VectorscopeState {
     Self { extent_hold: 0.02 }
   }
 
+  pub fn reset(&mut self) {
+    *self = Self::new();
+  }
+
   /// Returns `(correlation, svg_path_d)` using the same geometry as the browser tick.
   pub fn process(&mut self, l: &[f32], r: &[f32]) -> (f64, String) {
     if l.is_empty() || r.is_empty() {

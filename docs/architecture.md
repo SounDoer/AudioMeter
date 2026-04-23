@@ -588,8 +588,8 @@ interface LoudnessSlowPayload {
 | 文档章节 / Phase | 状态 | 说明 |
 |---|---|---|
 | Phase 0–1：Tauri 壳 + 采集 | 已完成 | `cpal` + WASAPI loopback；前端走 `src/ipc/` |
-| Phase 2：DSP 在 Rust、删 worklet | **核心已完成** | `public/worklets/*` 已移除；Channel 推算好的指标；**全量「~1h ring + command 取历史」尚未做** |
-| §6 历史 ring 在 Rust | **响度主数据已在 Rust** | `LoudnessHistoryRing` 在 `meter_pipeline` 中按 ~95ms 节流写入；经 Channel `loudnessHistTick` 同步到前端镜像供 SVG；Clear 调用 `clear_audio_history` 清空 ring 与峰值统计。**其它快照轨**（spectrum / vectorscope / corr 等）仍为前端按帧缓冲，与响度历史长度可不一致（快照按时间对齐） |
+| Phase 2：DSP 在 Rust、删 worklet | **核心已完成** | `public/worklets/*` 已移除；Channel 推算好的指标；**meter 历史 ring** 在 Rust（`MeterHistoryEntry` + `get_meter_history`） |
+| §6 历史 ring 在 Rust | **主 ring 在 Rust（对齐快照）** | `VecDeque<MeterHistoryEntry>` 经 `Arc<Mutex<…>>` 共享；~95ms 一行，含响度 + spectrum/vectorscope/corr 与 `audioSnap` 所需字段；Channel `loudnessHistTick` 推送最新行；`get_meter_history` 全量拉取；Clear 清空 deque 并重置 Loudness/Spectrum/Vectorscope |
 | Phase 3：Windows 打包 | **进行中** | `.github/workflows/release.yml`；**发版步骤见 §10.1**（`v*` tag → NSIS + Release 附件；`workflow_dispatch` 仅 artifact） |
 | `AudioCapture` trait | 已有骨架 | `audio/capture.rs` + `cpal_backend.rs`（与 `session.rs` 并存，后续可收敛） |
 
@@ -680,6 +680,7 @@ interface LoudnessSlowPayload {
 | 2026-04 | — | §4 目录树：`pipeline.rs` → `meter_pipeline.rs`，补 `dsp/paths.rs`；新增 §11.1 实现进度；补充 Phase 3 `release.yml` 说明 |
 | 2026-04 | — | §10.1：GitHub Releases 发版流程（tag / workflow_dispatch）；README 维护者发版小节 |
 | 2026-04 | — | §11.1：响度历史主 ring 在 Rust，Channel `loudnessHistTick` + `clear_audio_history` |
+| 2026-04 | — | `MeterHistoryEntry` 统一 ring；`get_meter_history`；Clear 级联重置 LoudnessMeter / SpectrumEngine / VS |
 
 ---
 

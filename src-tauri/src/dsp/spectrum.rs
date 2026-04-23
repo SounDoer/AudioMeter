@@ -253,4 +253,10 @@ impl SpectrumEngine {
   pub fn band_centers(&self) -> Vec<f64> {
     self.bands.iter().map(|(_, _, c)| *c).collect()
   }
+
+  /// Reset FFT ring, band energies, and peak-hold (UI Clear).
+  pub fn reset(&mut self) {
+    let sr = self.sample_rate;
+    *self = SpectrumEngine::new(sr);
+  }
 }

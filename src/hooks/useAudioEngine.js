@@ -4,6 +4,23 @@ import { listAudioDevices, startAudioCapture, stopAudioCapture } from "../ipc/co
 import { onLoudnessSlow } from "../ipc/events.js";
 import { isTauri } from "../ipc/env.js";
 
+/** @param {import("../ipc/types.js").MeterHistoryEntry} row @param {{ defaultSampleRate?: number }} pick */
+function buildSpectrumDataSnapshot(row, pick) {
+  const centers = row.spectrumBandCentersHz || [];
+  const dbList = row.spectrumSmoothDb || [];
+  const nyquist = (pick.defaultSampleRate || 48000) * 0.5;
+  const minF = Math.max(20, SPECTRUM_SETTINGS.minHz || 20);
+  const maxF = Math.max(minF * 1.2, Math.min(SPECTRUM_SETTINGS.maxHz || 20000, nyquist));
+  const bands = buildRtaBands(minF, maxF, SPECTRUM_SETTINGS.resolution || "1/6");
+  if (bands.length === dbList.length && dbList.length > 0) {
+    return { bands, dbList: [...dbList] };
+  }
+  return {
+    bands: centers.map((fc) => ({ fLow: fc, fHigh: fc, fCenter: fc })),
+    dbList: [...dbList],
+  };
+}
+
 export function useAudioEngine({
   running,
   captureDeviceId = "default",
@@ -97,6 +114,44 @@ export function useAudioEngine({
             ? "Monitoring system playback (loopback)"
             : "Monitoring audio input";
 
+          /** @param {import("../ipc/types.js").MeterHistoryEntry} row */
+          const pushHistorySnapFromRow = (row) => {
+            const hm = Number.isFinite(row.lufsMomentary) ? row.lufsMomentary : -Infinity;
+            const hst = Number.isFinite(row.lufsShortTerm) ? row.lufsShortTerm : -Infinity;
+            loudnessHistRef.current.push({ m: hm, st: hst });
+            if (loudnessHistRef.current.length > histMaxSamples) loudnessHistRef.current.shift();
+
+            const snap = {
+              momentary: hm,
+              shortTerm: hst,
+              integrated: Number.isFinite(row.integrated) ? row.integrated : -Infinity,
+              lra: Number.isFinite(row.lra) ? row.lra : -Infinity,
+              truePeakL: Number.isFinite(row.truePeakL) ? row.truePeakL : -Infinity,
+              truePeakR: Number.isFinite(row.truePeakR) ? row.truePeakR : -Infinity,
+              tpMax: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
+              samplePeak: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
+              tpL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
+              tpR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
+              sampleL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
+              sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
+              samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
+              samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
+              correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
+            };
+            audioSnapRef.current.push(snap);
+            if (audioSnapRef.current.length > histMaxSamples) audioSnapRef.current.shift();
+
+            const c = Number.isFinite(row.correlation) ? row.correlation : 0;
+            corrSnapRef.current.push(c);
+            if (corrSnapRef.current.length > histMaxSamples) corrSnapRef.current.shift();
+            vectorSnapRef.current.push(row.vectorscopePath || "");
+            if (vectorSnapRef.current.length > histMaxSamples) vectorSnapRef.current.shift();
+            spectrumSnapRef.current.push(row.spectrumPath || "");
+            if (spectrumSnapRef.current.length > histMaxSamples) spectrumSnapRef.current.shift();
+            spectrumDataSnapRef.current.push(buildSpectrumDataSnapshot(row, pick));
+            if (spectrumDataSnapRef.current.length > histMaxSamples) spectrumDataSnapRef.current.shift();
+          };
+
           const applyFrame = (f) => {
             if (!mounted) return;
             frameRef.current += 1;
@@ -125,25 +180,12 @@ export function useAudioEngine({
                 correlation: Number.isFinite(f.correlation) ? f.correlation : prev.correlation,
               };
               if (histTick != null) {
-                const hm = Number.isFinite(histTick.lufsMomentary) ? histTick.lufsMomentary : -Infinity;
-                const hst = Number.isFinite(histTick.lufsShortTerm) ? histTick.lufsShortTerm : -Infinity;
-                loudnessHistRef.current.push({ m: hm, st: hst });
-                if (loudnessHistRef.current.length > histMaxSamples) loudnessHistRef.current.shift();
-                audioSnapRef.current.push({ ...nextAudio });
-                if (audioSnapRef.current.length > histMaxSamples) audioSnapRef.current.shift();
+                pushHistorySnapFromRow(histTick);
               }
               return nextAudio;
             });
 
-            const corr = Number.isFinite(f.correlation) ? f.correlation : 0;
-            corrSnapRef.current.push(corr);
-            if (corrSnapRef.current.length > histMaxSamples) corrSnapRef.current.shift();
-            vectorSnapRef.current.push(f.vectorscopePath || "");
-            if (vectorSnapRef.current.length > histMaxSamples) vectorSnapRef.current.shift();
-
             if (!SPECTRUM_SETTINGS.freeze) {
-              spectrumSnapRef.current.push(f.spectrumPath || "");
-              if (spectrumSnapRef.current.length > histMaxSamples) spectrumSnapRef.current.shift();
               const centers = f.spectrumBandCentersHz || [];
               const dbList = f.spectrumSmoothDb || [];
               const nyquist = (pick.defaultSampleRate || 48000) * 0.5;
@@ -158,8 +200,6 @@ export function useAudioEngine({
                       dbList: [...dbList],
                     };
               spectrumDataRef.current = spectrumData;
-              spectrumDataSnapRef.current.push(spectrumData);
-              if (spectrumDataSnapRef.current.length > histMaxSamples) spectrumDataSnapRef.current.shift();
               if (selectedOffsetRef.current < 0 && shouldPaintUi) {
                 setSpectrumPath(f.spectrumPath || "");
                 setSpectrumPeakPath(f.spectrumPeakPath || "");
@@ -167,9 +207,7 @@ export function useAudioEngine({
               }
             }
 
-            const nextHist = loudnessHistRef.current;
-            if (nextHist.length > histMaxSamples) nextHist.shift();
-            histRef.current = nextHist;
+            histRef.current = loudnessHistRef.current;
             if (selectedOffsetRef.current < 0 && shouldPaintUi) {
               setHistoryPathM("");
               setHistoryPathST("");
