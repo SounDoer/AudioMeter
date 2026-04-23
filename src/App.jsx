@@ -21,6 +21,11 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { isTauri } from "./ipc/env.js";
 import { clearAudioHistory, listAudioDevices } from "./ipc/commands.js";
 import { onDeviceListChanged } from "./ipc/events.js";
+import {
+  loadCaptureDeviceId,
+  readCaptureDeviceIdFromLocalStorage,
+  saveCaptureDeviceId,
+} from "./ipc/capturePrefs.js";
 import { PeakPanel } from "./components/panels/PeakPanel";
 import { LoudnessPanel } from "./components/panels/LoudnessPanel";
 import { SpectrumPanel } from "./components/panels/SpectrumPanel";
@@ -29,8 +34,6 @@ import { VectorscopePanel } from "./components/panels/VectorscopePanel";
 const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 const HISTORY_TIME_TICK_STEPS = 4;
-const CAPTURE_DEVICE_STORE_KEY = "audiometer.captureDeviceId";
-
 export default function App() {
   const buildVersionRaw = import.meta.env.VITE_APP_VERSION || "dev";
   const buildVersion = buildVersionRaw === "dev" ? "dev" : buildVersionRaw.slice(0, 7);
@@ -40,14 +43,7 @@ export default function App() {
 
   const [running, setRunning] = useState(false);
   const [audioDevices, setAudioDevices] = useState([]);
-  const [captureDeviceId, setCaptureDeviceId] = useState(() => {
-    try {
-      const raw = localStorage.getItem(CAPTURE_DEVICE_STORE_KEY);
-      if (raw === "default") return "default";
-      if (raw && /^(in|out):\d+$/.test(raw)) return raw;
-    } catch (_) {}
-    return "default";
-  });
+  const [captureDeviceId, setCaptureDeviceId] = useState(() => readCaptureDeviceIdFromLocalStorage());
   const [selectedOffset, setSelectedOffset] = useState(-1);
   const [historyWindowSec, setHistoryWindowSec] = useState(UI_PREFERENCES.modules.loudness.history.defaultWindowSec);
   const [historyOffsetSec, setHistoryOffsetSec] = useState(0);
@@ -394,6 +390,17 @@ export default function App() {
 
   useEffect(() => {
     if (!isTauri()) return;
+    let cancelled = false;
+    void loadCaptureDeviceId().then((id) => {
+      if (!cancelled) setCaptureDeviceId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) return;
     let disposed = false;
     let unlisten = () => {};
     (async () => {
@@ -414,9 +421,7 @@ export default function App() {
     if (captureDeviceId === "default") return;
     if (!audioDevices.some((d) => d.id === captureDeviceId)) {
       setCaptureDeviceId("default");
-      try {
-        localStorage.setItem(CAPTURE_DEVICE_STORE_KEY, "default");
-      } catch (_) {}
+      void saveCaptureDeviceId("default");
     }
   }, [audioDevices, captureDeviceId]);
 
@@ -478,9 +483,7 @@ export default function App() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setCaptureDeviceId(v);
-                    try {
-                      localStorage.setItem(CAPTURE_DEVICE_STORE_KEY, v);
-                    } catch (_) {}
+                    void saveCaptureDeviceId(v);
                   }}
                 >
                   <option value="default">Automatic (default system output)</option>

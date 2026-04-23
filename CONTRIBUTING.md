@@ -22,12 +22,14 @@ npm run build
 npm run desktop
 ```
 
-Windows NSIS 安装包（与 CI `release.yml` 一致）：
+Windows 发布构建（与 CI `release.yml` 一致：NSIS 安装包 + `target/release/app.exe` 便携主程序）：
 
 ```bash
 npm run build
 npm run desktop:release-nsis
 ```
+
+产物：`src-tauri/target/release/bundle/nsis/` 下的安装程序，以及 `src-tauri/target/release/app.exe`（便携版依赖本机已安装 WebView2，与安装包相同）。
 
 Rust（在 `src-tauri` 目录下）：
 

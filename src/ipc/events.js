@@ -22,3 +22,23 @@ export async function onDeviceListChanged(handler) {
     handler(e.payload);
   });
 }
+
+/**
+ * @param {(payload: import("./types.js").EngineStateChangedPayload) => void} handler
+ * @returns {Promise<() => void>}
+ */
+export async function onEngineStateChanged(handler) {
+  return listen("engine-state-changed", (e) => {
+    handler(e.payload);
+  });
+}
+
+/**
+ * @param {(sampleRateHz: number) => void} handler
+ * @returns {Promise<() => void>}
+ */
+export async function onSampleRateChanged(handler) {
+  return listen("sample-rate-changed", (e) => {
+    handler(e.payload);
+  });
+}

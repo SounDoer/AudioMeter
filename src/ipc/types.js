@@ -52,4 +52,10 @@
  * @property {number|undefined} plr
  */
 
+/**
+ * @typedef {object} EngineStateChangedPayload
+ * @property {"running"|"stopped"|"error"} state
+ * @property {string|undefined} error
+ */
+
 export {};

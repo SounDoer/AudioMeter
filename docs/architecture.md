@@ -179,6 +179,7 @@ AudioMeter/
 │   ├── ipc/                         # ★ 前后端通信层（唯一入口）
 │   │   ├── commands.js              # 封装所有 invoke 调用
 │   │   ├── events.js                # 封装所有 listen / Channel 订阅
+│   │   ├── capturePrefs.js          # 采集设备 id：`tauri-plugin-store`（桌面）/ localStorage（浏览器）
 │   │   └── types.js                 # 与 Rust payload 对齐的 JSDoc / 常量（可选）
 │   ├── styles/
 │   └── utils/                       # 纯函数工具（dB 转换、格式化等）
@@ -202,7 +203,7 @@ AudioMeter/
 │       │   ├── mod.rs
 │       │   ├── capture.rs           # AudioCapture trait（抽象层）
 │       │   ├── cpal_backend.rs      # cpal 具体实现（Windows loopback）
-│       │   └── device.rs            # 设备枚举、选择、热插拔
+│       │   └── device.rs            # DeviceInfo 元数据（与前端 JSON 对齐）
 │       │
 │       ├── dsp/                     # 【DSP 计算层】
 │       │   ├── mod.rs
@@ -344,13 +345,13 @@ pub struct PcmFrame {
 
 - `rustfft` — FFT
 - `biquad` 或手写 — K-weighting 滤波器（二阶 IIR）
-- 无锁环形缓冲：`ringbuf` crate
+- 无锁环形缓冲：`ringbuf` crate（**可选**；当前实现未引入，若以后在回调线程与 worker 间硬分核再考虑）
 
 ### 历史数据：ring buffer 下沉到 Rust（**为未来功能铺路**）
 
 现在网页版的历史数据在前端 JS 管理。v1.0 要**把历史 buffer 移到 Rust 侧**：
 
-- Rust 维护一个内存中的 ring buffer（默认容量 ~1 小时）
+- Rust 维护一个内存中的 ring buffer（当前 `HIST_RING_CAP = 36000` 行、约 **95 ms** 一行，总时长约 **57 分钟** 量级，与前端历史窗默认尺度一致，可调）
 - 所有 DSP 输出**同时**：emit 给前端用于画图 + 写入 ring buffer
 - 前端通过专用 command 按需访问历史（快照模式、未来的导出、对比）
 
@@ -438,8 +439,8 @@ interface LoudnessSlowPayload {
 
 ```typescript
 "device-list-changed"    // payload: DeviceInfo[]
-"engine-state-changed"   // payload: { state: "running"|"stopped"|"error", error?: string }
-"sample-rate-changed"    // payload: number
+"engine-state-changed"   // payload: { state: "running"|"stopped"|"error", error?: string } — `audio_start` / `audio_stop` 成功时由 Rust emit（`src-tauri/src/ipc/commands.rs`）
+"sample-rate-changed"    // payload: number — 当前设备默认采样率（Hz），在 `audio_start` 成功后 emit
 ```
 
 ### 序列化：v1.0 用 JSON，必要时切 MessagePack
@@ -475,8 +476,8 @@ interface LoudnessSlowPayload {
 1. **麦克风和 loopback 合在一个下拉**，不做 tab 切换——用户要选的就是"信号源"，底层技术无关。
 2. **Loopback 设备用原名 + "— what's playing" 后缀**，语义立刻清楚。
 3. **首次启动默认选中"默认输出设备的 loopback"**——这是 99% 用户真正想要的。
-4. **热插拔监听**：设备列表动态更新（cpal 有设备变化事件）。
-5. **记住上次选择**：用 `tauri-plugin-store` 持久化，下次启动恢复。
+4. **热插拔 / 列表刷新**：Rust 侧**每 2 秒**枚举设备（`CpalBackend::list_devices`），与上次结果比较，变化则 `emit("device-list-changed")`（`src-tauri/src/lib.rs` 设备轮询线程）。**不是**依赖 cpal 的 OS 级「设备已插拔」回调——轮询实现简单、与将来换后端（macOS）时行为一致；若以后要亚秒级刷新，可改为注册系统设备通知后再触发同一路枚举。
+5. **记住上次选择**：桌面端用 **`tauri-plugin-store`** 写入 `audiometer-settings.json`（键 `captureDeviceId`）；前端封装在 `src/ipc/capturePrefs.js`，启动时 `Store.load` 后若缺键则从旧版 **`localStorage`**（`audiometer.captureDeviceId`）迁移一次。非 Tauri 预览仍只用 `localStorage`。
 
 ### v1.0 有意跳过的细节
 
@@ -521,7 +522,7 @@ interface LoudnessSlowPayload {
 
 | 项目 | v1.0 方案 | 未来 |
 |---|---|---|
-| **安装包格式** | NSIS `.exe` 主发布 + portable `.exe` 附带 | 同 |
+| **安装包格式** | **NSIS** 安装程序（`*-setup.exe`）+ **便携**：`cargo` 主程序 `target/release/app.exe`（Release 中另存为 `AudioMeter-<tag>-x64-portable.exe`；依赖本机已装 WebView2，与 NSIS 相同） | 同 |
 | **代码签名** | **不签名**（Release 页说明 SmartScreen 处理方法） | 有预算再说 |
 | **自动更新** | **不做**，靠 GitHub Release 通知 | v1.1 加 `tauri-plugin-updater`（Ed25519 签名，免费） |
 | **发布渠道** | GitHub Releases | 同 |
@@ -544,8 +545,8 @@ interface LoudnessSlowPayload {
 
 | 触发方式 | 行为 |
 |---|---|
-| `git push origin v*`（**推荐**，`v` 前缀 + SemVer，如 `v0.0.3`） | 在 `windows-latest` 上执行 `npm ci` → `npm run build` → `tauri build --bundles nsis`；上传 **artifact** `windows-nsis`；并用 `softprops/action-gh-release` 为该 tag **创建或更新 GitHub Release**，附加 `src-tauri/target/release/bundle/nsis/*.exe`。 |
-| 仅 Actions 里 **Run workflow**（`workflow_dispatch`） | 同样构建并上传 **artifact**，**不会**自动挂到 Releases（便于试打安装包、不污染版本列表）。 |
+| `git push origin v*`（**推荐**，`v` 前缀 + SemVer，如 `v0.0.3`） | 在 `windows-latest` 上执行 `npm ci` → `npm run build` → `npm run desktop:release-nsis`；上传 **artifact** `windows-nsis` 与 `windows-portable-exe`（原始 `app.exe`）；打 tag 时另复制为 `AudioMeter-<tag>-x64-portable.exe` 并与 NSIS 安装包一并 **attach 到 GitHub Release**。 |
+| 仅 Actions 里 **Run workflow**（`workflow_dispatch`） | 同样构建并上传上述 **artifact**，**不会**自动挂到 Releases（便于试打安装包、不污染版本列表）。 |
 
 **维护者操作清单（对外发版）**：
 
@@ -599,8 +600,8 @@ interface LoudnessSlowPayload {
 | Phase 0–1：Tauri 壳 + 采集 | 已完成 | `cpal` + WASAPI loopback；前端走 `src/ipc/` |
 | Phase 2：DSP 在 Rust、删 worklet | **核心已完成** | `public/worklets/*` 已移除；Channel 推算好的指标；**meter 历史 ring** 在 Rust（`MeterHistoryEntry` + `get_meter_history`） |
 | §6 历史 ring 在 Rust | **主 ring 在 Rust（对齐快照）** | `VecDeque<MeterHistoryEntry>` 经 `Arc<Mutex<…>>` 共享；~95ms 一行，含响度 + spectrum/vectorscope/corr 与 `audioSnap` 所需字段；Channel `loudnessHistTick` 推送最新行；`get_meter_history` 全量拉取；Clear 清空 deque 并重置 Loudness/Spectrum/Vectorscope |
-| Phase 3：Windows 打包 | **进行中** | `.github/workflows/release.yml`；**发版步骤见 §10.1**（`v*` tag → NSIS + Release 附件；`workflow_dispatch` 仅 artifact） |
-| `AudioCapture` trait | 已有骨架 | `audio/capture.rs` + `cpal_backend.rs`（与 `session.rs` 并存，后续可收敛） |
+| Phase 3：Windows 打包 | **已完成** | `.github/workflows/release.yml`：`npm run desktop:release-nsis` → NSIS + `target/release/app.exe` 双 artifact；打 `v*` tag 时 **Release** 附安装包与 `AudioMeter-<tag>-x64-portable.exe`（§10.1） |
+| `AudioCapture` / `AudioCaptureSession` | 已实现 | `audio/capture.rs`；`cpal_backend.rs` 含 `CaptureSession` + `build_device_list`（`pub(crate)`） |
 
 ---
 
@@ -662,7 +663,7 @@ interface LoudnessSlowPayload {
 
 - **"加一个新表头 / 新指标"**：
   1. 在 `src-tauri/src/dsp/` 下新建 `<指标>.rs`
-  2. 在 `engine/pipeline.rs` 里把它挂进主循环
+  2. 在 `engine/meter_pipeline.rs` 里把它挂进主循环
   3. 在 `ipc/types.rs` 加对应 payload 字段
   4. 前端新建对应 Panel 组件 + 在 `ipc/events.js` 订阅
 - **"改现有 UI 布局"**：只动 `src/components/` 和 `src/App.jsx`，不碰后端。
@@ -692,6 +693,7 @@ interface LoudnessSlowPayload {
 | 2026-04 | — | `MeterHistoryEntry` 统一 ring；`get_meter_history`；Clear 级联重置 LoudnessMeter / SpectrumEngine / VS |
 | 2026-04 | — | §5：`session.rs` 并入 `cpal_backend.rs`；`AudioCapture` + `AudioCaptureSession`（`start_session` → `Box<dyn …>`）；`build_device_list` `pub(crate)`；多声道 `ch>2` 时 VS/Spectrum/Peak/Loudness 取每帧前两路 |
 | 2026-04 | — | 工程基线：`rustfmt` + Windows Rust CI；`cargo` 单测（PCM pack/unpack、多声道 peak）；Dependabot；`CONTRIBUTING.md`；`npm run version:check` / `check`；`.gitattributes` LF |
+| 2026-04 | — | §8：`tauri-plugin-store` + 设备轮询说明；§7：`engine-state-changed` / `sample-rate-changed` 落地；Release 双产物（NSIS + portable `app.exe`）；§4/§11.1/§14 与实现对齐 |
 
 ---
 

@@ -1,11 +1,12 @@
 //! `#[tauri::command]` handlers (Phase 2: capture + DSP → Channel / Events).
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 use crate::audio::capture::AudioCapture;
+use crate::audio::cpal_backend;
 use crate::audio::device::DeviceInfo;
 use crate::audio::CpalBackend;
-use crate::ipc::types::{AudioFramePayload, MeterHistoryEntry};
+use crate::ipc::types::{AudioFramePayload, EngineStateChanged, MeterHistoryEntry};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -37,7 +38,7 @@ pub fn audio_start(
     h.clear();
   }
   let mh = state.inner().meter_history.clone();
-  let session = CpalBackend.start_session(&device_id, on_frame, app, mh)?;
+  let session = CpalBackend.start_session(&device_id, on_frame, app.clone(), mh)?;
   {
     let mut g = state
       .inner()
@@ -46,17 +47,34 @@ pub fn audio_start(
       .map_err(|_| "state lock poisoned".to_string())?;
     *g = Some(session);
   }
+  if let Ok((sr, _ch)) = cpal_backend::device_default_format(&device_id) {
+    let _ = app.emit("sample-rate-changed", sr);
+  }
+  let _ = app.emit(
+    "engine-state-changed",
+    EngineStateChanged {
+      state: "running".into(),
+      error: None,
+    },
+  );
   Ok(())
 }
 
 #[tauri::command]
-pub fn audio_stop(state: State<'_, AppState>) -> Result<(), String> {
+pub fn audio_stop(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
   let mut g = state
     .inner()
     .capture
     .lock()
     .map_err(|_| "state lock poisoned".to_string())?;
   *g = None;
+  let _ = app.emit(
+    "engine-state-changed",
+    EngineStateChanged {
+      state: "stopped".into(),
+      error: None,
+    },
+  );
   Ok(())
 }
 

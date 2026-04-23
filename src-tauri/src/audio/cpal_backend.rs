@@ -176,6 +176,12 @@ fn resolve_device(device_id: &str) -> Result<(cpal::Device, cpal::SupportedStrea
   Err(format!("Unknown device id: {device_id}"))
 }
 
+/// Default `(sample_rate_hz, channels)` for a device id (UI hints / `sample-rate-changed` event).
+pub fn device_default_format(device_id: &str) -> Result<(u32, u16), String> {
+  let (_, supported) = resolve_device(device_id)?;
+  Ok((supported.sample_rate().0, supported.channels()))
+}
+
 pub fn unpack_pcm_chunk(bytes: &[u8]) -> Option<(u32, u16, Vec<f32>)> {
   if bytes.len() < 12 {
     return None;
