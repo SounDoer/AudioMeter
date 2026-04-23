@@ -589,7 +589,7 @@ interface LoudnessSlowPayload {
 |---|---|---|
 | Phase 0–1：Tauri 壳 + 采集 | 已完成 | `cpal` + WASAPI loopback；前端走 `src/ipc/` |
 | Phase 2：DSP 在 Rust、删 worklet | **核心已完成** | `public/worklets/*` 已移除；Channel 推算好的指标；**全量「~1h ring + command 取历史」尚未做** |
-| §6 历史 ring 在 Rust | **部分** | `engine/meter_pipeline.rs` 内 `LoudnessHistoryRing` 已存在，**响度历史图主缓冲仍在前端**（`useAudioEngine` 按节拍 push）；待 IPC 与 UI 迁移动作为主数据源 |
+| §6 历史 ring 在 Rust | **响度主数据已在 Rust** | `LoudnessHistoryRing` 在 `meter_pipeline` 中按 ~95ms 节流写入；经 Channel `loudnessHistTick` 同步到前端镜像供 SVG；Clear 调用 `clear_audio_history` 清空 ring 与峰值统计。**其它快照轨**（spectrum / vectorscope / corr 等）仍为前端按帧缓冲，与响度历史长度可不一致（快照按时间对齐） |
 | Phase 3：Windows 打包 | **进行中** | `.github/workflows/release.yml`；**发版步骤见 §10.1**（`v*` tag → NSIS + Release 附件；`workflow_dispatch` 仅 artifact） |
 | `AudioCapture` trait | 已有骨架 | `audio/capture.rs` + `cpal_backend.rs`（与 `session.rs` 并存，后续可收敛） |
 
@@ -679,6 +679,7 @@ interface LoudnessSlowPayload {
 | 2026-04 | — | §6：Spectrum 明确为「专业频谱软件常用 FFT-RTA 显示」，v1.0 不采用 IEC 61260 滤波器组路径 |
 | 2026-04 | — | §4 目录树：`pipeline.rs` → `meter_pipeline.rs`，补 `dsp/paths.rs`；新增 §11.1 实现进度；补充 Phase 3 `release.yml` 说明 |
 | 2026-04 | — | §10.1：GitHub Releases 发版流程（tag / workflow_dispatch）；README 维护者发版小节 |
+| 2026-04 | — | §11.1：响度历史主 ring 在 Rust，Channel `loudnessHistTick` + `clear_audio_history` |
 
 ---
 

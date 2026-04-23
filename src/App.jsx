@@ -19,7 +19,7 @@ import { useHoverState } from "./hooks/useHoverState";
 import { PillButton } from "./components/PillButton";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { isTauri } from "./ipc/env.js";
-import { listAudioDevices } from "./ipc/commands.js";
+import { clearAudioHistory, listAudioDevices } from "./ipc/commands.js";
 import { onDeviceListChanged } from "./ipc/events.js";
 import { PeakPanel } from "./components/panels/PeakPanel";
 import { LoudnessPanel } from "./components/panels/LoudnessPanel";
@@ -281,10 +281,15 @@ export default function App() {
     setLoudnessHistWidthRatio,
   });
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (audioRef.current?.wklt) {
       try {
         audioRef.current.wklt.port.postMessage("reset");
+      } catch (_) {}
+    }
+    if (isTauri()) {
+      try {
+        await clearAudioHistory();
       } catch (_) {}
     }
     histRef.current = [];

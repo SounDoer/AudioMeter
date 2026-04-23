@@ -11,6 +11,14 @@ pub struct EngineStateChanged {
   pub error: Option<String>,
 }
 
+/// One loudness-history sample (~10 Hz), same cadence as legacy `HIST_PUSH_MS` in the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoudnessHistTick {
+  pub lufs_momentary: f64,
+  pub lufs_short_term: f64,
+}
+
 /// High-rate meter frame (~60 Hz) on Tauri Channel `audio-frame`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +41,8 @@ pub struct AudioFramePayload {
   pub spectrum_band_centers_hz: Vec<f64>,
   pub spectrum_smooth_db: Vec<f64>,
   pub timestamp_ms: u64,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub loudness_hist_tick: Option<LoudnessHistTick>,
 }
 
 /// ~2 Hz broadcast on Event `loudness-slow`.

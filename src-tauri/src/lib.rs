@@ -20,6 +20,7 @@ pub fn run() {
       ipc::commands::list_audio_devices,
       ipc::commands::audio_start,
       ipc::commands::audio_stop,
+      ipc::commands::clear_audio_history,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

@@ -3,6 +3,8 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{SampleFormat, StreamConfig};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use super::device::DeviceInfo;
@@ -211,7 +213,7 @@ fn pack_pcm_chunk(sample_rate: u32, channels: u16, samples: &[f32]) -> Vec<u8> {
   v
 }
 
-fn run_capture_worker(
+struct RunCaptureArgs {
   device: cpal::Device,
   supported: cpal::SupportedStreamConfig,
   sample_rate: u32,
@@ -219,7 +221,20 @@ fn run_capture_worker(
   frame_tx: tauri::ipc::Channel<AudioFramePayload>,
   app: tauri::AppHandle,
   stop_rx: std::sync::mpsc::Receiver<()>,
-) -> Result<(), String> {
+  clear_peak_history: Arc<AtomicBool>,
+}
+
+fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
+  let RunCaptureArgs {
+    device,
+    supported,
+    sample_rate,
+    channels,
+    frame_tx,
+    app,
+    stop_rx,
+    clear_peak_history,
+  } = args;
   let stream_config = StreamConfig {
     channels,
     sample_rate: supported.sample_rate(),
@@ -231,6 +246,10 @@ fn run_capture_worker(
   let bridge = std::thread::spawn(move || {
     let mut pipeline = MeterPipeline::new(sample_rate, channels);
     while let Ok(chunk) = audio_rx.recv() {
+      if clear_peak_history.load(Ordering::Acquire) {
+        clear_peak_history.store(false, Ordering::Release);
+        pipeline.clear_peak_and_history();
+      }
       let Some((_sr, _ch, floats)) = unpack_pcm_chunk(&chunk) else {
         continue;
       };
@@ -311,6 +330,7 @@ fn run_capture_worker(
 pub struct CaptureSession {
   stop_tx: std::sync::mpsc::Sender<()>,
   join: Option<JoinHandle<Result<(), String>>>,
+  clear_peak_history: Arc<AtomicBool>,
 }
 
 impl Drop for CaptureSession {
@@ -332,11 +352,13 @@ impl CaptureSession {
     let sample_rate = supported.sample_rate().0;
     let channels = supported.channels();
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
+    let clear_peak_history = Arc::new(AtomicBool::new(false));
+    let clear_worker = clear_peak_history.clone();
 
     let join = std::thread::Builder::new()
       .name("audiometer-capture".into())
       .spawn(move || {
-        run_capture_worker(
+        run_capture_worker(RunCaptureArgs {
           device,
           supported,
           sample_rate,
@@ -344,13 +366,19 @@ impl CaptureSession {
           frame_tx,
           app,
           stop_rx,
-        )
+          clear_peak_history: clear_worker,
+        })
       })
       .map_err(|e| e.to_string())?;
 
     Ok(CaptureSession {
       stop_tx,
       join: Some(join),
+      clear_peak_history,
     })
+  }
+
+  pub fn request_clear_peak_history(&self) {
+    self.clear_peak_history.store(true, Ordering::Release);
   }
 }

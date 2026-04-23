@@ -4,8 +4,6 @@ import { listAudioDevices, startAudioCapture, stopAudioCapture } from "../ipc/co
 import { onLoudnessSlow } from "../ipc/events.js";
 import { isTauri } from "../ipc/env.js";
 
-const HIST_PUSH_MS = 95;
-
 export function useAudioEngine({
   running,
   captureDeviceId = "default",
@@ -59,7 +57,6 @@ export function useAudioEngine({
       return;
     }
     let mounted = true;
-    let lastHistPushMs = -1e12;
 
     const init = async () => {
       try {
@@ -106,13 +103,7 @@ export function useAudioEngine({
             const shouldPaintUi = frameRef.current % 2 === 0;
             const m = Number.isFinite(f.lufsMomentary) ? f.lufsMomentary : -Infinity;
             const st = Number.isFinite(f.lufsShortTerm) ? f.lufsShortTerm : -Infinity;
-            const ts = Number(f.timestampMs) || 0;
-            const shouldHist = ts - lastHistPushMs >= HIST_PUSH_MS;
-            if (shouldHist) {
-              lastHistPushMs = ts;
-              loudnessHistRef.current.push({ m, st });
-              if (loudnessHistRef.current.length > histMaxSamples) loudnessHistRef.current.shift();
-            }
+            const histTick = f.loudnessHistTick;
 
             setAudio((prev) => {
               const nextAudio = {
@@ -133,7 +124,11 @@ export function useAudioEngine({
                 samplePeakMaxR: Number.isFinite(f.sampleRDb) ? Math.max(prev.samplePeakMaxR, f.sampleRDb) : prev.samplePeakMaxR,
                 correlation: Number.isFinite(f.correlation) ? f.correlation : prev.correlation,
               };
-              if (shouldHist) {
+              if (histTick != null) {
+                const hm = Number.isFinite(histTick.lufsMomentary) ? histTick.lufsMomentary : -Infinity;
+                const hst = Number.isFinite(histTick.lufsShortTerm) ? histTick.lufsShortTerm : -Infinity;
+                loudnessHistRef.current.push({ m: hm, st: hst });
+                if (loudnessHistRef.current.length > histMaxSamples) loudnessHistRef.current.shift();
                 audioSnapRef.current.push({ ...nextAudio });
                 if (audioSnapRef.current.length > histMaxSamples) audioSnapRef.current.shift();
               }

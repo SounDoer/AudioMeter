@@ -40,3 +40,17 @@ pub fn audio_stop(state: State<'_, AppState>) -> Result<(), String> {
   *g = None;
   Ok(())
 }
+
+/// Clear loudness history ring + peak maxima on the capture thread (matches UI Clear for native path).
+#[tauri::command]
+pub fn clear_audio_history(state: State<'_, AppState>) -> Result<(), String> {
+  let g = state
+    .inner()
+    .capture
+    .lock()
+    .map_err(|_| "state lock poisoned".to_string())?;
+  if let Some(sess) = g.as_ref() {
+    sess.request_clear_peak_history();
+  }
+  Ok(())
+}

@@ -18,6 +18,7 @@
  * @property {number[]} spectrumBandCentersHz
  * @property {number[]} spectrumSmoothDb
  * @property {number} timestampMs
+ * @property {{ lufsMomentary: number, lufsShortTerm: number }|null|undefined} loudnessHistTick
  */
 
 /**

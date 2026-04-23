@@ -21,3 +21,8 @@ export async function startAudioCapture({ deviceId, onFrame }) {
 export function stopAudioCapture() {
   return invoke("audio_stop");
 }
+
+/** Clears native loudness history ring and peak maxima (call with UI Clear when Tauri capture is running). */
+export function clearAudioHistory() {
+  return invoke("clear_audio_history");
+}
