@@ -47,11 +47,7 @@ fn collect_outputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamCo
 fn collect_inputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
   let host = cpal::default_host();
   let mut rows = Vec::new();
-  for (idx, device) in host
-    .input_devices()
-    .map_err(|e| e.to_string())?
-    .enumerate()
-  {
+  for (idx, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
     if let Ok(cfg) = device.default_input_config() {
       rows.push((idx, device, cfg));
     }
@@ -64,7 +60,9 @@ fn collect_inputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamCon
   Ok(rows)
 }
 
-fn pick_output_by_index(target: usize) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
+fn pick_output_by_index(
+  target: usize,
+) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
   let host = cpal::default_host();
   for (idx, device) in host
     .output_devices()
@@ -82,13 +80,11 @@ fn pick_output_by_index(target: usize) -> Result<(cpal::Device, cpal::SupportedS
   Err(format!("Output device index not found: {target}"))
 }
 
-fn pick_input_by_index(target: usize) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
+fn pick_input_by_index(
+  target: usize,
+) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
   let host = cpal::default_host();
-  for (idx, device) in host
-    .input_devices()
-    .map_err(|e| e.to_string())?
-    .enumerate()
-  {
+  for (idx, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
     if idx != target {
       continue;
     }
@@ -196,7 +192,9 @@ pub fn unpack_pcm_chunk(bytes: &[u8]) -> Option<(u32, u16, Vec<f32>)> {
   let off = 12usize;
   for i in 0..frame_count as usize * ch {
     let start = off + i * 4;
-    v.push(f32::from_le_bytes(bytes.get(start..start + 4)?.try_into().ok()?));
+    v.push(f32::from_le_bytes(
+      bytes.get(start..start + 4)?.try_into().ok()?,
+    ));
   }
   Some((sample_rate, channels, v))
 }
@@ -305,10 +303,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
         .build_input_stream(
           &stream_config,
           move |data: &[u16], _: &cpal::InputCallbackInfo| {
-            let floats: Vec<f32> = data
-              .iter()
-              .map(|&s| (s as f32 / 32768.0) - 1.0)
-              .collect();
+            let floats: Vec<f32> = data.iter().map(|&s| (s as f32 / 32768.0) - 1.0).collect();
             let packed = pack_pcm_chunk(sample_rate, channels, &floats);
             let _ = tx.try_send(packed);
           },
@@ -389,7 +384,6 @@ impl CaptureSession {
       clear_peak_history,
     })
   }
-
 }
 
 /// 零大小类型：当前唯一后端实现。
@@ -413,5 +407,47 @@ impl AudioCapture for CpalBackend {
       app,
       meter_history,
     )?))
+  }
+}
+
+#[cfg(test)]
+mod pcm_chunk_tests {
+  use super::{pack_pcm_chunk, unpack_pcm_chunk};
+
+  #[test]
+  fn pack_unpack_round_trip_stereo() {
+    let sr = 48_000_u32;
+    let ch = 2_u16;
+    let samples = [0.25_f32, -0.5, 0.0, 1.0];
+    let bytes = pack_pcm_chunk(sr, ch, &samples);
+    let (sr2, ch2, v) = unpack_pcm_chunk(&bytes).expect("unpack");
+    assert_eq!(sr2, sr);
+    assert_eq!(ch2, ch);
+    assert_eq!(v, samples);
+  }
+
+  #[test]
+  fn pack_unpack_round_trip_three_channels() {
+    let sr = 44_100_u32;
+    let ch = 3_u16;
+    let samples = [1.0_f32, 2.0, 3.0, -1.0, -2.0, -3.0];
+    let bytes = pack_pcm_chunk(sr, ch, &samples);
+    let (sr2, ch2, v) = unpack_pcm_chunk(&bytes).expect("unpack");
+    assert_eq!(sr2, sr);
+    assert_eq!(ch2, ch);
+    assert_eq!(v, samples);
+  }
+
+  #[test]
+  fn unpack_rejects_short_header() {
+    assert!(unpack_pcm_chunk(&[0_u8; 8]).is_none());
+  }
+
+  #[test]
+  fn unpack_rejects_truncated_payload() {
+    let mut bytes = pack_pcm_chunk(48_000, 2, &[0.1_f32, 0.2, 0.3, 0.4]);
+    let need = bytes.len();
+    bytes.truncate(need.saturating_sub(3));
+    assert!(unpack_pcm_chunk(&bytes).is_none());
   }
 }

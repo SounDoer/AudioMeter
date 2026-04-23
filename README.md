@@ -1,13 +1,13 @@
 # AudioMeter
 
-> **桌面版（Windows）**：`main` 分支正在按 [`docs/architecture.md`](docs/architecture.md) 迁移到 **Tauri 2 + Rust**（系统 WASAPI Loopback、零虚拟声卡为 v1.0 目标）。本地运行桌面壳：`npm install` → `npm run desktop`（需安装 [Rust](https://rustup.rs/) 与 Windows 上 Tauri 前置依赖）。  
+> **桌面版（Windows）**：`main` 分支正在按 [`docs/architecture.md`](docs/architecture.md) 迁移到 **Tauri 2 + Rust**（系统 WASAPI Loopback、零虚拟声卡为 v1.0 目标）。本地运行桌面壳：`npm install` → `npm run desktop`（需安装 [Rust](https://rustup.rs/) 与 Windows 上 Tauri 前置依赖）。参与开发与合并前自检见 [`CONTRIBUTING.md`](CONTRIBUTING.md)（一键 `npm run check`）。  
 > **网页版**：不再随 `main` 演进。最后冻结的浏览器版代码在 **`legacy-web` 分支**（标签 **`v0.9.0-web-final`**）；GitHub Pages 构建由该分支触发。若仍使用浏览器版，请查看该分支的 README。
 
 ### 维护者：发版到 GitHub Releases（Windows · NSIS）
 
 正式对外发安装包时，用 **打 Git 标签** 触发 CI（见 [`docs/architecture.md`](docs/architecture.md) §10.1）：
 
-1. **对齐版本号**：同时修改 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 中的 `version`；在 `src-tauri` 目录执行 `cargo check`，若有变动则一并提交 `Cargo.lock`。
+1. **对齐版本号**：同时修改 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 中的 `version`；运行 `npm run version:check` 确认三者一致；在 `src-tauri` 目录执行 `cargo check`，若有变动则一并提交 `Cargo.lock`。
 2. **提交并推送** `main`。
 3. **打附注标签并推送**（示例 `v0.0.3`，请换成真实版本）：
 

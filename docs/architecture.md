@@ -691,6 +691,7 @@ interface LoudnessSlowPayload {
 | 2026-04 | — | §11.1：响度历史主 ring 在 Rust，Channel `loudnessHistTick` + `clear_audio_history` |
 | 2026-04 | — | `MeterHistoryEntry` 统一 ring；`get_meter_history`；Clear 级联重置 LoudnessMeter / SpectrumEngine / VS |
 | 2026-04 | — | §5：`session.rs` 并入 `cpal_backend.rs`；`AudioCapture` + `AudioCaptureSession`（`start_session` → `Box<dyn …>`）；`build_device_list` `pub(crate)`；多声道 `ch>2` 时 VS/Spectrum/Peak/Loudness 取每帧前两路 |
+| 2026-04 | — | 工程基线：`rustfmt` + Windows Rust CI；`cargo` 单测（PCM pack/unpack、多声道 peak）；Dependabot；`CONTRIBUTING.md`；`npm run version:check` / `check`；`.gitattributes` LF |
 
 ---
 

@@ -118,7 +118,9 @@ impl SpectrumEngine {
     let scratch_spec = r2c.make_output_vec();
     let mut window = vec![0.0_f32; FFT_LEN];
     for (n, w) in window.iter_mut().enumerate() {
-      *w = (0.5 * (1.0 - (2.0 * std::f64::consts::PI * n as f64 / (FFT_LEN - 1).max(1) as f64).cos())) as f32;
+      *w = (0.5
+        * (1.0 - (2.0 * std::f64::consts::PI * n as f64 / (FFT_LEN - 1).max(1) as f64).cos()))
+        as f32;
     }
     let min_hz = 20.0;
     let max_hz = 20000.0_f64.min(sample_rate * 0.499);
@@ -170,11 +172,7 @@ impl SpectrumEngine {
     let frames = interleaved.len() / ch;
     for i in 0..frames {
       let l = interleaved[i * ch];
-      let r = if ch >= 2 {
-        interleaved[i * ch + 1]
-      } else {
-        l
-      };
+      let r = if ch >= 2 { interleaved[i * ch + 1] } else { l };
       self.push_sample_pair(l, r);
     }
     if self.ring_filled < FFT_LEN {

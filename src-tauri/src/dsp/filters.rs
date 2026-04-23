@@ -78,10 +78,7 @@ impl KWeightStereo {
   pub fn new(sample_rate: f64) -> Self {
     let (s1, s2) = kw_coeffs(sample_rate);
     let mk = || [Biquad::new(s1), Biquad::new(s2)];
-    Self {
-      l: mk(),
-      r: mk(),
-    }
+    Self { l: mk(), r: mk() }
   }
 
   pub fn tick_lr(&mut self, x_l: f64, x_r: f64) -> (f64, f64) {

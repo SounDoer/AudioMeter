@@ -2,8 +2,8 @@
 //!
 //! Concrete **cpal / WASAPI** implementation lives in `cpal_backend.rs`; macOS 可另增实现同一 trait。
 
-use tauri::AppHandle;
 use tauri::ipc::Channel;
+use tauri::AppHandle;
 
 use super::device::DeviceInfo;
 use crate::ipc::types::{AudioFramePayload, MeterHistoryBuf};

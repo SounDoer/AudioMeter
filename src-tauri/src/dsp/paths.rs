@@ -20,7 +20,12 @@ fn spectrum_db_to_y_viewbox(d: f64) -> f64 {
   SPEC_VIEW_H - SPEC_VIEW_BOTTOM_PAD - ((dd - SPEC_DB_MIN) / (SPEC_DB_MAX - SPEC_DB_MIN)) * plot_h
 }
 
-pub fn spectrum_paths_from_bands(centers: &[f64], smooth_db: &[f64], peak_db: &[f64], show_peak_hold: bool) -> (String, String) {
+pub fn spectrum_paths_from_bands(
+  centers: &[f64],
+  smooth_db: &[f64],
+  peak_db: &[f64],
+  show_peak_hold: bool,
+) -> (String, String) {
   if centers.len() != smooth_db.len() || centers.is_empty() {
     return (String::new(), String::new());
   }

@@ -28,8 +28,7 @@ fn init_true_peak_filters() -> (usize, usize, Vec<Vec<f64>>) {
     } else {
       (std::f64::consts::PI * x).sin() / (std::f64::consts::PI * x)
     };
-    let bh = 0.35875
-      - 0.48829 * (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos()
+    let bh = 0.35875 - 0.48829 * (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos()
       + 0.14128 * (4.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos()
       - 0.01168 * (6.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos();
     *hi = sinc * bh;

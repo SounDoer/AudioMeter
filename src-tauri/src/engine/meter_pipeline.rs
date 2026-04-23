@@ -6,7 +6,9 @@ use crate::dsp::loudness::LoudnessBlock;
 use crate::dsp::paths::spectrum_paths_from_bands;
 use crate::dsp::peak::{sample_peak_db_interleaved, sample_peak_db_mono};
 use crate::dsp::{LoudnessMeter, SpectrumEngine, VectorscopeState};
-use crate::ipc::types::{AudioFramePayload, LoudnessSlowPayload, MeterHistoryBuf, MeterHistoryEntry};
+use crate::ipc::types::{
+  AudioFramePayload, LoudnessSlowPayload, MeterHistoryBuf, MeterHistoryEntry,
+};
 
 const VS_CAP: usize = 4096;
 const FRAME_EMIT_MS: u128 = 16;
@@ -103,11 +105,7 @@ impl MeterPipeline {
     let frames = interleaved.len() / ch;
     for i in 0..frames {
       let l = interleaved[i * ch];
-      let r = if ch >= 2 {
-        interleaved[i * ch + 1]
-      } else {
-        l
-      };
+      let r = if ch >= 2 { interleaved[i * ch + 1] } else { l };
       self.push_vs_pair(l, r);
     }
   }
@@ -122,7 +120,10 @@ impl MeterPipeline {
   }
 
   /// Process one PCM chunk from capture. Returns `(frame, slow)` when ready to send on IPC.
-  pub fn push_pcm_f32(&mut self, interleaved: &[f32]) -> (Option<AudioFramePayload>, Option<LoudnessSlowPayload>) {
+  pub fn push_pcm_f32(
+    &mut self,
+    interleaved: &[f32],
+  ) -> (Option<AudioFramePayload>, Option<LoudnessSlowPayload>) {
     let now_sec = self.t0.elapsed().as_secs_f64();
     let ch = self.channels.max(1);
     if ch == 1 {
@@ -133,10 +134,7 @@ impl MeterPipeline {
         self.apply_loudness_block(lb);
       }
       self.feed_vs_mono(interleaved);
-      if let Some((sm, pk)) = self
-        .spectrum
-        .push_mono_duplex(interleaved, now_sec)
-      {
+      if let Some((sm, pk)) = self.spectrum.push_mono_duplex(interleaved, now_sec) {
         self.last_band_centers = self.spectrum.band_centers();
         self.last_spectrum_smooth = sm;
         self.last_spectrum_peak = pk;
@@ -181,8 +179,16 @@ impl MeterPipeline {
         .map(|l| l.integrated)
         .filter(|v| v.is_finite());
       let integrated = integ.filter(|&v| v > -120.0);
-      let st = self.last_loudness.as_ref().map(|l| l.short_term).unwrap_or(f64::NEG_INFINITY);
-      let tp = self.last_loudness.as_ref().map(|l| l.true_peak).unwrap_or(f64::NEG_INFINITY);
+      let st = self
+        .last_loudness
+        .as_ref()
+        .map(|l| l.short_term)
+        .unwrap_or(f64::NEG_INFINITY);
+      let tp = self
+        .last_loudness
+        .as_ref()
+        .map(|l| l.true_peak)
+        .unwrap_or(f64::NEG_INFINITY);
       let psr = if tp.is_finite() && st.is_finite() {
         Some(tp - st)
       } else {

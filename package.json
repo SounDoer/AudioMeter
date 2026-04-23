@@ -14,6 +14,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src",
+    "version:check": "node scripts/verify-versions.mjs",
+    "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check",
+    "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "rust:check": "npm run rust:fmt && npm run rust:clippy && npm run rust:test",
+    "check": "npm run version:check && npm run lint && npm test && npm run build && npm run rust:check",
     "tauri": "tauri",
     "desktop": "tauri dev",
     "desktop:build": "tauri build"
