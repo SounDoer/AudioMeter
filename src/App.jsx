@@ -19,7 +19,6 @@ import { useHoverState } from "./hooks/useHoverState";
 import { PillButton } from "./components/PillButton";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { isTauri } from "./ipc/env.js";
-import { openFloatPanel } from "./ipc/floatWindow.js";
 import { clearAudioHistory, listAudioDevices } from "./ipc/commands.js";
 import { onDeviceListChanged } from "./ipc/events.js";
 import {
@@ -538,7 +537,6 @@ export default function App() {
               fmt={fmt}
               hasTpMaxValue={hasTpMaxValue}
               tpMaxText={tpMaxText}
-              onPopOut={isTauri() ? () => void openFloatPanel("peak") : undefined}
             />
 
             <div
@@ -556,7 +554,6 @@ export default function App() {
               selectedOffset={selectedOffset}
               hasCorrelationValue={hasCorrelationValue}
               correlation={correlation}
-              onPopOut={isTauri() ? () => void openFloatPanel("vector") : undefined}
             />
           </section>
 
@@ -604,7 +601,6 @@ export default function App() {
               toggleCurve={toggleCurve}
               onHistoryHoverMove={onHistoryHoverMove}
               onHistoryHoverLeave={onHistoryHoverLeave}
-              onPopOut={isTauri() ? () => void openFloatPanel("loudness") : undefined}
             />
 
             <div
@@ -622,7 +618,6 @@ export default function App() {
               spectrumHover={spectrumHover}
               onSpectrumHoverMove={onSpectrumHoverMove}
               onSpectrumHoverLeave={onSpectrumHoverLeave}
-              onPopOut={isTauri() ? () => void openFloatPanel("spectrum") : undefined}
             />
           </section>
         </main>

@@ -14,25 +14,13 @@ export function SpectrumPanel({
   spectrumHover,
   onSpectrumHoverMove,
   onSpectrumHoverLeave,
-  onPopOut,
 }) {
   const spectrumSvgRef = useRef(null);
   const displaySpectrumAreaPath = buildSpectrumAreaPath(displaySpectrumPath);
 
   return (
     <article className="ui-article ui-min-h-spectrum flex-1">
-      <div className="flex min-w-0 items-start justify-between gap-2">
-        <div className="ui-section-title ui-section-title-main min-w-0 shrink-0">Spectrum</div>
-        {onPopOut ? (
-          <button
-            type="button"
-            className="shrink-0 rounded border border-[color:var(--ui-color-border)] bg-[var(--ui-color-surface-raised)] px-1.5 py-0.5 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)] hover:text-[color:var(--ui-color-text)]"
-            onClick={onPopOut}
-          >
-            Pop out
-          </button>
-        ) : null}
-      </div>
+      <div className="ui-section-title ui-section-title-main min-w-0">Spectrum</div>
       <div className="grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-chart-x-axis-row-h)_auto] gap-x-[var(--ui-axis-gap-y)] gap-y-[var(--ui-axis-gap-x)] items-stretch ui-min-h-spectrum">
         <div className="ui-w-spectrum-y-axis relative min-h-0 shrink-0 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">
           <div className="absolute inset-x-0 top-[var(--ui-spectrum-display-top-inset)] bottom-[var(--ui-spectrum-display-bottom-inset)]">

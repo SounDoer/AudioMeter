@@ -7,23 +7,11 @@ export function PeakPanel({
   fmt,
   hasTpMaxValue,
   tpMaxText,
-  onPopOut,
 }) {
   return (
     <article className="ui-article ui-min-h-peak min-h-0">
       <div className="shrink-0">
-        <div className="flex min-w-0 items-start justify-between gap-2">
-          <div className="ui-section-title ui-section-title-main min-w-0 shrink-0">Peak</div>
-          {onPopOut ? (
-            <button
-              type="button"
-              className="shrink-0 rounded border border-[color:var(--ui-color-border)] bg-[var(--ui-color-surface-raised)] px-1.5 py-0.5 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)] hover:text-[color:var(--ui-color-text)]"
-              onClick={onPopOut}
-            >
-              Pop out
-            </button>
-          ) : null}
-        </div>
+        <div className="ui-section-title ui-section-title-main min-w-0">Peak</div>
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-[var(--ui-peak-axis-chart-gap)] ui-min-h-peak">
         <div className="ui-w-peak-ticks relative min-h-0 h-full shrink-0 overflow-visible text-right text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-muted)]">

@@ -75,7 +75,6 @@ export function LoudnessPanel({
   toggleCurve,
   onHistoryHoverMove,
   onHistoryHoverLeave,
-  onPopOut,
 }) {
   /** Must match the left-axis ticks actually drawn; change tick list or hide rules here only—grid follows */
   const historyYAxisTicksLabeled = useMemo(
@@ -110,23 +109,14 @@ export function LoudnessPanel({
 
   return (
     <article className="ui-article ui-min-h-history">
-      <div className="ui-section-title ui-section-title-main shrink-0 flex min-w-0 items-center justify-between gap-2">
+      <div className="shrink-0">
         <div className="flex min-w-0 items-center gap-2">
-          Loudness
+          <div className="ui-section-title ui-section-title-main min-w-0 shrink-0">Loudness</div>
           <HelpPopover items={LOUDNESS_HELP} />
         </div>
-        {onPopOut ? (
-          <button
-            type="button"
-            className="shrink-0 rounded border border-[color:var(--ui-color-border)] bg-[var(--ui-color-surface-raised)] px-1.5 py-0.5 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)] hover:text-[color:var(--ui-color-text)]"
-            onClick={onPopOut}
-          >
-            Pop out
-          </button>
-        ) : null}
       </div>
       <div
-        className="grid h-full min-h-0 grid-cols-[var(--hmSplit)_minmax(0,1fr)] gap-x-[var(--ui-loudness-gap)]"
+        className="grid min-h-0 min-w-0 flex-1 grid-cols-[var(--hmSplit)_minmax(0,1fr)] gap-x-[var(--ui-loudness-gap)]"
         style={{ "--hmSplit": `${Math.round(loudnessHistWidthRatio * 100)}%` }}
       >
         <div className="min-h-0 min-w-0">

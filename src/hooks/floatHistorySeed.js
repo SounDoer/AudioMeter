@@ -37,6 +37,106 @@ function arrNum(a) {
   return Array.isArray(a) ? a : [];
 }
 
+/** Batched ring replay so one frame never runs ~36k `buildSpectrumDataSnapshot` etc. */
+const SEED_ROW_BATCH = 2000;
+
+function raf() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      resolve();
+    });
+  });
+}
+
+/**
+ * @param {import("../ipc/types.js").MeterHistoryEntry} row
+ * @param {object} pick
+ * @param {object} ctx
+ * @param {number} histMax
+ */
+function appendSeededRow(row, pick, ctx, histMax) {
+  const {
+    loudnessHistRef,
+    spectrumDataSnapRef,
+    spectrumSnapRef,
+    vectorSnapRef,
+    corrSnapRef,
+    audioSnapRef,
+  } = ctx;
+  const hm = Number.isFinite(row.lufsMomentary) ? row.lufsMomentary : -Infinity;
+  const hst = Number.isFinite(row.lufsShortTerm) ? row.lufsShortTerm : -Infinity;
+  loudnessHistRef.current.push({ m: hm, st: hst });
+  if (loudnessHistRef.current.length > histMax) loudnessHistRef.current.shift();
+
+  const snap = {
+    momentary: hm,
+    shortTerm: hst,
+    integrated: Number.isFinite(row.integrated) ? row.integrated : -Infinity,
+    lra: Number.isFinite(row.lra) ? row.lra : -Infinity,
+    truePeakL: Number.isFinite(row.truePeakL) ? row.truePeakL : -Infinity,
+    truePeakR: Number.isFinite(row.truePeakR) ? row.truePeakR : -Infinity,
+    tpMax: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
+    samplePeak: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
+    tpL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
+    tpR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
+    sampleL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
+    sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
+    samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
+    samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
+    correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
+  };
+  audioSnapRef.current.push(snap);
+  if (audioSnapRef.current.length > histMax) audioSnapRef.current.shift();
+
+  const c = Number.isFinite(row.correlation) ? row.correlation : 0;
+  corrSnapRef.current.push(c);
+  if (corrSnapRef.current.length > histMax) corrSnapRef.current.shift();
+  vectorSnapRef.current.push(row.vectorscopePath || "");
+  if (vectorSnapRef.current.length > histMax) vectorSnapRef.current.shift();
+  spectrumSnapRef.current.push(row.spectrumPath || "");
+  if (spectrumSnapRef.current.length > histMax) spectrumSnapRef.current.shift();
+  spectrumDataSnapRef.current.push(buildSpectrumDataSnapshot(row, pick));
+  if (spectrumDataSnapRef.current.length > histMax) spectrumDataSnapRef.current.shift();
+}
+
+/**
+ * @param {object} row
+ * @param {object} pick
+ * @param {object} ctx
+ * @param {(a: (prev: object) => object) => void} ctx.setAudio
+ * @param {(s: string) => void} ctx.setSpectrumPath
+ * @param {(s: string) => void} ctx.setSpectrumPeakPath
+ * @param {(s: string) => void} ctx.setVectorPath
+ */
+function finalizeSeededState(row, pick, ctx) {
+  const { histRef, loudnessHistRef, spectrumDataRef, setAudio, setSpectrumPath, setSpectrumPeakPath, setVectorPath } =
+    ctx;
+  histRef.current = loudnessHistRef.current;
+  spectrumDataRef.current = buildSpectrumDataSnapshot(row, pick);
+  setSpectrumPath(row.spectrumPath || "");
+  setSpectrumPeakPath(row.spectrumPeakPath || "");
+  setVectorPath(row.vectorscopePath || "");
+  setAudio(() => ({
+    momentary: Number.isFinite(row.lufsMomentary) ? row.lufsMomentary : -Infinity,
+    shortTerm: Number.isFinite(row.lufsShortTerm) ? row.lufsShortTerm : -Infinity,
+    integrated: Number.isFinite(row.integrated) ? row.integrated : -Infinity,
+    mMax: -Infinity,
+    stMax: -Infinity,
+    lra: Number.isFinite(row.lra) ? row.lra : -Infinity,
+    tpL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
+    tpR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
+    truePeakL: Number.isFinite(row.truePeakL) ? row.truePeakL : -Infinity,
+    truePeakR: Number.isFinite(row.truePeakR) ? row.truePeakR : -Infinity,
+    tpMax: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
+    samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
+    samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
+    sampleL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
+    sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
+    samplePeak: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
+    correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
+  }));
+}
+
 /**
  * @param {object[]} rawRows
  * @param {object} ctx
@@ -54,29 +154,29 @@ function arrNum(a) {
  * @param {(s: string) => void} ctx.setSpectrumPath
  * @param {(s: string) => void} ctx.setSpectrumPeakPath
  * @param {(s: string) => void} ctx.setVectorPath
+ * @param {() => boolean} [ctx.isCancelled]
+ * @returns {Promise<void>}
  */
-export function seedFloatHistoryFromRows(rawRows, ctx) {
+export async function seedFloatHistoryFromRows(rawRows, ctx) {
   const {
     histMaxSamples,
     defaultSampleRate,
     loudnessHistRef,
-    spectrumDataRef,
     spectrumDataSnapRef,
     spectrumSnapRef,
     vectorSnapRef,
     corrSnapRef,
     audioSnapRef,
-    histRef,
-    setAudio,
-    setSpectrumPath,
-    setSpectrumPeakPath,
-    setVectorPath,
+    isCancelled,
   } = ctx;
   const pick = { defaultSampleRate: defaultSampleRate || 48000 };
   if (!rawRows || !rawRows.length) {
     return;
   }
-  const rows = rawRows.map(normalizeHistoryRow);
+  // Ring buffer in Rust is capped; avoid normalizing a redundant prefix when a large dump is sent.
+  const capped =
+    rawRows.length > histMaxSamples ? rawRows.slice(rawRows.length - histMaxSamples) : rawRows;
+  const n = capped.length;
 
   loudnessHistRef.current = [];
   spectrumDataSnapRef.current = [];
@@ -85,68 +185,24 @@ export function seedFloatHistoryFromRows(rawRows, ctx) {
   corrSnapRef.current = [];
   audioSnapRef.current = [];
 
-  for (const row of rows) {
-    const hm = Number.isFinite(row.lufsMomentary) ? row.lufsMomentary : -Infinity;
-    const hst = Number.isFinite(row.lufsShortTerm) ? row.lufsShortTerm : -Infinity;
-    loudnessHistRef.current.push({ m: hm, st: hst });
-    if (loudnessHistRef.current.length > histMaxSamples) loudnessHistRef.current.shift();
-
-    const snap = {
-      momentary: hm,
-      shortTerm: hst,
-      integrated: Number.isFinite(row.integrated) ? row.integrated : -Infinity,
-      lra: Number.isFinite(row.lra) ? row.lra : -Infinity,
-      truePeakL: Number.isFinite(row.truePeakL) ? row.truePeakL : -Infinity,
-      truePeakR: Number.isFinite(row.truePeakR) ? row.truePeakR : -Infinity,
-      tpMax: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
-      samplePeak: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
-      tpL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
-      tpR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
-      sampleL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
-      sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
-      samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
-      samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
-      correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
-    };
-    audioSnapRef.current.push(snap);
-    if (audioSnapRef.current.length > histMaxSamples) audioSnapRef.current.shift();
-
-    const c = Number.isFinite(row.correlation) ? row.correlation : 0;
-    corrSnapRef.current.push(c);
-    if (corrSnapRef.current.length > histMaxSamples) corrSnapRef.current.shift();
-    vectorSnapRef.current.push(row.vectorscopePath || "");
-    if (vectorSnapRef.current.length > histMaxSamples) vectorSnapRef.current.shift();
-    spectrumSnapRef.current.push(row.spectrumPath || "");
-    if (spectrumSnapRef.current.length > histMaxSamples) spectrumSnapRef.current.shift();
-    spectrumDataSnapRef.current.push(buildSpectrumDataSnapshot(row, pick));
-    if (spectrumDataSnapRef.current.length > histMaxSamples) spectrumDataSnapRef.current.shift();
+  const histMax = histMaxSamples;
+  for (let start = 0; start < n; start += SEED_ROW_BATCH) {
+    if (isCancelled?.()) {
+      return;
+    }
+    const end = Math.min(start + SEED_ROW_BATCH, n);
+    for (let i = start; i < end; i += 1) {
+      const row = normalizeHistoryRow(capped[i]);
+      appendSeededRow(row, pick, ctx, histMax);
+    }
+    if (end < n) {
+      await raf();
+    }
   }
 
-  histRef.current = loudnessHistRef.current;
-  const last = rows[rows.length - 1];
-  const sd = buildSpectrumDataSnapshot(last, pick);
-  spectrumDataRef.current = sd;
-  setSpectrumPath(last.spectrumPath || "");
-  setSpectrumPeakPath(last.spectrumPeakPath || "");
-  setVectorPath(last.vectorscopePath || "");
-
-  setAudio(() => ({
-    momentary: Number.isFinite(last.lufsMomentary) ? last.lufsMomentary : -Infinity,
-    shortTerm: Number.isFinite(last.lufsShortTerm) ? last.lufsShortTerm : -Infinity,
-    integrated: Number.isFinite(last.integrated) ? last.integrated : -Infinity,
-    mMax: -Infinity,
-    stMax: -Infinity,
-    lra: Number.isFinite(last.lra) ? last.lra : -Infinity,
-    tpL: Number.isFinite(last.sampleLDb) ? last.sampleLDb : -Infinity,
-    tpR: Number.isFinite(last.sampleRDb) ? last.sampleRDb : -Infinity,
-    truePeakL: Number.isFinite(last.truePeakL) ? last.truePeakL : -Infinity,
-    truePeakR: Number.isFinite(last.truePeakR) ? last.truePeakR : -Infinity,
-    tpMax: Number.isFinite(last.truePeakMaxDbtp) ? last.truePeakMaxDbtp : -Infinity,
-    samplePeakMaxL: Number.isFinite(last.samplePeakMaxL) ? last.samplePeakMaxL : -Infinity,
-    samplePeakMaxR: Number.isFinite(last.samplePeakMaxR) ? last.samplePeakMaxR : -Infinity,
-    sampleL: Number.isFinite(last.sampleLDb) ? last.sampleLDb : -Infinity,
-    sampleR: Number.isFinite(last.sampleRDb) ? last.sampleRDb : -Infinity,
-    samplePeak: Number.isFinite(last.truePeakMaxDbtp) ? last.truePeakMaxDbtp : -Infinity,
-    correlation: Number.isFinite(last.correlation) ? last.correlation : 0,
-  }));
+  if (isCancelled?.()) {
+    return;
+  }
+  const last = normalizeHistoryRow(capped[n - 1]);
+  finalizeSeededState(last, pick, ctx);
 }

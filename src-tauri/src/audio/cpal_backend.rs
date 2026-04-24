@@ -262,7 +262,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
         continue;
       };
       let (frame, slow) = pipeline.push_pcm_f32(&floats);
-      if let Some(f) = frame {
+        if let Some(f) = frame {
         if let Ok(mut m) = frame_subscribers.lock() {
           {
             // Primary webview: stop capture if the main stream drops; float panes are best-effort.
@@ -274,17 +274,18 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
               break;
             }
           }
-          let other_ids: Vec<String> = m
-            .keys()
-            .filter(|k| *k != "main")
-            .cloned()
-            .collect();
-          for id in other_ids {
-            if let Some(tx) = m.remove(&id) {
-              if tx.send(f.clone()).is_ok() {
-                m.insert(id, tx);
-              }
+          // Avoid per-key remove/insert on every frame; drop dead float subscribers when send fails.
+          let mut to_remove: Vec<String> = Vec::new();
+          for (id, tx) in m.iter_mut() {
+            if id == "main" {
+              continue;
             }
+            if tx.send(f.clone()).is_err() {
+              to_remove.push(id.clone());
+            }
+          }
+          for id in to_remove {
+            m.remove(&id);
           }
         } else {
           break;

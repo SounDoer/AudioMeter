@@ -31,6 +31,8 @@ export function useTauriFrameSubscription(
     setHistoryPathST,
     /** @type {import("react").MutableRefObject<number> | undefined} */
     defaultSampleRateRef: passedSampleRateRef,
+    /** When false, do not listen for 2Hz loudness-slow; peak/spectrum/vector floats do not need it. */
+    loudnessSlow = true,
   }
 ) {
   const internalSampleRateRef = useRef(48000);
@@ -64,18 +66,22 @@ export function useTauriFrameSubscription(
         setHistoryPathM,
         setHistoryPathST,
       });
-      const uSlow = await onLoudnessSlow((p) => {
-        if (cancelled) return;
-        setAudio((prev) => ({
-          ...prev,
-          integrated:
-            p.lufsIntegrated != null && Number.isFinite(p.lufsIntegrated) ? p.lufsIntegrated : prev.integrated,
-          mMax: Number.isFinite(p.lufsMMax) ? p.lufsMMax : prev.mMax,
-          stMax: Number.isFinite(p.lufsStMax) ? p.lufsStMax : prev.stMax,
-          lra: Number.isFinite(p.lra) ? p.lra : prev.lra,
-        }));
-      });
-      unlistenSlow = uSlow;
+      if (loudnessSlow) {
+        const uSlow = await onLoudnessSlow((p) => {
+          if (cancelled) return;
+          setAudio((prev) => ({
+            ...prev,
+            integrated:
+              p.lufsIntegrated != null && Number.isFinite(p.lufsIntegrated) ? p.lufsIntegrated : prev.integrated,
+            mMax: Number.isFinite(p.lufsMMax) ? p.lufsMMax : prev.mMax,
+            stMax: Number.isFinite(p.lufsStMax) ? p.lufsStMax : prev.stMax,
+            lra: Number.isFinite(p.lra) ? p.lra : prev.lra,
+          }));
+        });
+        unlistenSlow = uSlow;
+      } else {
+        unlistenSlow = () => {};
+      }
       unlistenSr = await onSampleRateChanged((sr) => {
         if (cancelled || !Number.isFinite(sr)) return;
         defaultSampleRateRef.current = sr;
@@ -100,5 +106,15 @@ export function useTauriFrameSubscription(
     };
   // subscriptionId is stable for the instance; refs are stable.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engineRunning, histMaxSamples, setAudio, setSpectrumPath, setSpectrumPeakPath, setVectorPath, setHistoryPathM, setHistoryPathST]);
+  }, [
+    engineRunning,
+    histMaxSamples,
+    loudnessSlow,
+    setAudio,
+    setSpectrumPath,
+    setSpectrumPeakPath,
+    setVectorPath,
+    setHistoryPathM,
+    setHistoryPathST,
+  ]);
 }

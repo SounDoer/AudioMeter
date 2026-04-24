@@ -17,21 +17,6 @@ import { VectorscopePanel } from "./components/panels/VectorscopePanel";
 const HISTORY_TIME_TICK_STEPS = 4;
 const PANELS = new Set(["peak", "loudness", "spectrum", "vector"]);
 
-const panelLabel = (p) => {
-  switch (p) {
-    case "peak":
-      return "Peak";
-    case "loudness":
-      return "Loudness & history";
-    case "spectrum":
-      return "Spectrum / RTA";
-    case "vector":
-      return "Vectorscope";
-    default:
-      return p;
-  }
-};
-
 function useSharedPeakVis(uiMode, displayAudio) {
   const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
   const renderPeakFill = (dbValue) => {
@@ -299,7 +284,7 @@ function FloatVectorView({ core }) {
  */
 export function FloatApp({ kind }) {
   useFloatWindowPersistence(kind);
-  const core = useFloatMeteringCore();
+  const core = useFloatMeteringCore(kind);
   const { uiMode } = core;
   if (!PANELS.has(kind)) {
     return (
@@ -318,13 +303,8 @@ export function FloatApp({ kind }) {
   return (
     <div className="ui-page min-h-0">
       <div className="ui-shell-inner flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="ui-header shrink-0">
-          <div className="ui-app-title min-w-0 text-[length:var(--ui-fs-metric-meta)]">
-            {panelLabel(kind)} <span className="text-[color:var(--ui-color-muted)]">· float</span>
-          </div>
-        </header>
         {!core.engineRunning ? (
-          <main className="p-3 text-sm text-[color:var(--ui-color-muted)]">
+          <main className="min-h-0 flex-1 p-3 text-sm text-[color:var(--ui-color-muted)]">
             The main window is not running the audio engine. Open AudioMeter, choose an input, and press <strong>START</strong> — this window
             will mirror the same data.
           </main>
@@ -339,9 +319,6 @@ export function FloatApp({ kind }) {
             {kind === "vector" && <FloatVectorView core={core} />}
           </main>
         )}
-        <footer className="ui-footer">
-          <span>AudioMeter float · same engine as main</span>
-        </footer>
       </div>
     </div>
   );

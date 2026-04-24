@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getMeterHistory } from "../ipc/commands.js";
 import { isTauri } from "../ipc/env.js";
 import { onMeterHistoryCleared } from "../ipc/events.js";
@@ -32,7 +32,12 @@ const initialAudio = () => ({
   correlation: 0,
 });
 
-export function useFloatMeteringCore() {
+/**
+ * @param {string} [floatKind] Panel from `?float=…` (e.g. "loudness"). Used to avoid extra Tauri/IPC in non-loudness floats.
+ */
+export function useFloatMeteringCore(floatKind) {
+  const noopSetHistoryM = useCallback(() => {}, []);
+  const noopSetHistoryST = useCallback(() => {}, []);
   const { standard, uiMode, uiModeRef: _u } = useSettings();
   const engineRunning = useFloatEngineState();
   const [selectedOffset, setSelectedOffset] = useState(-1);
@@ -70,9 +75,10 @@ export function useFloatMeteringCore() {
     setSpectrumPath,
     setSpectrumPeakPath,
     setVectorPath,
-    setHistoryPathM: () => {},
-    setHistoryPathST: () => {},
+    setHistoryPathM: noopSetHistoryM,
+    setHistoryPathST: noopSetHistoryST,
     defaultSampleRateRef,
+    loudnessSlow: floatKind === "loudness",
   });
 
   useEffect(() => {
@@ -82,7 +88,13 @@ export function useFloatMeteringCore() {
       try {
         const rows = await getMeterHistory();
         if (cancelled || !rows || rows.length === 0) return;
-        seedFloatHistoryFromRows(rows, {
+        // Let one frame paint (live `meter` frames) before we start the chunked seed (see
+        // `floatHistorySeed.js` — rAF between batches to avoid a single long jank).
+        await new Promise((r) => {
+          requestAnimationFrame(r);
+        });
+        if (cancelled) return;
+        await seedFloatHistoryFromRows(rows, {
           histMaxSamples: HIST_MAX_SAMPLES,
           defaultSampleRate: defaultSampleRateRef.current,
           loudnessHistRef,
@@ -97,6 +109,7 @@ export function useFloatMeteringCore() {
           setSpectrumPath,
           setSpectrumPeakPath,
           setVectorPath,
+          isCancelled: () => cancelled,
         });
       } catch {
         /* not running or backend empty */

@@ -20,6 +20,13 @@ export async function openFloatPanel(kind) {
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
     try {
+      if (typeof existing.unminimize === "function") {
+        await existing.unminimize();
+      }
+    } catch {
+      /* not all platforms / state */
+    }
+    try {
       await existing.show();
       await existing.setFocus();
     } catch (e) {
@@ -38,7 +45,24 @@ export async function openFloatPanel(kind) {
     alwaysOnTop: true,
     parent: "main",
   });
-  w.once("tauri://error", (e) => {
+  try {
+    await new Promise((resolve, reject) => {
+      void w.once("tauri://created", () => {
+        resolve();
+      });
+      void w.once("tauri://error", (e) => {
+        const msg = typeof e === "string" ? e : "float window create failed";
+        reject(new Error(msg));
+      });
+    });
+  } catch (e) {
     console.error("float window create failed", e);
-  });
+    return;
+  }
+  try {
+    await w.show();
+    await w.setFocus();
+  } catch (e) {
+    console.error("float window show/focus failed", e);
+  }
 }
