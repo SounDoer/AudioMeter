@@ -31,3 +31,27 @@ export function clearAudioHistory() {
 export function getMeterHistory() {
   return invoke("get_meter_history");
 }
+
+/** @returns {Promise<"running" | "stopped">} */
+export function getEngineState() {
+  return invoke("get_engine_state");
+}
+
+/**
+ * @param {string} id
+ * @param {{ onFrame: (payload: object) => void }} opts
+ */
+export async function meterAddFrameSubscriber(id, { onFrame }) {
+  const ch = new Channel();
+  ch.onmessage = (msg) => {
+    const p = msg && typeof msg === "object" && "message" in msg ? msg.message : msg;
+    if (p && typeof p === "object") onFrame(p);
+  };
+  await invoke("meter_add_frame_subscriber", { id, onFrame: ch });
+  return ch;
+}
+
+/** @param {string} id */
+export function meterRemoveFrameSubscriber(id) {
+  return invoke("meter_remove_frame_subscriber", { id });
+}

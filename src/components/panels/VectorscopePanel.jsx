@@ -7,10 +7,22 @@ export function VectorscopePanel({
   selectedOffset,
   hasCorrelationValue,
   correlation,
+  onPopOut,
 }) {
   return (
     <article className="ui-article ui-min-h-spectrum flex-1">
-      <div className="ui-section-title ui-section-title-main shrink-0">Vectorscope</div>
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="ui-section-title ui-section-title-main min-w-0 shrink-0">Vectorscope</div>
+        {onPopOut ? (
+          <button
+            type="button"
+            className="shrink-0 rounded border border-[color:var(--ui-color-border)] bg-[var(--ui-color-surface-raised)] px-1.5 py-0.5 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)] hover:text-[color:var(--ui-color-text)]"
+            onClick={onPopOut}
+          >
+            Pop out
+          </button>
+        ) : null}
+      </div>
       <div className="relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)]">
         <div className="absolute inset-[var(--ui-chart-outer-inset)] z-0 min-h-0 min-w-0 overflow-hidden">
           <svg

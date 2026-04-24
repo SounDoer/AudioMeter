@@ -1,0 +1,186 @@
+import { useEffect, useRef, useState } from "react";
+import { getMeterHistory } from "../ipc/commands.js";
+import { isTauri } from "../ipc/env.js";
+import { onMeterHistoryCleared } from "../ipc/events.js";
+import { useSettings } from "./useSettings";
+import { useSnapshot } from "./useSnapshot";
+import { useTauriFrameSubscription } from "./useTauriFrameSubscription";
+import { useFloatEngineState } from "./useFloatEngineState";
+import { seedFloatHistoryFromRows } from "./floatHistorySeed.js";
+import { resetFloatMeteringState } from "./resetFloatMeteringState.js";
+
+const HIST_MAX_SAMPLES = 36000;
+const HIST_SAMPLE_SEC = 0.1;
+
+const initialAudio = () => ({
+  momentary: -Infinity,
+  shortTerm: -Infinity,
+  integrated: -Infinity,
+  mMax: -Infinity,
+  stMax: -Infinity,
+  lra: -Infinity,
+  tpL: -Infinity,
+  tpR: -Infinity,
+  truePeakL: -Infinity,
+  truePeakR: -Infinity,
+  tpMax: -Infinity,
+  samplePeakMaxL: -Infinity,
+  samplePeakMaxR: -Infinity,
+  sampleL: -Infinity,
+  sampleR: -Infinity,
+  samplePeak: -Infinity,
+  correlation: 0,
+});
+
+export function useFloatMeteringCore() {
+  const { standard, uiMode, uiModeRef: _u } = useSettings();
+  const engineRunning = useFloatEngineState();
+  const [selectedOffset, setSelectedOffset] = useState(-1);
+  const [historyViewEpoch, setHistoryViewEpoch] = useState(0);
+  const [audio, setAudio] = useState(initialAudio);
+  const [spectrumPath, setSpectrumPath] = useState("");
+  const [spectrumPeakPath, setSpectrumPeakPath] = useState("");
+  const [vectorPath, setVectorPath] = useState("");
+
+  const defaultSampleRateRef = useRef(48000);
+  const frameRef = useRef(0);
+  const histRef = useRef([]);
+  const loudnessHistRef = useRef([]);
+  const spectrumSnapRef = useRef([]);
+  const spectrumDataRef = useRef(null);
+  const spectrumDataSnapRef = useRef([]);
+  const vectorSnapRef = useRef([]);
+  const corrSnapRef = useRef([]);
+  const audioSnapRef = useRef([]);
+  const selectedOffsetRef = useRef(-1);
+
+  useTauriFrameSubscription(engineRunning, {
+    histMaxSamples: HIST_MAX_SAMPLES,
+    loudnessHistRef,
+    spectrumDataRef,
+    spectrumDataSnapRef,
+    spectrumSnapRef,
+    vectorSnapRef,
+    corrSnapRef,
+    audioSnapRef,
+    frameRef,
+    selectedOffsetRef,
+    histRef,
+    setAudio,
+    setSpectrumPath,
+    setSpectrumPeakPath,
+    setVectorPath,
+    setHistoryPathM: () => {},
+    setHistoryPathST: () => {},
+    defaultSampleRateRef,
+  });
+
+  useEffect(() => {
+    if (!isTauri() || !engineRunning) return undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await getMeterHistory();
+        if (cancelled || !rows || rows.length === 0) return;
+        seedFloatHistoryFromRows(rows, {
+          histMaxSamples: HIST_MAX_SAMPLES,
+          defaultSampleRate: defaultSampleRateRef.current,
+          loudnessHistRef,
+          spectrumDataRef,
+          spectrumDataSnapRef,
+          spectrumSnapRef,
+          vectorSnapRef,
+          corrSnapRef,
+          audioSnapRef,
+          histRef,
+          setAudio,
+          setSpectrumPath,
+          setSpectrumPeakPath,
+          setVectorPath,
+        });
+      } catch {
+        /* not running or backend empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [engineRunning]);
+
+  useEffect(() => {
+    if (!isTauri()) return undefined;
+    let u = () => {};
+    void onMeterHistoryCleared(() => {
+      resetFloatMeteringState({
+        frameRef,
+        selectedOffsetRef,
+        histRef,
+        loudnessHistRef,
+        spectrumDataRef,
+        spectrumDataSnapRef,
+        spectrumSnapRef,
+        vectorSnapRef,
+        corrSnapRef,
+        audioSnapRef,
+        setAudio,
+        setSpectrumPath,
+        setSpectrumPeakPath,
+        setVectorPath,
+        setSelectedOffset,
+      });
+      setHistoryViewEpoch((e) => e + 1);
+    }).then((un) => {
+      u = un;
+    });
+    return () => {
+      u();
+    };
+  }, []);
+
+  const {
+    displayAudio,
+    displaySpectrumPath,
+    displaySpectrumPeakPath,
+    displaySpectrumData,
+    displayVectorPath,
+    hasHistoryData,
+    histSourceList,
+    correlation,
+  } = useSnapshot({
+    selectedOffset,
+    sampleSec: HIST_SAMPLE_SEC,
+    loudnessHistRef,
+    spectrumSnapRef,
+    spectrumDataRef,
+    spectrumDataSnapRef,
+    vectorSnapRef,
+    corrSnapRef,
+    audioSnapRef,
+    audio,
+    spectrumPath,
+    spectrumPeakPath,
+    vectorPath,
+  });
+
+  useEffect(() => {
+    selectedOffsetRef.current = selectedOffset;
+  }, [selectedOffset]);
+
+  return {
+    engineRunning,
+    standard,
+    uiMode,
+    HIST_SAMPLE_SEC,
+    selectedOffset,
+    setSelectedOffset,
+    displayAudio,
+    displaySpectrumPath,
+    displaySpectrumPeakPath,
+    displaySpectrumData,
+    displayVectorPath,
+    hasHistoryData,
+    histSourceList,
+    correlation,
+    historyViewEpoch,
+  };
+}

@@ -441,7 +441,14 @@ interface LoudnessSlowPayload {
 "device-list-changed"    // payload: DeviceInfo[]
 "engine-state-changed"   // payload: { state: "running"|"stopped"|"error", error?: string } — `audio_start` / `audio_stop` 成功时由 Rust emit（`src-tauri/src/ipc/commands.rs`）
 "sample-rate-changed"    // payload: number — 当前设备默认采样率（Hz），在 `audio_start` 成功后 emit
+"meter-history-cleared"  // 无有效 payload（unit）— `clear_audio_history` 立即清空共享 `meter_history` 后 emit，浮窗订阅并重置与主窗 Clear 等价的 ref/state
 ```
+
+**浮窗（`?float=` 辅 webview）要点**（实现见 `src/FloatApp.jsx` / `src/ipc/floatWindow.js` / `src/hooks/useFloatMeteringCore.js`）：
+
+- 与主窗共用一路采集；辅窗通过 `meter_add_frame_subscriber` 订阅同一份 `AudioFramePayload` 池。
+- `index.html?float=peak|loudness|spectrum|vector`；`openFloatPanel` 按 `float-<kind>` 单例标签复用/聚焦；`tauri-plugin-store` 的 `floatWindowBoundsV1` 存 **逻辑像素** 的 **客户区宽高**（`innerSize`）与 **外框左上角**（`outerPosition`），`v: 2` 标记新格式，旧项按物理像素用主窗 `scaleFactor` 迁一次；`useFloatWindowPersistence` 中 debounce + `pagehide` 落盘；与 `WindowOptions` 的 logical 语义一致，避免高 DPI 下重开「越偏越多」。
+- 主窗点 **Clear** 时，Rust 侧先清空 `meter_history` 再发 `meter-history-cleared`；辅窗在 `onMeterHistoryCleared` 中 `resetFloatMeteringState` 并 bump loudness 子树 `key`，与主窗「清空历史」语义对齐。
 
 ### 序列化：v1.0 用 JSON，必要时切 MessagePack
 
@@ -694,6 +701,9 @@ interface LoudnessSlowPayload {
 | 2026-04 | — | §5：`session.rs` 并入 `cpal_backend.rs`；`AudioCapture` + `AudioCaptureSession`（`start_session` → `Box<dyn …>`）；`build_device_list` `pub(crate)`；多声道 `ch>2` 时 VS/Spectrum/Peak/Loudness 取每帧前两路 |
 | 2026-04 | — | 工程基线：`rustfmt` + Windows Rust CI；`cargo` 单测（PCM pack/unpack、多声道 peak）；Dependabot；`CONTRIBUTING.md`；`npm run version:check` / `check`；`.gitattributes` LF |
 | 2026-04 | — | §8：`tauri-plugin-store` + 设备轮询说明；§7：`engine-state-changed` / `sample-rate-changed` 落地；Release 双产物（NSIS + portable `app.exe`）；§4/§11.1/§14 与实现对齐 |
+| 2026-04 | — | v1.1 浮窗首版：主/辅 webview 共享一路原生采集；`FrameSubscribers`（`main` + 动态 id）、`meter_add_frame_subscriber` / `get_engine_state`；`index.html?float=` + `WebviewWindow`；面板「Pop out」 |
+| 2026-04 | — | 浮窗补齐：`meter-history-cleared` + 共享 `meter_history` 同步清空；`floatWindowBoundsV1` 存位置；§7 浮窗要点；`resetFloatMeteringState` / `historyViewEpoch` |
+| 2026-04 | — | 浮窗 bounds：`v:2` 逻辑像素，inner/outer 与 `scaleFactor` 对齐，修正高 DPI 重开累积误差；旧存盘按物理→逻辑迁移 |
 
 ---
 

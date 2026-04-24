@@ -42,3 +42,15 @@ export async function onSampleRateChanged(handler) {
     handler(e.payload);
   });
 }
+
+/**
+ * After `clear_audio_history`: native ring and buffer are cleared; float webviews should reset
+ * in-memory ref rings to match the main window.
+ * @param {() => void} handler
+ * @returns {Promise<() => void>}
+ */
+export async function onMeterHistoryCleared(handler) {
+  return listen("meter-history-cleared", () => {
+    handler();
+  });
+}

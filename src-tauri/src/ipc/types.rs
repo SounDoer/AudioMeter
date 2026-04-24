@@ -1,8 +1,11 @@
 //! Payload shapes for Channel / Event streams (`docs/architecture.md` §7).
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+
+use tauri::ipc::Channel;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -62,6 +65,9 @@ pub struct AudioFramePayload {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub loudness_hist_tick: Option<MeterHistoryEntry>,
 }
+
+/// One fan-out for ~60Hz [`AudioFramePayload`]: key `"main"` = primary webview, extra float panes get unique keys.
+pub type FrameSubscribers = Arc<Mutex<HashMap<String, Channel<AudioFramePayload>>>>;
 
 /// ~2 Hz broadcast on Event `loudness-slow`.
 #[derive(Debug, Clone, Serialize, Deserialize)]

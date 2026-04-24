@@ -2,11 +2,11 @@
 //!
 //! Concrete **cpal / WASAPI** implementation lives in `cpal_backend.rs`; macOS may add another impl of the same traits.
 
-use tauri::ipc::Channel;
 use tauri::AppHandle;
 
 use super::device::DeviceInfo;
-use crate::ipc::types::{AudioFramePayload, MeterHistoryBuf};
+use crate::ipc::types::FrameSubscribers;
+use crate::ipc::types::MeterHistoryBuf;
 
 /// One PCM buffer from the device; channel count is never hard-coded to stereo.
 #[derive(Clone, Debug)]
@@ -29,7 +29,7 @@ pub trait AudioCapture: Send + Sync {
   fn start_session(
     &self,
     device_id: &str,
-    frame_tx: Channel<AudioFramePayload>,
+    frame_subscribers: FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
   ) -> Result<Box<dyn AudioCaptureSession>, String>;

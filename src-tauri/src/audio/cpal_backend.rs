@@ -13,7 +13,7 @@ use super::capture::{AudioCapture, AudioCaptureSession};
 use super::device::DeviceInfo;
 
 use crate::engine::MeterPipeline;
-use crate::ipc::types::{AudioFramePayload, MeterHistoryBuf};
+use crate::ipc::types::MeterHistoryBuf;
 use tauri::{AppHandle, Emitter};
 
 fn is_name_heuristic_loopback(name: &str) -> bool {
@@ -224,7 +224,7 @@ struct RunCaptureArgs {
   supported: cpal::SupportedStreamConfig,
   sample_rate: u32,
   channels: u16,
-  frame_tx: tauri::ipc::Channel<AudioFramePayload>,
+  frame_subscribers: crate::ipc::types::FrameSubscribers,
   app: tauri::AppHandle,
   stop_rx: std::sync::mpsc::Receiver<()>,
   clear_peak_history: Arc<AtomicBool>,
@@ -237,7 +237,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     supported,
     sample_rate,
     channels,
-    frame_tx,
+    frame_subscribers,
     app,
     stop_rx,
     clear_peak_history,
@@ -263,7 +263,30 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
       };
       let (frame, slow) = pipeline.push_pcm_f32(&floats);
       if let Some(f) = frame {
-        if frame_tx.send(f).is_err() {
+        if let Ok(mut m) = frame_subscribers.lock() {
+          {
+            // Primary webview: stop capture if the main stream drops; float panes are best-effort.
+            let main_ok = match m.get_mut("main") {
+              Some(tx) => tx.send(f.clone()).is_ok(),
+              None => false,
+            };
+            if !main_ok {
+              break;
+            }
+          }
+          let other_ids: Vec<String> = m
+            .keys()
+            .filter(|k| *k != "main")
+            .cloned()
+            .collect();
+          for id in other_ids {
+            if let Some(tx) = m.remove(&id) {
+              if tx.send(f.clone()).is_ok() {
+                m.insert(id, tx);
+              }
+            }
+          }
+        } else {
           break;
         }
       }
@@ -356,7 +379,7 @@ impl AudioCaptureSession for CaptureSession {
 impl CaptureSession {
   pub(crate) fn start(
     device_id: &str,
-    frame_tx: tauri::ipc::Channel<AudioFramePayload>,
+    frame_subscribers: crate::ipc::types::FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
   ) -> Result<Self, String> {
@@ -375,7 +398,7 @@ impl CaptureSession {
           supported,
           sample_rate,
           channels,
-          frame_tx,
+          frame_subscribers,
           app,
           stop_rx,
           clear_peak_history: clear_worker,
@@ -403,13 +426,13 @@ impl AudioCapture for CpalBackend {
   fn start_session(
     &self,
     device_id: &str,
-    frame_tx: tauri::ipc::Channel<AudioFramePayload>,
+    frame_subscribers: crate::ipc::types::FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
   ) -> Result<Box<dyn AudioCaptureSession>, String> {
     Ok(Box::new(CaptureSession::start(
       device_id,
-      frame_tx,
+      frame_subscribers,
       app,
       meter_history,
     )?))

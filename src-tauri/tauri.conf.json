@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "AudioMeter",
         "width": 1280,
         "height": 860,

@@ -1,12 +1,15 @@
 //! `#[tauri::command]` handlers (Phase 2: capture + DSP → Channel / Events).
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use tauri::{AppHandle, Emitter, State};
 
 use crate::audio::capture::AudioCapture;
 use crate::audio::cpal_backend;
 use crate::audio::device::DeviceInfo;
 use crate::audio::CpalBackend;
-use crate::ipc::types::{AudioFramePayload, EngineStateChanged, MeterHistoryEntry};
+use crate::ipc::types::{AudioFramePayload, EngineStateChanged, FrameSubscribers, MeterHistoryEntry};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -30,6 +33,14 @@ pub fn audio_start(
     *g = None;
   }
   {
+    let mut s = state
+      .inner()
+      .frame_subscribers
+      .lock()
+      .map_err(|_| "frame subscribers lock poisoned".to_string())?;
+    *s = None;
+  }
+  {
     let mut h = state
       .inner()
       .meter_history
@@ -37,8 +48,23 @@ pub fn audio_start(
       .map_err(|_| "meter history lock poisoned".to_string())?;
     h.clear();
   }
+  let pool: FrameSubscribers = Arc::new(std::sync::Mutex::new(HashMap::new()));
+  {
+    let mut p = pool
+      .lock()
+      .map_err(|_| "frame subscriber map poisoned".to_string())?;
+    p.insert("main".to_string(), on_frame);
+  }
+  {
+    let mut slot = state
+      .inner()
+      .frame_subscribers
+      .lock()
+      .map_err(|_| "frame subscribers lock poisoned".to_string())?;
+    *slot = Some(pool.clone());
+  }
   let mh = state.inner().meter_history.clone();
-  let session = CpalBackend.start_session(&device_id, on_frame, app.clone(), mh)?;
+  let session = CpalBackend.start_session(&device_id, pool, app.clone(), mh)?;
   {
     let mut g = state
       .inner()
@@ -68,6 +94,14 @@ pub fn audio_stop(app: AppHandle, state: State<'_, AppState>) -> Result<(), Stri
     .lock()
     .map_err(|_| "state lock poisoned".to_string())?;
   *g = None;
+  {
+    let mut s = state
+      .inner()
+      .frame_subscribers
+      .lock()
+      .map_err(|_| "frame subscribers lock poisoned".to_string())?;
+    *s = None;
+  }
   let _ = app.emit(
     "engine-state-changed",
     EngineStateChanged {
@@ -78,17 +112,78 @@ pub fn audio_stop(app: AppHandle, state: State<'_, AppState>) -> Result<(), Stri
   Ok(())
 }
 
-/// Clear meter history deque + DSP state on the capture thread (matches UI Clear for native path).
+/// Extra float webview: receive the same `AudioFramePayload` stream as the main window.
 #[tauri::command]
-pub fn clear_audio_history(state: State<'_, AppState>) -> Result<(), String> {
-  let g = state
-    .inner()
-    .capture
-    .lock()
-    .map_err(|_| "state lock poisoned".to_string())?;
-  if let Some(sess) = g.as_ref() {
-    sess.request_clear_peak_history();
+pub fn meter_add_frame_subscriber(
+  id: String,
+  on_frame: tauri::ipc::Channel<AudioFramePayload>,
+  state: State<'_, AppState>,
+) -> Result<(), String> {
+  let pool = {
+    let s = state
+      .inner()
+      .frame_subscribers
+      .lock()
+      .map_err(|_| "frame subscribers lock poisoned".to_string())?;
+    s.as_ref()
+      .cloned()
+      .ok_or_else(|| "meter engine is not running".to_string())?
+  };
+  {
+    let mut m = pool
+      .lock()
+      .map_err(|_| "frame subscriber map poisoned".to_string())?;
+    m.insert(id, on_frame);
   }
+  Ok(())
+}
+
+#[tauri::command]
+pub fn meter_remove_frame_subscriber(
+  id: String,
+  state: State<'_, AppState>,
+) -> Result<(), String> {
+  let opt = {
+    let s = state
+      .inner()
+      .frame_subscribers
+      .lock()
+      .map_err(|_| "frame subscribers lock poisoned".to_string())?;
+    s.as_ref().cloned()
+  };
+  if let Some(pool) = opt {
+    let mut m = pool
+      .lock()
+      .map_err(|_| "frame subscriber map poisoned".to_string())?;
+    m.remove(&id);
+  }
+  Ok(())
+}
+
+/// Clear meter history deque + DSP state on the capture thread (matches UI Clear for native path).
+/// Also empties the shared `meter_history` buffer immediately and emits `meter-history-cleared` so
+/// pop-out webviews can reset local rings without waiting for the next audio chunk.
+#[tauri::command]
+pub fn clear_audio_history(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+  {
+    let mut h = state
+      .inner()
+      .meter_history
+      .lock()
+      .map_err(|_| "state lock poisoned".to_string())?;
+    h.clear();
+  }
+  {
+    let g = state
+      .inner()
+      .capture
+      .lock()
+      .map_err(|_| "state lock poisoned".to_string())?;
+    if let Some(sess) = g.as_ref() {
+      sess.request_clear_peak_history();
+    }
+  }
+  let _ = app.emit("meter-history-cleared", ());
   Ok(())
 }
 
@@ -101,4 +196,19 @@ pub fn get_meter_history(state: State<'_, AppState>) -> Result<Vec<MeterHistoryE
     .lock()
     .map_err(|_| "meter history lock poisoned".to_string())?;
   Ok(g.iter().cloned().collect())
+}
+
+/// `running` or `stopped` (float panes: no Tauri event replay; query on load).
+#[tauri::command]
+pub fn get_engine_state(state: State<'_, AppState>) -> Result<String, String> {
+  let g = state
+    .inner()
+    .capture
+    .lock()
+    .map_err(|_| "state lock poisoned".to_string())?;
+  Ok(if g.is_some() {
+    "running".into()
+  } else {
+    "stopped".into()
+  })
 }
