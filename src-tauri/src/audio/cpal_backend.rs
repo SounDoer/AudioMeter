@@ -5,12 +5,14 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{SampleFormat, StreamConfig};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use super::capture::{AudioCapture, AudioCaptureSession};
 use super::device::DeviceInfo;
+use super::device_id;
 
 use crate::engine::MeterPipeline;
 use crate::ipc::types::MeterHistoryBuf;
@@ -97,14 +99,20 @@ fn pick_input_by_index(
 }
 
 /// Selectable sources: system **outputs** (loopback) first, then **inputs** (mics, line in, virtual cables, etc.).
+///
+/// Device ids are stable across UI refreshes (`lb-*` / `cap-*` hashes). Legacy `out:N` / `in:N` index ids are still
+/// accepted in [`resolve_device`].
 pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
   let mut out = Vec::new();
+  let mut used_lb = HashSet::new();
+  let mut used_cap = HashSet::new();
 
-  for (idx, device, cfg) in collect_outputs()? {
+  for (_idx, device, cfg) in collect_outputs()? {
     let name = device.name().map_err(|e| e.to_string())?;
     let label = format!("{name} — what's playing");
+    let id = device_id::alloc_loopback_id(&name, cfg.channels(), cfg.sample_rate().0, &mut used_lb);
     out.push(DeviceInfo {
-      id: format!("out:{idx}"),
+      id,
       label,
       is_system_output_monitor: true,
       is_loopback: true,
@@ -113,11 +121,13 @@ pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
     });
   }
 
-  for (idx, device, cfg) in collect_inputs()? {
+  for (_idx, device, cfg) in collect_inputs()? {
     let label = device.name().map_err(|e| e.to_string())?;
     let is_loopback = is_name_heuristic_loopback(&label);
+    let id =
+      device_id::alloc_capture_id(&label, cfg.channels(), cfg.sample_rate().0, &mut used_cap);
     out.push(DeviceInfo {
-      id: format!("in:{idx}"),
+      id,
       label,
       is_system_output_monitor: false,
       is_loopback,
@@ -154,23 +164,53 @@ fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig
   pick_input_by_index(0)
 }
 
+fn resolve_stable_loopback(
+  target: &str,
+) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
+  let mut used_lb = HashSet::new();
+  for (_, device, cfg) in collect_outputs()? {
+    let name = device.name().map_err(|e| e.to_string())?;
+    let id = device_id::alloc_loopback_id(&name, cfg.channels(), cfg.sample_rate().0, &mut used_lb);
+    if id == target {
+      return Ok((device, cfg));
+    }
+  }
+  Err(format!("Unknown loopback device id: {target}"))
+}
+
+fn resolve_stable_capture(
+  target: &str,
+) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
+  let mut used_cap = HashSet::new();
+  for (_, device, cfg) in collect_inputs()? {
+    let name = device.name().map_err(|e| e.to_string())?;
+    let id = device_id::alloc_capture_id(&name, cfg.channels(), cfg.sample_rate().0, &mut used_cap);
+    if id == target {
+      return Ok((device, cfg));
+    }
+  }
+  Err(format!("Unknown capture device id: {target}"))
+}
+
 fn resolve_device(device_id: &str) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
   if device_id.is_empty() || device_id == "default" {
     return resolve_default_output();
   }
 
-  if let Some(rest) = device_id.strip_prefix("out:") {
-    let n: usize = rest
-      .parse()
-      .map_err(|_| format!("Invalid device id: {device_id}"))?;
+  if let Some(n) = device_id::parse_legacy_output_index(device_id) {
     return pick_output_by_index(n);
   }
 
-  if let Some(rest) = device_id.strip_prefix("in:") {
-    let n: usize = rest
-      .parse()
-      .map_err(|_| format!("Invalid device id: {device_id}"))?;
+  if let Some(n) = device_id::parse_legacy_input_index(device_id) {
     return pick_input_by_index(n);
+  }
+
+  if device_id::is_stable_loopback_id(device_id) {
+    return resolve_stable_loopback(device_id);
+  }
+
+  if device_id::is_stable_capture_id(device_id) {
+    return resolve_stable_capture(device_id);
   }
 
   Err(format!("Unknown device id: {device_id}"))
@@ -180,43 +220,6 @@ fn resolve_device(device_id: &str) -> Result<(cpal::Device, cpal::SupportedStrea
 pub fn device_default_format(device_id: &str) -> Result<(u32, u16), String> {
   let (_, supported) = resolve_device(device_id)?;
   Ok((supported.sample_rate().0, supported.channels()))
-}
-
-pub fn unpack_pcm_chunk(bytes: &[u8]) -> Option<(u32, u16, Vec<f32>)> {
-  if bytes.len() < 12 {
-    return None;
-  }
-  let sample_rate = u32::from_le_bytes(bytes[0..4].try_into().ok()?);
-  let channels = u16::from_le_bytes(bytes[4..6].try_into().ok()?);
-  let frame_count = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
-  let ch = channels.max(1) as usize;
-  let need = 12usize.saturating_add(frame_count as usize * ch * 4);
-  if bytes.len() < need {
-    return None;
-  }
-  let mut v = Vec::with_capacity(frame_count as usize * ch);
-  let off = 12usize;
-  for i in 0..frame_count as usize * ch {
-    let start = off + i * 4;
-    v.push(f32::from_le_bytes(
-      bytes.get(start..start + 4)?.try_into().ok()?,
-    ));
-  }
-  Some((sample_rate, channels, v))
-}
-
-fn pack_pcm_chunk(sample_rate: u32, channels: u16, samples: &[f32]) -> Vec<u8> {
-  let ch = channels.max(1) as usize;
-  let frame_count = (samples.len() / ch) as u32;
-  let mut v = Vec::with_capacity(12 + samples.len() * 4);
-  v.extend_from_slice(&sample_rate.to_le_bytes());
-  v.extend_from_slice(&channels.to_le_bytes());
-  v.extend_from_slice(&0u16.to_le_bytes());
-  v.extend_from_slice(&frame_count.to_le_bytes());
-  for s in samples {
-    v.extend_from_slice(&s.to_le_bytes());
-  }
-  v
 }
 
 struct RunCaptureArgs {
@@ -229,6 +232,7 @@ struct RunCaptureArgs {
   stop_rx: std::sync::mpsc::Receiver<()>,
   clear_peak_history: Arc<AtomicBool>,
   meter_history: MeterHistoryBuf,
+  dropped_chunks: Arc<AtomicU64>,
 }
 
 fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
@@ -242,27 +246,34 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     stop_rx,
     clear_peak_history,
     meter_history,
+    dropped_chunks,
   } = args;
+  let dropped_worker = dropped_chunks.clone();
   let stream_config = StreamConfig {
     channels,
     sample_rate: supported.sample_rate(),
     buffer_size: cpal::BufferSize::Default,
   };
 
-  let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(256);
+  let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(256);
 
   let bridge = std::thread::spawn(move || {
     let mut pipeline = MeterPipeline::new(sample_rate, channels, meter_history);
-    while let Ok(chunk) = audio_rx.recv() {
+    let mut recv_tick: u32 = 0;
+    while let Ok(floats) = audio_rx.recv() {
+      recv_tick = recv_tick.wrapping_add(1);
+      if recv_tick % 480 == 0 {
+        let dropped = dropped_worker.swap(0, Ordering::Relaxed);
+        if dropped > 0 {
+          log::warn!("cpal→meter queue dropped {dropped} audio chunks (callback backpressure)");
+        }
+      }
       if clear_peak_history.load(Ordering::Acquire) {
         clear_peak_history.store(false, Ordering::Release);
         pipeline.clear_peak_and_history();
       }
-      let Some((_sr, _ch, floats)) = unpack_pcm_chunk(&chunk) else {
-        continue;
-      };
       let (frame, slow) = pipeline.push_pcm_f32(&floats);
-        if let Some(f) = frame {
+      if let Some(f) = frame {
         if let Ok(mut m) = frame_subscribers.lock() {
           {
             // Primary webview: stop capture if the main stream drops; float panes are best-effort.
@@ -300,12 +311,16 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
   let stream = match supported.sample_format() {
     SampleFormat::F32 => {
       let tx = audio_tx.clone();
+      let dropped = dropped_chunks.clone();
       device
         .build_input_stream(
           &stream_config,
           move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let packed = pack_pcm_chunk(sample_rate, channels, data);
-            let _ = tx.try_send(packed);
+            let mut v = Vec::with_capacity(data.len());
+            v.extend_from_slice(data);
+            if tx.try_send(v).is_err() {
+              dropped.fetch_add(1, Ordering::Relaxed);
+            }
           },
           |e| log::error!("cpal stream error: {e}"),
           None,
@@ -314,13 +329,18 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     }
     SampleFormat::I16 => {
       let tx = audio_tx.clone();
+      let dropped = dropped_chunks.clone();
       device
         .build_input_stream(
           &stream_config,
           move |data: &[i16], _: &cpal::InputCallbackInfo| {
-            let floats: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
-            let packed = pack_pcm_chunk(sample_rate, channels, &floats);
-            let _ = tx.try_send(packed);
+            let mut floats: Vec<f32> = Vec::with_capacity(data.len());
+            for &s in data {
+              floats.push(s as f32 / 32768.0);
+            }
+            if tx.try_send(floats).is_err() {
+              dropped.fetch_add(1, Ordering::Relaxed);
+            }
           },
           |e| log::error!("cpal stream error: {e}"),
           None,
@@ -329,13 +349,18 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     }
     SampleFormat::U16 => {
       let tx = audio_tx.clone();
+      let dropped = dropped_chunks.clone();
       device
         .build_input_stream(
           &stream_config,
           move |data: &[u16], _: &cpal::InputCallbackInfo| {
-            let floats: Vec<f32> = data.iter().map(|&s| (s as f32 / 32768.0) - 1.0).collect();
-            let packed = pack_pcm_chunk(sample_rate, channels, &floats);
-            let _ = tx.try_send(packed);
+            let mut floats: Vec<f32> = Vec::with_capacity(data.len());
+            for &s in data {
+              floats.push((s as f32 / 32768.0) - 1.0);
+            }
+            if tx.try_send(floats).is_err() {
+              dropped.fetch_add(1, Ordering::Relaxed);
+            }
           },
           |e| log::error!("cpal stream error: {e}"),
           None,
@@ -390,6 +415,7 @@ impl CaptureSession {
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let clear_peak_history = Arc::new(AtomicBool::new(false));
     let clear_worker = clear_peak_history.clone();
+    let dropped_chunks = Arc::new(AtomicU64::new(0));
 
     let join = std::thread::Builder::new()
       .name("audiometer-capture".into())
@@ -404,6 +430,7 @@ impl CaptureSession {
           stop_rx,
           clear_peak_history: clear_worker,
           meter_history,
+          dropped_chunks,
         })
       })
       .map_err(|e| e.to_string())?;
@@ -442,7 +469,42 @@ impl AudioCapture for CpalBackend {
 
 #[cfg(test)]
 mod pcm_chunk_tests {
-  use super::{pack_pcm_chunk, unpack_pcm_chunk};
+  fn unpack_pcm_chunk(bytes: &[u8]) -> Option<(u32, u16, Vec<f32>)> {
+    if bytes.len() < 12 {
+      return None;
+    }
+    let sample_rate = u32::from_le_bytes(bytes[0..4].try_into().ok()?);
+    let channels = u16::from_le_bytes(bytes[4..6].try_into().ok()?);
+    let frame_count = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
+    let ch = channels.max(1) as usize;
+    let need = 12usize.saturating_add(frame_count as usize * ch * 4);
+    if bytes.len() < need {
+      return None;
+    }
+    let mut v = Vec::with_capacity(frame_count as usize * ch);
+    let off = 12usize;
+    for i in 0..frame_count as usize * ch {
+      let start = off + i * 4;
+      v.push(f32::from_le_bytes(
+        bytes.get(start..start + 4)?.try_into().ok()?,
+      ));
+    }
+    Some((sample_rate, channels, v))
+  }
+
+  fn pack_pcm_chunk(sample_rate: u32, channels: u16, samples: &[f32]) -> Vec<u8> {
+    let ch = channels.max(1) as usize;
+    let frame_count = (samples.len() / ch) as u32;
+    let mut v = Vec::with_capacity(12 + samples.len() * 4);
+    v.extend_from_slice(&sample_rate.to_le_bytes());
+    v.extend_from_slice(&channels.to_le_bytes());
+    v.extend_from_slice(&0u16.to_le_bytes());
+    v.extend_from_slice(&frame_count.to_le_bytes());
+    for s in samples {
+      v.extend_from_slice(&s.to_le_bytes());
+    }
+    v
+  }
 
   #[test]
   fn pack_unpack_round_trip_stereo() {

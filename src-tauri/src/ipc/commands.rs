@@ -9,7 +9,9 @@ use crate::audio::capture::AudioCapture;
 use crate::audio::cpal_backend;
 use crate::audio::device::DeviceInfo;
 use crate::audio::CpalBackend;
-use crate::ipc::types::{AudioFramePayload, EngineStateChanged, FrameSubscribers, MeterHistoryEntry};
+use crate::ipc::types::{
+  AudioFramePayload, EngineStateChanged, FrameSubscribers, MeterHistoryEntry,
+};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -139,10 +141,7 @@ pub fn meter_add_frame_subscriber(
 }
 
 #[tauri::command]
-pub fn meter_remove_frame_subscriber(
-  id: String,
-  state: State<'_, AppState>,
-) -> Result<(), String> {
+pub fn meter_remove_frame_subscriber(id: String, state: State<'_, AppState>) -> Result<(), String> {
   let opt = {
     let s = state
       .inner()

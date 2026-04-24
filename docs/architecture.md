@@ -203,6 +203,7 @@ AudioMeter/
 │       │   ├── mod.rs
 │       │   ├── capture.rs           # AudioCapture trait（抽象层）
 │       │   ├── cpal_backend.rs      # cpal 具体实现（Windows loopback）
+│       │   ├── device_id.rs         # 稳定设备 id（lb-* / cap-*）与 legacy 解析
 │       │   └── device.rs            # DeviceInfo 元数据（与前端 JSON 对齐）
 │       │
 │       ├── dsp/                     # 【DSP 计算层】
@@ -216,8 +217,7 @@ AudioMeter/
 │       │
 │       ├── engine/                  # 【编排层】
 │       │   ├── mod.rs
-│       │   ├── meter_pipeline.rs    # PCM → 各表头 + Channel 帧 / 慢响度 emit
-│       │   └── scheduler.rs         # 向前端推送的节流
+│       │   └── meter_pipeline.rs    # PCM → 各表头 + Channel 帧 / 慢响度 emit（节流在 pipeline 内）
 │       │
 │       ├── ipc/                     # 【前后端通信】
 │       │   ├── mod.rs
@@ -294,6 +294,12 @@ pub trait AudioCapture: Send + Sync {
 - v1.5 加 macOS Core Audio Taps 时，只是新增一个 `CoreAudioBackend` 实现，上层 DSP 代码不动。
 - 如果某天发现 `cpal` 在某平台有硬伤，可以局部换实现。
 - **不是过度设计**——这层非常薄，只是把 cpal 的 API 归口，未来可换。
+
+### 设备 `id`：稳定句柄与兼容
+
+- **当前**：列表项使用稳定 id —— `lb-{32 hex}`（渲染端 loopback）与 `cap-{32 hex}`（采集端），由设备名 + 通道数 + 默认采样率 + 盐值哈希得到；枚举顺序变化不会改变同一物理设备的 id。
+- **兼容**：仍接受旧版 `out:N` / `in:N`（cpal 枚举下标），便于已持久化的偏好平滑迁移。
+- **实时桥**：cpal 回调 → 计量线程通过 `sync_channel<Vec<f32>>` 传递交错 PCM（不再经自定义字节打包）；队列满时丢弃并计数，worker 侧周期性 `warn` 日志。
 
 ### PCM 数据结构：为多声道做准备（**重要**）
 

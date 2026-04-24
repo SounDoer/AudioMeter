@@ -1,5 +1,6 @@
 //! PCM → meters; drives `AudioFramePayload` / slow loudness emit rates.
 
+use std::collections::VecDeque;
 use std::time::Instant;
 
 use crate::dsp::loudness::LoudnessBlock;
@@ -22,8 +23,11 @@ pub struct MeterPipeline {
   loudness: LoudnessMeter,
   spectrum: SpectrumEngine,
   vs: VectorscopeState,
-  vs_l: Vec<f32>,
-  vs_r: Vec<f32>,
+  vs_l: VecDeque<f32>,
+  vs_r: VecDeque<f32>,
+  /// Flattened L/R for [`VectorscopeState::process`] (avoids O(n) `remove(0)` on the live ring).
+  vs_flat_l: Vec<f32>,
+  vs_flat_r: Vec<f32>,
   mono_scratch: Vec<f32>,
   last_loudness: Option<LoudnessBlock>,
   m_max: f64,
@@ -50,8 +54,10 @@ impl MeterPipeline {
       loudness: LoudnessMeter::new(sr),
       spectrum: SpectrumEngine::new(sr),
       vs: VectorscopeState::new(),
-      vs_l: Vec::with_capacity(VS_CAP),
-      vs_r: Vec::with_capacity(VS_CAP),
+      vs_l: VecDeque::with_capacity(VS_CAP),
+      vs_r: VecDeque::with_capacity(VS_CAP),
+      vs_flat_l: Vec::with_capacity(VS_CAP),
+      vs_flat_r: Vec::with_capacity(VS_CAP),
       mono_scratch: Vec::new(),
       last_loudness: None,
       m_max: f64::NEG_INFINITY,
@@ -111,11 +117,11 @@ impl MeterPipeline {
   }
 
   fn push_vs_pair(&mut self, l: f32, r: f32) {
-    self.vs_l.push(l);
-    self.vs_r.push(r);
+    self.vs_l.push_back(l);
+    self.vs_r.push_back(r);
     while self.vs_l.len() > VS_CAP {
-      self.vs_l.remove(0);
-      self.vs_r.remove(0);
+      self.vs_l.pop_front();
+      self.vs_r.pop_front();
     }
   }
 
@@ -239,7 +245,11 @@ impl MeterPipeline {
     };
 
     let (corr, vpath) = if !self.vs_l.is_empty() {
-      self.vs.process(&self.vs_l, &self.vs_r)
+      self.vs_flat_l.clear();
+      self.vs_flat_r.clear();
+      self.vs_flat_l.extend(self.vs_l.iter().copied());
+      self.vs_flat_r.extend(self.vs_r.iter().copied());
+      self.vs.process(&self.vs_flat_l, &self.vs_flat_r)
     } else {
       (0.0, String::new())
     };

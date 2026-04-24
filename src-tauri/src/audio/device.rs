@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
+  /// Stable `lb-*` / `cap-*` id (hash of name + format); legacy `out:N` / `in:N` still accepted by the backend.
   pub id: String,
   pub label: String,
   /// WASAPI loopback on a **render** endpoint (`out:*`). True when this row is real system-playback monitoring.
