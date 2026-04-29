@@ -26,6 +26,7 @@ import {
   readCaptureDeviceIdFromLocalStorage,
   saveCaptureDeviceId,
 } from "./ipc/capturePrefs.js";
+import { TitleBarWindowControls } from "./components/TitleBarWindowControls";
 import { PeakPanel } from "./components/panels/PeakPanel";
 import { LoudnessPanel } from "./components/panels/LoudnessPanel";
 import { SpectrumPanel } from "./components/panels/SpectrumPanel";
@@ -465,13 +466,13 @@ export default function App() {
   return (
     <div className="ui-page">
       <div className="ui-shell-inner">
-        <header className="ui-header">
+        <header className="ui-header" {...(isTauri() ? { "data-tauri-drag-region": "" } : {})}>
           <div className="ui-app-title">
             Audio<span className="ui-app-title-brand">Meter</span>
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-3 pr-2">
             {isTauri() && (
-              <div className="flex min-w-0 max-w-[min(22rem,42vw)] items-center gap-2">
+              <div className="flex min-w-0 max-w-[min(22rem,42vw)] items-center gap-2" data-tauri-no-drag="">
                 <label htmlFor="capture-device-select" className="shrink-0 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)]">
                   Input
                 </label>
@@ -513,12 +514,13 @@ export default function App() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-[var(--ui-header-action-gap)]">
+          <div className="flex items-center gap-[var(--ui-header-action-gap)]" {...(isTauri() ? { "data-tauri-no-drag": "" } : {})}>
             <PillButton onClick={clearAll}>Clear</PillButton>
             <PillButton accent liveSnap={startMode === "live"} onClick={onStartClick}>
               {startLabel}
             </PillButton>
             <PillButton onClick={() => setSettingsOpen(true)}>Settings</PillButton>
+            {isTauri() ? <TitleBarWindowControls /> : null}
           </div>
         </header>
 
