@@ -7,6 +7,11 @@ export async function listAudioDevices() {
   return invoke("list_audio_devices");
 }
 
+/** @param {string} deviceId Pass `"default"` for the OS default playback device (WASAPI loopback). */
+export async function previewAudioDevice(deviceId) {
+  return invoke("preview_audio_device", { deviceId });
+}
+
 /** @param {{ deviceId: string; onFrame: (payload: object) => void }} opts */
 export async function startAudioCapture({ deviceId, onFrame }) {
   const onAudio = new Channel();

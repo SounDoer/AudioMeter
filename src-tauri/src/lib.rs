@@ -19,6 +19,7 @@ pub fn run() {
     .manage(AppState::default())
     .invoke_handler(tauri::generate_handler![
       ipc::commands::list_audio_devices,
+      ipc::commands::preview_audio_device,
       ipc::commands::audio_start,
       ipc::commands::audio_stop,
       ipc::commands::clear_audio_history,

@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
-import { listAudioDevices, startAudioCapture, stopAudioCapture } from "../ipc/commands.js";
+import {
+  listAudioDevices,
+  previewAudioDevice,
+  startAudioCapture,
+  stopAudioCapture,
+} from "../ipc/commands.js";
 import { onLoudnessSlow } from "../ipc/events.js";
 import { isTauri } from "../ipc/env.js";
 import { buildTauriFrameApply } from "./tauriFrameApply.js";
@@ -69,8 +74,9 @@ export function useAudioEngine({
           if (!devices?.length) {
             throw new Error("No input devices reported by the native engine");
           }
+          const isAutomatic = !captureDeviceId || captureDeviceId === "default";
           const resolvePick = () => {
-            if (captureDeviceId && captureDeviceId !== "default") {
+            if (!isAutomatic) {
               const d = devices.find((x) => x.id === captureDeviceId);
               if (d) return d;
             }
@@ -80,8 +86,28 @@ export function useAudioEngine({
               devices[0]
             );
           };
-          const pick = resolvePick();
-          defaultSampleRateRef.current = pick.defaultSampleRate || 48000;
+
+          let engineDeviceId;
+          let statusMain;
+          let deviceStatusLabel;
+
+          if (isAutomatic) {
+            const preview = await previewAudioDevice("default");
+            if (!mounted) return;
+            defaultSampleRateRef.current = preview.sampleRateHz || 48000;
+            engineDeviceId = "default";
+            statusMain = "Monitoring system playback (loopback)";
+            deviceStatusLabel = preview.label;
+          } else {
+            const pick = resolvePick();
+            defaultSampleRateRef.current = pick.defaultSampleRate || 48000;
+            engineDeviceId = pick.id;
+            statusMain = pick.isSystemOutputMonitor
+              ? "Monitoring system playback (loopback)"
+              : "Monitoring audio input";
+            deviceStatusLabel = pick.label;
+          }
+
           const unsubs = [];
           const uSlow = await onLoudnessSlow((p) => {
             if (!mounted) return;
@@ -95,10 +121,6 @@ export function useAudioEngine({
             }));
           });
           unsubs.push(uSlow);
-
-          const statusMain = pick.isSystemOutputMonitor
-            ? "Monitoring system playback (loopback)"
-            : "Monitoring audio input";
 
           const { applyFrame: baseApply } = buildTauriFrameApply({
             histMaxSamples,
@@ -126,13 +148,13 @@ export function useAudioEngine({
           };
 
           await startAudioCapture({
-            deviceId: pick.id,
+            deviceId: engineDeviceId,
             onFrame: applyFrame,
           });
           if (!mounted) return;
           audioRef.current = { mode: "tauri", unsubs };
           setStatus(statusMain);
-          setStatus2(`Input: ${pick.label}`);
+          setStatus2(`Device: ${deviceStatusLabel}`);
           spectrumTimeRef.current = performance.now() / 1000;
           return;
         }
@@ -140,12 +162,12 @@ export function useAudioEngine({
         setRunning(false);
         setSelectedOffset(-1);
         setStatus("Browser preview: metering runs in the desktop app (Rust DSP). Use `npm run tauri dev`.");
-        setStatus2("Input: Not connected");
+        setStatus2("Device: Not connected");
       } catch (err) {
         setRunning(false);
         setSelectedOffset(-1);
         setStatus(`Error: ${err?.message || "Audio unavailable"}`);
-        setStatus2("Input: Not connected");
+        setStatus2("Device: Not connected");
       }
     };
     init();

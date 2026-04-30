@@ -10,13 +10,24 @@ use crate::audio::cpal_backend;
 use crate::audio::device::DeviceInfo;
 use crate::audio::CpalBackend;
 use crate::ipc::types::{
-  AudioFramePayload, EngineStateChanged, FrameSubscribers, MeterHistoryEntry,
+  AudioDevicePreview, AudioFramePayload, EngineStateChanged, FrameSubscribers,
+  MeterHistoryEntry,
 };
 use crate::state::AppState;
 
 #[tauri::command]
 pub fn list_audio_devices() -> Result<Vec<DeviceInfo>, String> {
   CpalBackend.list_devices()
+}
+
+#[tauri::command]
+pub fn preview_audio_device(device_id: String) -> Result<AudioDevicePreview, String> {
+  let (label, sample_rate_hz, channels) = cpal_backend::preview_device(&device_id)?;
+  Ok(AudioDevicePreview {
+    label,
+    sample_rate_hz,
+    channels,
+  })
 }
 
 #[tauri::command]

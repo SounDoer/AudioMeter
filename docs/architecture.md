@@ -487,8 +487,8 @@ interface LoudnessSlowPayload {
 ### 行为要点
 
 1. **麦克风和 loopback 合在一个下拉**，不做 tab 切换——用户要选的就是"信号源"，底层技术无关。
-2. **Loopback 设备用原名 + "— what's playing" 后缀**，语义立刻清楚。
-3. **首次启动默认选中"默认输出设备的 loopback"**——这是 99% 用户真正想要的。
+2. **Output 分组下列出各播放端的 loopback**，展示名即系统设备名（与「扬声器 / 耳机」等资源管理器命名一致）。
+3. **下拉首项 Automatic（`captureDeviceId: "default"`）**：`audio_start` 固定传 `"default"`，Rust `resolve_default_output()` 通过 cpal 的 **`default_output_device()`** 绑定 **Windows 当前默认播放设备**（与控制面板中带绿色勾选的那台一致）；**不是**列表按字母序的第一条输出。开始前 Web 端调用 **`preview_audio_device("default")`**，用返回的 `label` / `sampleRateHz` 更新状态栏与前端 DSP 默认值。
 4. **热插拔 / 列表刷新**：Rust 侧**每 2 秒**枚举设备（`CpalBackend::list_devices`），与上次结果比较，变化则 `emit("device-list-changed")`（`src-tauri/src/lib.rs` 设备轮询线程）。**不是**依赖 cpal 的 OS 级「设备已插拔」回调——轮询实现简单、与将来换后端（macOS）时行为一致；若以后要亚秒级刷新，可改为注册系统设备通知后再触发同一路枚举。
 5. **记住上次选择**：桌面端用 **`tauri-plugin-store`** 写入 `audiometer-settings.json`（键 `captureDeviceId`）；前端封装在 `src/ipc/capturePrefs.js`，启动时 `Store.load` 后若缺键则从旧版 **`localStorage`**（`audiometer.captureDeviceId`）迁移一次。非 Tauri 预览仍只用 `localStorage`。
 

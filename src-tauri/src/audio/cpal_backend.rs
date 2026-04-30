@@ -109,11 +109,10 @@ pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
 
   for (_idx, device, cfg) in collect_outputs()? {
     let name = device.name().map_err(|e| e.to_string())?;
-    let label = format!("{name} — what's playing");
     let id = device_id::alloc_loopback_id(&name, cfg.channels(), cfg.sample_rate().0, &mut used_lb);
     out.push(DeviceInfo {
       id,
-      label,
+      label: name,
       is_system_output_monitor: true,
       is_loopback: true,
       default_sample_rate: cfg.sample_rate().0,
@@ -220,6 +219,13 @@ fn resolve_device(device_id: &str) -> Result<(cpal::Device, cpal::SupportedStrea
 pub fn device_default_format(device_id: &str) -> Result<(u32, u16), String> {
   let (_, supported) = resolve_device(device_id)?;
   Ok((supported.sample_rate().0, supported.channels()))
+}
+
+/// Human-readable device name and format for a capture target (including `"default"` → OS default output).
+pub fn preview_device(device_id: &str) -> Result<(String, u32, u16), String> {
+  let (device, supported) = resolve_device(device_id)?;
+  let label = device.name().map_err(|e| e.to_string())?;
+  Ok((label, supported.sample_rate().0, supported.channels()))
 }
 
 struct RunCaptureArgs {

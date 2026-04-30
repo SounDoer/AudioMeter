@@ -15,6 +15,15 @@ pub struct EngineStateChanged {
   pub error: Option<String>,
 }
 
+/// Resolved device name and format for UI (e.g. before `audio_start` with `deviceId: "default"`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioDevicePreview {
+  pub label: String,
+  pub sample_rate_hz: u32,
+  pub channels: u16,
+}
+
 /// One aligned history row (~10 Hz): loudness chart + snapshot tracks + fields for `audioSnapRef` replay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

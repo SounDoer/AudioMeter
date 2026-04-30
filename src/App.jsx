@@ -51,7 +51,7 @@ export default function App() {
   const [historyHudUntilTs, setHistoryHudUntilTs] = useState(0);
   const [historyHudHold, setHistoryHudHold] = useState(false);
   const [status, setStatus] = useState("Ready - click Start to begin monitoring");
-  const [status2, setStatus2] = useState("Input: Not connected");
+  const [status2, setStatus2] = useState("Device: Not connected");
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const [audio, setAudio] = useState({
     momentary: -Infinity,
@@ -327,7 +327,7 @@ export default function App() {
       setRunning(false);
       setSelectedOffset(-1);
       setStatus("Stopped - click Start to resume");
-      setStatus2("Input: Not connected");
+      setStatus2("Device: Not connected");
       return;
     }
     setRunning(true);
@@ -473,7 +473,7 @@ export default function App() {
             {isTauri() && (
               <div className="flex min-w-0 max-w-[min(22rem,42vw)] items-center gap-2" data-tauri-no-drag="">
                 <label htmlFor="capture-device-select" className="shrink-0 text-[length:var(--ui-fs-metric-meta)] text-[color:var(--ui-color-muted)]">
-                  Input
+                  Device
                 </label>
                 <select
                   id="capture-device-select"
@@ -488,7 +488,7 @@ export default function App() {
                 >
                   <option value="default">Automatic (default system output)</option>
                   {audioDevices.some((d) => d.isSystemOutputMonitor) ? (
-                    <optgroup label="System outputs (playback)">
+                    <optgroup label="Output">
                       {audioDevices
                         .filter((d) => d.isSystemOutputMonitor)
                         .map((d) => (
@@ -499,7 +499,7 @@ export default function App() {
                     </optgroup>
                   ) : null}
                   {audioDevices.some((d) => !d.isSystemOutputMonitor) ? (
-                    <optgroup label="Microphones & other inputs">
+                    <optgroup label="Input">
                       {audioDevices
                         .filter((d) => !d.isSystemOutputMonitor)
                         .map((d) => (
