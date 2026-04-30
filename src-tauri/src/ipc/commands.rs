@@ -10,8 +10,7 @@ use crate::audio::cpal_backend;
 use crate::audio::device::DeviceInfo;
 use crate::audio::CpalBackend;
 use crate::ipc::types::{
-  AudioDevicePreview, AudioFramePayload, EngineStateChanged, FrameSubscribers,
-  MeterHistoryEntry,
+  AudioDevicePreview, AudioFramePayload, EngineStateChanged, FrameSubscribers, MeterHistoryEntry,
 };
 use crate::state::AppState;
 
