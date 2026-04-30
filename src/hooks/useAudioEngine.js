@@ -88,10 +88,10 @@ export function useAudioEngine({
             setAudio((prev) => ({
               ...prev,
               integrated:
-                p.lufsIntegrated != null && Number.isFinite(p.lufsIntegrated) ? p.lufsIntegrated : prev.integrated,
-              mMax: Number.isFinite(p.lufsMMax) ? p.lufsMMax : prev.mMax,
-              stMax: Number.isFinite(p.lufsStMax) ? p.lufsStMax : prev.stMax,
-              lra: Number.isFinite(p.lra) ? p.lra : prev.lra,
+                p.lufsIntegrated != null && Number.isFinite(p.lufsIntegrated) ? p.lufsIntegrated : -Infinity,
+              mMax: Number.isFinite(p.lufsMMax) ? p.lufsMMax : -Infinity,
+              stMax: Number.isFinite(p.lufsStMax) ? p.lufsStMax : -Infinity,
+              lra: Number.isFinite(p.lra) ? p.lra : -Infinity,
             }));
           });
           unsubs.push(uSlow);

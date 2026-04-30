@@ -264,7 +264,6 @@ function FloatSpectrumView({ core }) {
 function FloatVectorView({ core }) {
   const vsGridDiagInset = Math.max(0, Math.min(20, UI_PREFERENCES.modules.vector.charts.vectorscope.gridDiagInsetPct ?? 0));
   const vsGridDiagFar = 100 - vsGridDiagInset;
-  const hasCorrelationValue = Number.isFinite(core.displayAudio.sampleL) && Number.isFinite(core.displayAudio.sampleR);
   return (
     <div className="p-2">
       <VectorscopePanel
@@ -272,7 +271,6 @@ function FloatVectorView({ core }) {
         vsGridDiagFar={vsGridDiagFar}
         displayVectorPath={core.displayVectorPath}
         selectedOffset={core.selectedOffset}
-        hasCorrelationValue={hasCorrelationValue}
         correlation={core.correlation}
       />
     </div>

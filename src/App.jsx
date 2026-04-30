@@ -70,7 +70,7 @@ export default function App() {
     sampleL: -Infinity,
     sampleR: -Infinity,
     samplePeak: -Infinity,
-    correlation: 0,
+    correlation: -Infinity,
   });
   const [spectrumPath, setSpectrumPath] = useState("");
   const [spectrumPeakPath, setSpectrumPeakPath] = useState("");
@@ -192,7 +192,6 @@ export default function App() {
   const vsGridDiagFar = 100 - vsGridDiagInset;
   const hasTpMaxValue = Number.isFinite(displayAudio.tpMax);
   const tpMaxText = hasTpMaxValue ? `${displayAudio.tpMax.toFixed(1)} dBTP` : "-";
-  const hasCorrelationValue = Number.isFinite(displayAudio.sampleL) && Number.isFinite(displayAudio.sampleR);
   const startMode = selectedOffset >= 0 ? "live" : running ? "stop" : "start";
   const startLabel = startMode === "live" ? "LIVE" : startMode === "stop" ? "STOP" : "START";
 
@@ -307,7 +306,7 @@ export default function App() {
       momentary: -Infinity, shortTerm: -Infinity, integrated: -Infinity, mMax: -Infinity, stMax: -Infinity, lra: -Infinity,
       tpL: -Infinity, tpR: -Infinity, truePeakL: -Infinity, truePeakR: -Infinity,
       tpMax: -Infinity, samplePeakMaxL: -Infinity, samplePeakMaxR: -Infinity,
-      sampleL: -Infinity, sampleR: -Infinity, samplePeak: -Infinity, correlation: 0,
+      sampleL: -Infinity, sampleR: -Infinity, samplePeak: -Infinity, correlation: -Infinity,
     });
     setSelectedOffset(-1);
     setHistoryOffsetSec(0);
@@ -554,7 +553,6 @@ export default function App() {
               vsGridDiagFar={vsGridDiagFar}
               displayVectorPath={displayVectorPath}
               selectedOffset={selectedOffset}
-              hasCorrelationValue={hasCorrelationValue}
               correlation={correlation}
             />
           </section>

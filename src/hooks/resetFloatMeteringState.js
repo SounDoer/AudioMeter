@@ -65,7 +65,7 @@ export function resetFloatMeteringState(ctx) {
     sampleL: -Infinity,
     sampleR: -Infinity,
     samplePeak: -Infinity,
-    correlation: 0,
+    correlation: -Infinity,
   });
   setSelectedOffset(-1);
 }

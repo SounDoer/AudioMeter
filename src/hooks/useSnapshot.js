@@ -47,7 +47,7 @@ export function useSnapshot({
   const displaySpectrumPeakPath = selectedOffset >= 0 ? "" : spectrumPeakPath;
   const displaySpectrumData = snapIdx >= 0 && snapSpecDataList[snapIdx] ? snapSpecDataList[snapIdx] : spectrumDataRef.current;
   const displayVectorPath = snapIdx >= 0 && snapVecList[snapIdx] ? snapVecList[snapIdx] : vectorPath;
-  const hasHistoryData = histSourceList.some((p) => Number.isFinite(p?.m) || Number.isFinite(p?.st));
+  const hasHistoryData = histSourceList.length > 0;
   const correlation = snapIdx >= 0 && Number.isFinite(snapCorrList[snapIdx]) ? snapCorrList[snapIdx] : displayAudio.correlation;
 
   return {

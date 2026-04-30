@@ -5,7 +5,6 @@ export function VectorscopePanel({
   vsGridDiagFar,
   displayVectorPath,
   selectedOffset,
-  hasCorrelationValue,
   correlation,
 }) {
   return (
@@ -77,8 +76,14 @@ export function VectorscopePanel({
         <div className="shrink-0" style={{ width: "var(--ui-corr-info-left-blank)" }} />
         <div className="flex items-baseline gap-[var(--ui-inline-value-gap)]">
           <span className="text-[color:var(--ui-color-text-muted)]">CORRELATION</span>
-          <span className={hasCorrelationValue ? "font-semibold tabular-nums text-[color:var(--ui-color-tp-max)]" : "font-semibold text-[color:var(--ui-color-text-muted)]"}>
-            {hasCorrelationValue ? correlation.toFixed(2) : "-"}
+          <span
+            className={
+              Number.isFinite(correlation)
+                ? "font-semibold tabular-nums text-[color:var(--ui-color-tp-max)]"
+                : "font-semibold text-[color:var(--ui-color-text-muted)]"
+            }
+          >
+            {Number.isFinite(correlation) ? correlation.toFixed(2) : "-"}
           </span>
         </div>
       </div>

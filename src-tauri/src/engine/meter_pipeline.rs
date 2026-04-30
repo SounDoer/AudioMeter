@@ -337,9 +337,8 @@ impl MeterPipeline {
       self.tp_max_db = self.tp_max_db.max(lb.true_peak);
     }
     self.last_loudness = Some(lb.clone());
-    if !(lb.momentary.is_finite() || lb.short_term.is_finite()) {
-      return;
-    }
+    // Keep appending history during digital silence (M/S are -inf from zero energy) so the chart
+    // and snapshot ring continue to advance while capture is running.
     let now = Instant::now();
     if now.duration_since(self.last_hist_emit).as_millis() < HIST_EMIT_MS {
       return;

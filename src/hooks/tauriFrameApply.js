@@ -70,12 +70,12 @@ export function buildTauriFrameApply({
       sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
       samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
       samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
-      correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
+      correlation: Number.isFinite(row.correlation) ? row.correlation : -Infinity,
     };
     audioSnapRef.current.push(snap);
     if (audioSnapRef.current.length > histMaxSamples) audioSnapRef.current.shift();
 
-    const c = Number.isFinite(row.correlation) ? row.correlation : 0;
+    const c = Number.isFinite(row.correlation) ? row.correlation : -Infinity;
     corrSnapRef.current.push(c);
     if (corrSnapRef.current.length > histMaxSamples) corrSnapRef.current.shift();
     vectorSnapRef.current.push(row.vectorscopePath || "");
@@ -99,19 +99,19 @@ export function buildTauriFrameApply({
         ...prev,
         momentary: m,
         shortTerm: st,
-        integrated: Number.isFinite(f.integrated) ? f.integrated : prev.integrated,
-        lra: Number.isFinite(f.lra) ? f.lra : prev.lra,
-        truePeakL: Number.isFinite(f.truePeakL) ? f.truePeakL : prev.truePeakL,
-        truePeakR: Number.isFinite(f.truePeakR) ? f.truePeakR : prev.truePeakR,
-        samplePeak: Number.isFinite(f.truePeakMaxDbtp) ? f.truePeakMaxDbtp : prev.samplePeak,
-        tpMax: Number.isFinite(f.truePeakMaxDbtp) ? f.truePeakMaxDbtp : prev.tpMax,
-        tpL: Number.isFinite(f.sampleLDb) ? f.sampleLDb : prev.tpL,
-        tpR: Number.isFinite(f.sampleRDb) ? f.sampleRDb : prev.tpR,
-        sampleL: Number.isFinite(f.sampleLDb) ? f.sampleLDb : prev.sampleL,
-        sampleR: Number.isFinite(f.sampleRDb) ? f.sampleRDb : prev.sampleR,
+        integrated: Number.isFinite(f.integrated) ? f.integrated : -Infinity,
+        lra: Number.isFinite(f.lra) ? f.lra : -Infinity,
+        truePeakL: Number.isFinite(f.truePeakL) ? f.truePeakL : -Infinity,
+        truePeakR: Number.isFinite(f.truePeakR) ? f.truePeakR : -Infinity,
+        samplePeak: Number.isFinite(f.truePeakMaxDbtp) ? f.truePeakMaxDbtp : -Infinity,
+        tpMax: Number.isFinite(f.truePeakMaxDbtp) ? f.truePeakMaxDbtp : -Infinity,
+        tpL: Number.isFinite(f.sampleLDb) ? f.sampleLDb : -Infinity,
+        tpR: Number.isFinite(f.sampleRDb) ? f.sampleRDb : -Infinity,
+        sampleL: Number.isFinite(f.sampleLDb) ? f.sampleLDb : -Infinity,
+        sampleR: Number.isFinite(f.sampleRDb) ? f.sampleRDb : -Infinity,
         samplePeakMaxL: Number.isFinite(f.sampleLDb) ? Math.max(prev.samplePeakMaxL, f.sampleLDb) : prev.samplePeakMaxL,
         samplePeakMaxR: Number.isFinite(f.sampleRDb) ? Math.max(prev.samplePeakMaxR, f.sampleRDb) : prev.samplePeakMaxR,
-        correlation: Number.isFinite(f.correlation) ? f.correlation : prev.correlation,
+        correlation: Number.isFinite(f.correlation) ? f.correlation : -Infinity,
       };
       if (histTick != null) {
         pushHistorySnapFromRow(histTick);

@@ -83,12 +83,12 @@ function appendSeededRow(row, pick, ctx, histMax) {
     sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
     samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
     samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
-    correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
+    correlation: Number.isFinite(row.correlation) ? row.correlation : -Infinity,
   };
   audioSnapRef.current.push(snap);
   if (audioSnapRef.current.length > histMax) audioSnapRef.current.shift();
 
-  const c = Number.isFinite(row.correlation) ? row.correlation : 0;
+  const c = Number.isFinite(row.correlation) ? row.correlation : -Infinity;
   corrSnapRef.current.push(c);
   if (corrSnapRef.current.length > histMax) corrSnapRef.current.shift();
   vectorSnapRef.current.push(row.vectorscopePath || "");
@@ -133,7 +133,7 @@ function finalizeSeededState(row, pick, ctx) {
     sampleL: Number.isFinite(row.sampleLDb) ? row.sampleLDb : -Infinity,
     sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
     samplePeak: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
-    correlation: Number.isFinite(row.correlation) ? row.correlation : 0,
+    correlation: Number.isFinite(row.correlation) ? row.correlation : -Infinity,
   }));
 }
 
