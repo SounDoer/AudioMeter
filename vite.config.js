@@ -29,7 +29,7 @@ export default defineConfig({
     target: (() => {
       const p = process.env.TAURI_ENV_PLATFORM;
       if (p === "windows") return "chrome105";
-      if (p === "darwin" || p === "linux" || p === "android" || p === "ios") return "safari13";
+      if (p === "darwin" || p === "linux" || p === "android" || p === "ios") return "safari16";
       return undefined;
     })(),
     minify: process.env.TAURI_DEBUG ? false : "esbuild",
