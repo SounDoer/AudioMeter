@@ -2,7 +2,7 @@
   "name": "audiometer-modern-ui",
   "description": "Browser-based real-time audio meter — loudness (LUFS), peak, spectrum, and vectorscope",
   "private": true,
-  "version": "0.0.6",
+  "version": "0.0.7",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -23,7 +23,8 @@
     "tauri": "tauri",
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
-    "desktop:release-nsis": "tauri build --bundles nsis"
+    "desktop:release-nsis": "tauri build --bundles nsis",
+    "desktop:release-dmg": "tauri build --bundles dmg"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
