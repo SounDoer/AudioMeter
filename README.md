@@ -3,7 +3,7 @@
 > **桌面版（Windows）**：`main` 分支正在按 [`docs/architecture.md`](docs/architecture.md) 迁移到 **Tauri 2 + Rust**（系统 WASAPI Loopback、零虚拟声卡为 v1.0 目标）。本地运行桌面壳：`npm install` → `npm run desktop`（需安装 [Rust](https://rustup.rs/) 与 Windows 上 Tauri 前置依赖）。参与开发与合并前自检见 [`CONTRIBUTING.md`](CONTRIBUTING.md)（一键 `npm run check`）。  
 > **网页版**：不再随 `main` 演进。最后冻结的浏览器版代码在 **`legacy-web` 分支**（标签 **`v0.9.0-web-final`**）；GitHub Pages 构建由该分支触发。若仍使用浏览器版，请查看该分支的 README。
 
-### 维护者：发版到 GitHub Releases（Windows · NSIS）
+### 维护者：发版到 GitHub Releases（Windows · macOS）
 
 正式对外发安装包时，用 **打 Git 标签** 触发 CI（见 [`docs/architecture.md`](docs/architecture.md) §10.1）：
 
@@ -16,9 +16,21 @@
    git push origin v0.0.3
    ```
 
-4. 在仓库 **Actions** 中查看 **Release (Windows)** 运行结果；成功后到 **Releases** 页面下载 NSIS 生成的 `.exe`。
+4. 在仓库 **Actions** 中查看 **Release** 运行结果；成功后到 **Releases** 页面会自动挂上：
+   - **Windows**：NSIS 安装包（`.exe`）+ 便携版（`.exe`）
+   - **macOS**：DMG 安装包（`-aarch64.dmg`，Apple Silicon）
 
-说明：**仅**在 Actions 里手动运行 **Release (Windows)**（`workflow_dispatch`）时，只会得到该次运行的 **Artifacts**，不会自动创建带附件的公开 Release；要给用户装包，请使用 **`v*` 标签推送** 这一条路径。Release 正文建议写明未代码签名时 Windows SmartScreen 的处理方式（见 `docs/architecture.md` §10）。
+说明：**仅**在 Actions 里手动运行 **Release**（`workflow_dispatch`）时，只会得到该次运行的 **Artifacts**，不会自动创建带附件的公开 Release；要给用户装包，请使用 **`v*` 标签推送** 这一条路径。
+
+#### macOS：首次打开提示"已损坏"
+
+未经 Apple 公证的 app 会被 Gatekeeper 拦截，在终端执行以下命令去掉隔离标记即可正常打开：
+
+```bash
+xattr -cr /Applications/AudioMeter.app
+```
+
+根本解法是配置代码签名 + Apple 公证（需 Apple Developer Program），届时用户直接双击即可，无需额外操作。
 
 ---
 
@@ -208,7 +220,9 @@ npm run dev
 
 ```bash
 npm run build           # 构建生产版本，输出到 dist/
-npm run desktop:build   # Tauri 打包（Windows 安装包等）
+npm run desktop:build        # Tauri 打包（全平台）
+npm run desktop:release-nsis # 仅打 Windows NSIS 安装包
+npm run desktop:release-dmg  # 仅打 macOS DMG 安装包
 npm test                # 运行单元测试（Vitest）
 npm run lint            # ESLint 检查
 ```
