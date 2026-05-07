@@ -1,10 +1,13 @@
-//! System audio capture: device enumeration and PCM access (WASAPI loopback on Windows).
+//! System audio capture: WASAPI loopback on Windows; Core Audio process tap (macOS 14.2+) + cpal.
 
 pub mod capture;
 pub mod cpal_backend;
 pub mod device;
 pub mod device_id;
+#[cfg(target_os = "macos")]
+pub mod macos;
+mod platform_backend;
 
 pub use capture::{AudioCapture, AudioCaptureSession, PcmFrame};
-pub use cpal_backend::CpalBackend;
 pub use device::DeviceInfo;
+pub use platform_backend::AppAudioBackend;

@@ -1,6 +1,6 @@
 //! `AudioCapture` abstraction over platform backends (see `docs/architecture.md` §5).
 //!
-//! Concrete **cpal / WASAPI** implementation lives in `cpal_backend.rs`; macOS may add another impl of the same traits.
+//! Concrete backends: `cpal_backend` (WASAPI loopback + inputs), `platform_backend::AppAudioBackend` (dispatches to Core Audio tap on macOS).
 
 use tauri::AppHandle;
 
@@ -22,7 +22,7 @@ pub trait AudioCaptureSession: Send {
   fn request_clear_peak_history(&self);
 }
 
-/// List devices + start capture (v1.0: `CpalBackend` only); returns a session as a trait object to avoid circular deps between `capture` and concrete backends.
+/// List devices + start capture; returns a session as a trait object to avoid circular deps between `capture` and concrete backends.
 pub trait AudioCapture: Send + Sync {
   fn list_devices(&self) -> Result<Vec<DeviceInfo>, String>;
 

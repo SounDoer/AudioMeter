@@ -26,7 +26,7 @@ fn is_name_heuristic_loopback(name: &str) -> bool {
     || n.contains("立体声混音")
 }
 
-fn collect_outputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
+pub(crate) fn collect_outputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
   let host = cpal::default_host();
   let mut rows = Vec::new();
   for (idx, device) in host
@@ -46,7 +46,7 @@ fn collect_outputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamCo
   Ok(rows)
 }
 
-fn collect_inputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
+pub(crate) fn collect_inputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
   let host = cpal::default_host();
   let mut rows = Vec::new();
   for (idx, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
@@ -62,7 +62,7 @@ fn collect_inputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamCon
   Ok(rows)
 }
 
-fn pick_output_by_index(
+pub(crate) fn pick_output_by_index(
   target: usize,
 ) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
   let host = cpal::default_host();
@@ -105,7 +105,6 @@ fn pick_input_by_index(
 pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
   let mut out = Vec::new();
   let mut used_lb = HashSet::new();
-  let mut used_cap = HashSet::new();
 
   for (_idx, device, cfg) in collect_outputs()? {
     let name = device.name().map_err(|e| e.to_string())?;
@@ -117,9 +116,18 @@ pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
       is_loopback: true,
       default_sample_rate: cfg.sample_rate().0,
       channels: cfg.channels(),
+      core_audio_output_uid: None,
     });
   }
 
+  append_input_devices(&mut out)?;
+
+  Ok(out)
+}
+
+/// Input-only rows (microphones, line-in, virtual inputs) using the same `cap-*` ids as [`build_device_list`].
+pub(crate) fn append_input_devices(out: &mut Vec<DeviceInfo>) -> Result<(), String> {
+  let mut used_cap = HashSet::new();
   for (_idx, device, cfg) in collect_inputs()? {
     let label = device.name().map_err(|e| e.to_string())?;
     let is_loopback = is_name_heuristic_loopback(&label);
@@ -132,13 +140,14 @@ pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
       is_loopback,
       default_sample_rate: cfg.sample_rate().0,
       channels: cfg.channels(),
+      core_audio_output_uid: None,
     });
   }
 
-  Ok(out)
+  Ok(())
 }
 
-fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
+pub(crate) fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
   let host = cpal::default_host();
   if let Some(def) = host.default_output_device() {
     let def_name = def.name().map_err(|e| e.to_string())?;
@@ -241,6 +250,68 @@ struct RunCaptureArgs {
   dropped_chunks: Arc<AtomicU64>,
 }
 
+/// Feeds interleaved f32 PCM from `audio_rx` into [`MeterPipeline`] until the sender side is dropped.
+pub(crate) fn run_meter_pipeline_bridge_thread(
+  audio_rx: std::sync::mpsc::Receiver<Vec<f32>>,
+  sample_rate: u32,
+  channels: u16,
+  frame_subscribers: crate::ipc::types::FrameSubscribers,
+  app: tauri::AppHandle,
+  clear_peak_history: Arc<AtomicBool>,
+  meter_history: MeterHistoryBuf,
+  dropped_chunks: Arc<AtomicU64>,
+) {
+  let dropped_worker = dropped_chunks.clone();
+  let mut pipeline = MeterPipeline::new(sample_rate, channels, meter_history);
+  let mut recv_tick: u32 = 0;
+  while let Ok(floats) = audio_rx.recv() {
+    recv_tick = recv_tick.wrapping_add(1);
+    if recv_tick % 480 == 0 {
+      let dropped = dropped_worker.swap(0, Ordering::Relaxed);
+      if dropped > 0 {
+        log::warn!("cpal→meter queue dropped {dropped} audio chunks (callback backpressure)");
+      }
+    }
+    if clear_peak_history.load(Ordering::Acquire) {
+      clear_peak_history.store(false, Ordering::Release);
+      pipeline.clear_peak_and_history();
+    }
+    let (frame, slow) = pipeline.push_pcm_f32(&floats);
+    if let Some(f) = frame {
+      if let Ok(mut m) = frame_subscribers.lock() {
+        {
+          // Primary webview: stop capture if the main stream drops; float panes are best-effort.
+          let main_ok = match m.get_mut("main") {
+            Some(tx) => tx.send(f.clone()).is_ok(),
+            None => false,
+          };
+          if !main_ok {
+            break;
+          }
+        }
+        // Avoid per-key remove/insert on every frame; drop dead float subscribers when send fails.
+        let mut to_remove: Vec<String> = Vec::new();
+        for (id, tx) in m.iter_mut() {
+          if id == "main" {
+            continue;
+          }
+          if tx.send(f.clone()).is_err() {
+            to_remove.push(id.clone());
+          }
+        }
+        for id in to_remove {
+          m.remove(&id);
+        }
+      } else {
+        break;
+      }
+    }
+    if let Some(s) = slow {
+      let _ = app.emit("loudness-slow", &s);
+    }
+  }
+}
+
 fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
   let RunCaptureArgs {
     device,
@@ -254,7 +325,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     meter_history,
     dropped_chunks,
   } = args;
-  let dropped_worker = dropped_chunks.clone();
+  let dropped_for_callbacks = dropped_chunks.clone();
   let stream_config = StreamConfig {
     channels,
     sample_rate: supported.sample_rate(),
@@ -264,60 +335,22 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
   let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(256);
 
   let bridge = std::thread::spawn(move || {
-    let mut pipeline = MeterPipeline::new(sample_rate, channels, meter_history);
-    let mut recv_tick: u32 = 0;
-    while let Ok(floats) = audio_rx.recv() {
-      recv_tick = recv_tick.wrapping_add(1);
-      if recv_tick % 480 == 0 {
-        let dropped = dropped_worker.swap(0, Ordering::Relaxed);
-        if dropped > 0 {
-          log::warn!("cpal→meter queue dropped {dropped} audio chunks (callback backpressure)");
-        }
-      }
-      if clear_peak_history.load(Ordering::Acquire) {
-        clear_peak_history.store(false, Ordering::Release);
-        pipeline.clear_peak_and_history();
-      }
-      let (frame, slow) = pipeline.push_pcm_f32(&floats);
-      if let Some(f) = frame {
-        if let Ok(mut m) = frame_subscribers.lock() {
-          {
-            // Primary webview: stop capture if the main stream drops; float panes are best-effort.
-            let main_ok = match m.get_mut("main") {
-              Some(tx) => tx.send(f.clone()).is_ok(),
-              None => false,
-            };
-            if !main_ok {
-              break;
-            }
-          }
-          // Avoid per-key remove/insert on every frame; drop dead float subscribers when send fails.
-          let mut to_remove: Vec<String> = Vec::new();
-          for (id, tx) in m.iter_mut() {
-            if id == "main" {
-              continue;
-            }
-            if tx.send(f.clone()).is_err() {
-              to_remove.push(id.clone());
-            }
-          }
-          for id in to_remove {
-            m.remove(&id);
-          }
-        } else {
-          break;
-        }
-      }
-      if let Some(s) = slow {
-        let _ = app.emit("loudness-slow", &s);
-      }
-    }
+    run_meter_pipeline_bridge_thread(
+      audio_rx,
+      sample_rate,
+      channels,
+      frame_subscribers,
+      app,
+      clear_peak_history,
+      meter_history,
+      dropped_chunks,
+    );
   });
 
   let stream = match supported.sample_format() {
     SampleFormat::F32 => {
       let tx = audio_tx.clone();
-      let dropped = dropped_chunks.clone();
+      let dropped = dropped_for_callbacks.clone();
       device
         .build_input_stream(
           &stream_config,
@@ -335,7 +368,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     }
     SampleFormat::I16 => {
       let tx = audio_tx.clone();
-      let dropped = dropped_chunks.clone();
+      let dropped = dropped_for_callbacks.clone();
       device
         .build_input_stream(
           &stream_config,
@@ -355,7 +388,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     }
     SampleFormat::U16 => {
       let tx = audio_tx.clone();
-      let dropped = dropped_chunks.clone();
+      let dropped = dropped_for_callbacks.clone();
       device
         .build_input_stream(
           &stream_config,

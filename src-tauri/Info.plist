@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AudioMeter meters audio from microphones and line inputs when you choose them as the source.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>AudioMeter captures system audio output for real-time metering (Core Audio tap).</string>
+</dict>
+</plist>

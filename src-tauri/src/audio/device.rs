@@ -14,4 +14,7 @@ pub struct DeviceInfo {
   pub is_loopback: bool,
   pub default_sample_rate: u32,
   pub channels: u16,
+  /// macOS 14.2+ Core Audio output device UID (loopback rows only). Omitted on other platforms.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub core_audio_output_uid: Option<String>,
 }

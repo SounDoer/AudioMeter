@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use tauri::Emitter;
 
-pub use audio::{AudioCapture, AudioCaptureSession, CpalBackend, DeviceInfo, PcmFrame};
+pub use audio::{AppAudioBackend, AudioCapture, AudioCaptureSession, DeviceInfo, PcmFrame};
 
 use state::AppState;
 
@@ -43,7 +43,9 @@ pub fn run() {
           let mut prev: Option<Vec<crate::audio::DeviceInfo>> = None;
           loop {
             std::thread::sleep(Duration::from_secs(2));
-            if let Ok(list) = crate::audio::CpalBackend.list_devices() {
+            if let Ok(list) =
+              crate::audio::AudioCapture::list_devices(&crate::audio::AppAudioBackend)
+            {
               if prev.as_ref() != Some(&list) {
                 prev = Some(list.clone());
                 let _ = handle.emit("device-list-changed", list);
