@@ -24,6 +24,11 @@ extern void audiometer_pcm_bridge(void *userdata, const float *samples, uint32_t
 
 #pragma mark - UID lookup
 
+static CFStringRef cfstr_from_cstr(const char *s) {
+  if (!s) return NULL;
+  return CFStringCreateWithCString(kCFAllocatorDefault, s, kCFStringEncodingUTF8);
+}
+
 static OSStatus get_cf_string_property(AudioObjectID obj, AudioObjectPropertySelector selector,
                                        CFStringRef *out) {
   AudioObjectPropertyAddress addr = {
@@ -241,13 +246,22 @@ void *audiometer_macos_tap_create(const char *device_uid_utf8, intptr_t stream_i
 
     // Use CoreFoundation APIs: NSDictionary literals + (__bridge NSString *)kAudio* keys
     // can be rejected as "char *" on some SDK / flag combinations.
+    CFStringRef kSubTapUID = cfstr_from_cstr(kAudioSubTapUIDKey);
+    if (!kSubTapUID) {
+      AudioHardwareDestroyProcessTap(tap_id);
+      if (err_out && err_cap > 0) {
+        snprintf(err_out, err_cap, "failed to create CFString key: kAudioSubTapUIDKey");
+      }
+      return NULL;
+    }
     CFDictionaryRef tapEntry = CFDictionaryCreate(
         kCFAllocatorDefault,
-        (const void *[]){kAudioSubTapUIDKey},
+        (const void *[]){kSubTapUID},
         (const void *[]){(__bridge CFStringRef)tapUUID},
         1,
         &kCFTypeDictionaryKeyCallBacks,
         &kCFTypeDictionaryValueCallBacks);
+    CFRelease(kSubTapUID);
     if (!tapEntry) {
       AudioHardwareDestroyProcessTap(tap_id);
       if (err_out && err_cap > 0) {
@@ -267,12 +281,30 @@ void *audiometer_macos_tap_create(const char *device_uid_utf8, intptr_t stream_i
       return NULL;
     }
 
+    CFStringRef kAggName = cfstr_from_cstr(kAudioAggregateDeviceNameKey);
+    CFStringRef kAggUID = cfstr_from_cstr(kAudioAggregateDeviceUIDKey);
+    CFStringRef kAggPrivate = cfstr_from_cstr(kAudioAggregateDeviceIsPrivateKey);
+    CFStringRef kAggTapList = cfstr_from_cstr(kAudioAggregateDeviceTapListKey);
+    CFStringRef kAggTapAutoStart = cfstr_from_cstr(kAudioAggregateDeviceTapAutoStartKey);
+    if (!kAggName || !kAggUID || !kAggPrivate || !kAggTapList || !kAggTapAutoStart) {
+      if (kAggName) CFRelease(kAggName);
+      if (kAggUID) CFRelease(kAggUID);
+      if (kAggPrivate) CFRelease(kAggPrivate);
+      if (kAggTapList) CFRelease(kAggTapList);
+      if (kAggTapAutoStart) CFRelease(kAggTapAutoStart);
+      AudioHardwareDestroyProcessTap(tap_id);
+      if (err_out && err_cap > 0) {
+        snprintf(err_out, err_cap, "failed to create CFString aggregate device keys");
+      }
+      return NULL;
+    }
+
     const void *aggKeys[] = {
-        kAudioAggregateDeviceNameKey,
-        kAudioAggregateDeviceUIDKey,
-        kAudioAggregateDeviceIsPrivateKey,
-        kAudioAggregateDeviceTapListKey,
-        kAudioAggregateDeviceTapAutoStartKey,
+        kAggName,
+        kAggUID,
+        kAggPrivate,
+        kAggTapList,
+        kAggTapAutoStart,
     };
     const void *aggValues[] = {
         CFSTR("AudioMeterTapAggregate"),
@@ -283,6 +315,11 @@ void *audiometer_macos_tap_create(const char *device_uid_utf8, intptr_t stream_i
     };
     CFDictionaryRef aggDesc = CFDictionaryCreate(
         kCFAllocatorDefault, aggKeys, aggValues, 5, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFRelease(kAggName);
+    CFRelease(kAggUID);
+    CFRelease(kAggPrivate);
+    CFRelease(kAggTapList);
+    CFRelease(kAggTapAutoStart);
     CFRelease(tapList);
     if (!aggDesc) {
       AudioHardwareDestroyProcessTap(tap_id);
