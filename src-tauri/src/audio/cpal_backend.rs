@@ -26,7 +26,8 @@ fn is_name_heuristic_loopback(name: &str) -> bool {
     || n.contains("立体声混音")
 }
 
-pub(crate) fn collect_outputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
+pub(crate) fn collect_outputs(
+) -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
   let host = cpal::default_host();
   let mut rows = Vec::new();
   for (idx, device) in host
@@ -46,7 +47,8 @@ pub(crate) fn collect_outputs() -> Result<Vec<(usize, cpal::Device, cpal::Suppor
   Ok(rows)
 }
 
-pub(crate) fn collect_inputs() -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
+pub(crate) fn collect_inputs(
+) -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
   let host = cpal::default_host();
   let mut rows = Vec::new();
   for (idx, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
@@ -147,7 +149,8 @@ pub(crate) fn append_input_devices(out: &mut Vec<DeviceInfo>) -> Result<(), Stri
   Ok(())
 }
 
-pub(crate) fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
+pub(crate) fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig), String>
+{
   let host = cpal::default_host();
   if let Some(def) = host.default_output_device() {
     let def_name = def.name().map_err(|e| e.to_string())?;
@@ -251,6 +254,7 @@ struct RunCaptureArgs {
 }
 
 /// Feeds interleaved f32 PCM from `audio_rx` into [`MeterPipeline`] until the sender side is dropped.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_meter_pipeline_bridge_thread(
   audio_rx: std::sync::mpsc::Receiver<Vec<f32>>,
   sample_rate: u32,

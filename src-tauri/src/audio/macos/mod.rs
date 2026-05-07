@@ -73,12 +73,8 @@ fn list_loopback_rows_macos() -> Result<Vec<DeviceInfo>, String> {
   for (_idx, device, cfg) in collect_outputs()? {
     let label = device.name().map_err(|e| e.to_string())?;
     let core_uid = uid_for_output_name(&label);
-    let id = device_id::alloc_loopback_id(
-      &label,
-      cfg.channels(),
-      cfg.sample_rate().0,
-      &mut used_lb,
-    );
+    let id =
+      device_id::alloc_loopback_id(&label, cfg.channels(), cfg.sample_rate().0, &mut used_lb);
     out.push(DeviceInfo {
       id,
       label,
