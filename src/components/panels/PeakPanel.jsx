@@ -1,4 +1,5 @@
 import { PEAK_TICKS, peakFromTopFrac } from "../../scales";
+import { getPeakChannels } from "../../math/peakChannelMath";
 
 export function PeakPanel({
   displayAudio,
@@ -8,6 +9,7 @@ export function PeakPanel({
   hasTpMaxValue,
   tpMaxText,
 }) {
+  const channels = getPeakChannels(displayAudio);
   return (
     <article className="ui-article ui-min-h-peak min-h-0">
       <div className="shrink-0">
@@ -23,41 +25,26 @@ export function PeakPanel({
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-[var(--ui-peak-channel-gap)]">
-          <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
-            <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
-              {renderPeakFill(displayAudio.sampleL)}
-              {Number.isFinite(displayAudio.samplePeakMaxL) && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 z-[5] border-t"
-                  style={{
-                    top: `${peakFromTopFrac(displayAudio.samplePeakMaxL) * 100}%`,
-                    borderTopColor: getSamplePeakLineColor(displayAudio.samplePeakMaxL),
-                  }}
-                />
-              )}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-[var(--ui-peak-channel-gap)]">
+          {channels.map((c) => (
+            <div key={c.label} className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
+              <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
+                {renderPeakFill(c.valueDb)}
+                {Number.isFinite(c.holdDb) && (
+                  <div
+                    className="pointer-events-none absolute inset-x-0 z-[5] border-t"
+                    style={{
+                      top: `${peakFromTopFrac(c.holdDb) * 100}%`,
+                      borderTopColor: getSamplePeakLineColor(c.holdDb),
+                    }}
+                  />
+                )}
+              </div>
+              <div className="absolute left-[var(--ui-meter-label-left-inset)] right-0 top-[var(--ui-meter-label-top-inset)] text-left text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
+                {c.label} <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(c.valueDb)}</span>
+              </div>
             </div>
-            <div className="absolute left-[var(--ui-meter-label-left-inset)] right-0 top-[var(--ui-meter-label-top-inset)] text-left text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
-              L <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleL)}</span>
-            </div>
-          </div>
-          <div className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
-            <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
-              {renderPeakFill(displayAudio.sampleR)}
-              {Number.isFinite(displayAudio.samplePeakMaxR) && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 z-[5] border-t"
-                  style={{
-                    top: `${peakFromTopFrac(displayAudio.samplePeakMaxR) * 100}%`,
-                    borderTopColor: getSamplePeakLineColor(displayAudio.samplePeakMaxR),
-                  }}
-                />
-              )}
-            </div>
-            <div className="absolute left-[var(--ui-meter-label-left-inset)] right-0 top-[var(--ui-meter-label-top-inset)] text-left text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
-              R <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(displayAudio.sampleR)}</span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
       <div className="mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-start text-[length:var(--ui-fs-extra)]">

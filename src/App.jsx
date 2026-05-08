@@ -57,6 +57,8 @@ export default function App() {
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const meterHealth = useMeterHealth();
   const [audio, setAudio] = useState({
+    peakDb: [],
+    peakHoldDb: [],
     momentary: -Infinity,
     shortTerm: -Infinity,
     integrated: -Infinity,

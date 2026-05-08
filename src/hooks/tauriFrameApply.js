@@ -97,6 +97,8 @@ export function buildTauriFrameApply({
     setAudio((prev) => {
       const nextAudio = {
         ...prev,
+        peakDb: Array.isArray(f.peakDb) ? f.peakDb : prev.peakDb,
+        peakHoldDb: Array.isArray(f.peakHoldDb) ? f.peakHoldDb : prev.peakHoldDb,
         momentary: m,
         shortTerm: st,
         integrated: Number.isFinite(f.integrated) ? f.integrated : -Infinity,
