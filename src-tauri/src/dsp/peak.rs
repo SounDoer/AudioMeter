@@ -70,7 +70,13 @@ pub fn sample_peak_db_per_channel_interleaved(interleaved: &[f32], channels: u16
 
   max_abs
     .into_iter()
-    .map(|m| if m > 0.0 { 20.0 * m.log10() } else { f64::NEG_INFINITY })
+    .map(|m| {
+      if m > 0.0 {
+        20.0 * m.log10()
+      } else {
+        f64::NEG_INFINITY
+      }
+    })
     .collect()
 }
 

@@ -177,9 +177,10 @@ impl MeterPipeline {
         self.last_spectrum_peak = pk;
       }
     } else {
-      if let Some(lb) = self
-        .loudness
-        .push_interleaved_multichannel(interleaved, self.channels, channel_layout)
+      if let Some(lb) =
+        self
+          .loudness
+          .push_interleaved_multichannel(interleaved, self.channels, channel_layout)
       {
         self.apply_loudness_block(&lb);
       }

@@ -5,9 +5,9 @@
 use tauri::AppHandle;
 
 use super::device::DeviceInfo;
+use crate::engine::ChannelLayoutSetting;
 use crate::ipc::types::FrameSubscribers;
 use crate::ipc::types::MeterHistoryBuf;
-use crate::engine::ChannelLayoutSetting;
 
 /// One PCM buffer from the device; channel count is never hard-coded to stereo.
 #[derive(Clone, Debug)]

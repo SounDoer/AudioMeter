@@ -79,8 +79,15 @@ pub fn audio_start(
   let mh = state.inner().meter_history.clone();
   let pair = state.inner().vectorscope_pair.clone();
   let layout = state.inner().channel_layout.clone();
-  let session =
-    AudioCapture::start_session(&AppAudioBackend, &device_id, pool, app.clone(), mh, pair, layout)?;
+  let session = AudioCapture::start_session(
+    &AppAudioBackend,
+    &device_id,
+    pool,
+    app.clone(),
+    mh,
+    pair,
+    layout,
+  )?;
   {
     let mut g = state
       .inner()
