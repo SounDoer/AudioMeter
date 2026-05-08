@@ -92,8 +92,10 @@ pub struct SpectrumEngine {
   window: Vec<f32>,
   ring_l: Vec<f32>,
   ring_r: Vec<f32>,
+  ring_multi: Vec<Vec<f32>>,
   ring_write: usize,
   ring_filled: usize,
+  last_input_channels: usize,
   smooth_db: Vec<f64>,
   peak_db: Vec<f64>,
   peak_hold_until: Vec<f64>,
@@ -132,8 +134,10 @@ impl SpectrumEngine {
       window,
       ring_l: vec![0.0_f32; FFT_LEN],
       ring_r: vec![0.0_f32; FFT_LEN],
+      ring_multi: Vec::new(),
       ring_write: 0,
       ring_filled: 0,
+      last_input_channels: 0,
       smooth_db: Vec::new(),
       peak_db: Vec::new(),
       peak_hold_until: Vec::new(),
@@ -160,6 +164,28 @@ impl SpectrumEngine {
     self.ring_filled = (self.ring_filled + 1).min(FFT_LEN);
   }
 
+  fn push_sample_frame(&mut self, frame: &[f32]) {
+    let w = self.ring_write % FFT_LEN;
+    for (ch, ring) in self.ring_multi.iter_mut().enumerate() {
+      ring[w] = frame.get(ch).copied().unwrap_or(0.0);
+    }
+    self.ring_write = self.ring_write.wrapping_add(1);
+    self.ring_filled = (self.ring_filled + 1).min(FFT_LEN);
+  }
+
+  fn reset_rings_for_channels(&mut self, channels: usize) {
+    self.ring_write = 0;
+    self.ring_filled = 0;
+    self.ring_l.fill(0.0);
+    self.ring_r.fill(0.0);
+    if channels > 2 {
+      self.ring_multi = (0..channels).map(|_| vec![0.0_f32; FFT_LEN]).collect();
+    } else {
+      self.ring_multi.clear();
+    }
+    self.last_input_channels = channels;
+  }
+
   /// Returns `(smooth_db, peak_db)` for SVG paths on the frontend, or `None` until the ring is full.
   /// `channels` samples per frame:
   /// - **Mono / stereo (N<=2)**: unchanged; spectrum is based on the stereo-average signal \(0.5·(L+R)\).
@@ -171,11 +197,19 @@ impl SpectrumEngine {
     now_sec: f64,
   ) -> Option<(Vec<f64>, Vec<f64>)> {
     let ch = channels.max(1) as usize;
+    if self.last_input_channels != ch {
+      self.reset_rings_for_channels(ch);
+    }
     let frames = interleaved.len() / ch;
     for i in 0..frames {
-      let l = interleaved[i * ch];
-      let r = if ch >= 2 { interleaved[i * ch + 1] } else { l };
-      self.push_sample_pair(l, r);
+      let base = i * ch;
+      if ch <= 2 {
+        let l = interleaved[base];
+        let r = if ch >= 2 { interleaved[base + 1] } else { l };
+        self.push_sample_pair(l, r);
+      } else {
+        self.push_sample_frame(&interleaved[base..base + ch]);
+      }
     }
     if self.ring_filled < FFT_LEN {
       return None;
@@ -191,26 +225,53 @@ impl SpectrumEngine {
     let min_f = self.min_hz.max(20.0);
     let _max_f = self.max_hz.max(min_f * 1.2).min(sr * 0.5);
     let log_min_f = min_f.log2();
-    for (i, slot) in self.scratch_in.iter_mut().enumerate().take(FFT_LEN) {
-      let idx = (self.ring_write.wrapping_sub(FFT_LEN) + i) % FFT_LEN;
-      *slot = 0.5 * (self.ring_l[idx] + self.ring_r[idx]) * self.window[i];
-    }
-    self
-      .r2c
-      .process(&mut self.scratch_in, &mut self.scratch_spec)
-      .expect("fft");
     let bin_count = self.scratch_spec.len();
-    let mut mag_db = vec![0.0_f64; bin_count];
-    for (k, c) in self.scratch_spec.iter().enumerate() {
-      let m = (c.re * c.re + c.im * c.im).sqrt() as f64;
-      // Real-signal rFFT: DC / Nyquist bins are real; interior uses 2/N per one-sided energy convention (full-scale sine peak |X|≈N/2).
-      let m_norm = if k == 0 || k + 1 == bin_count {
-        m / n
-      } else {
-        m * 2.0 / n
-      };
-      mag_db[k] = 20.0 * m_norm.max(1e-12).log10();
+    let mut bin_power = vec![0.0_f64; bin_count];
+
+    if ch <= 2 {
+      for (i, slot) in self.scratch_in.iter_mut().enumerate().take(FFT_LEN) {
+        let idx = (self.ring_write.wrapping_sub(FFT_LEN) + i) % FFT_LEN;
+        *slot = 0.5 * (self.ring_l[idx] + self.ring_r[idx]) * self.window[i];
+      }
+      self
+        .r2c
+        .process(&mut self.scratch_in, &mut self.scratch_spec)
+        .expect("fft");
+      for (k, c) in self.scratch_spec.iter().enumerate() {
+        let m = (c.re * c.re + c.im * c.im).sqrt() as f64;
+        // Real-signal rFFT: DC / Nyquist bins are real; interior uses 2/N per one-sided energy convention (full-scale sine peak |X|≈N/2).
+        let m_norm = if k == 0 || k + 1 == bin_count {
+          m / n
+        } else {
+          m * 2.0 / n
+        };
+        bin_power[k] = m_norm.max(1e-12).powi(2);
+      }
+    } else {
+      for ring in &self.ring_multi {
+        for (i, slot) in self.scratch_in.iter_mut().enumerate().take(FFT_LEN) {
+          let idx = (self.ring_write.wrapping_sub(FFT_LEN) + i) % FFT_LEN;
+          *slot = ring[idx] * self.window[i];
+        }
+        self
+          .r2c
+          .process(&mut self.scratch_in, &mut self.scratch_spec)
+          .expect("fft");
+        for (k, c) in self.scratch_spec.iter().enumerate() {
+          let m = (c.re * c.re + c.im * c.im).sqrt() as f64;
+          let m_norm = if k == 0 || k + 1 == bin_count {
+            m / n
+          } else {
+            m * 2.0 / n
+          };
+          bin_power[k] += m_norm.max(1e-12).powi(2);
+        }
+      }
     }
+
+    // Match the legacy per-bin dB clamp behavior: clamp bin power to [-160, +20] dB in the power domain.
+    let min_bin_power = 10_f64.powf(-160.0 / 10.0);
+    let max_bin_power = 10_f64.powf(20.0 / 10.0);
     let mut weighted_db = Vec::with_capacity(self.bands.len());
     for (_f_lo, _f_hi, f_center) in &self.bands {
       let lo_bin = ((*_f_lo / sr) * n)
@@ -220,9 +281,8 @@ impl SpectrumEngine {
         .ceil()
         .clamp(lo_bin as f64, (bin_count - 1) as f64) as usize;
       let mut power_sum = 0.0_f64;
-      for &dbv in mag_db.get(lo_bin..=hi_bin).unwrap_or(&[]) {
-        let db = dbv.clamp(-160.0, 20.0);
-        power_sum += 10_f64.powf(db / 10.0);
+      for &p in bin_power.get(lo_bin..=hi_bin).unwrap_or(&[]) {
+        power_sum += p.clamp(min_bin_power, max_bin_power);
       }
       let mut db = 10.0 * power_sum.max(1e-16).log10();
       db += weighting_db(*f_center, &self.weighting);
@@ -271,5 +331,52 @@ impl SpectrumEngine {
   pub fn reset(&mut self) {
     let sr = self.sample_rate;
     *self = SpectrumEngine::new(sr);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn tone_interleaved(frames: usize, channels: usize, sample_rate: f64, hz: f64) -> Vec<f32> {
+    let mut out = vec![0.0_f32; frames * channels];
+    for i in 0..frames {
+      let t = i as f64 / sample_rate;
+      let s = (2.0 * std::f64::consts::PI * hz * t).sin() as f32;
+      for ch in 0..channels {
+        out[i * channels + ch] = s;
+      }
+    }
+    out
+  }
+
+  #[test]
+  fn multichannel_summed_curve_is_louder_than_stereo_average() {
+    let sr = 48_000.0;
+    let hz = 1000.0;
+    let frames = FFT_LEN;
+
+    let mut eng2 = SpectrumEngine::new(sr);
+    let in2 = tone_interleaved(frames, 2, sr, hz);
+    let (db2, _) = eng2.push_interleaved(&in2, 2, 1.0).expect("spectrum");
+    let peak2 = db2
+      .iter()
+      .copied()
+      .fold(f64::NEG_INFINITY, |a, b| if b > a { b } else { a });
+
+    let mut eng4 = SpectrumEngine::new(sr);
+    let in4 = tone_interleaved(frames, 4, sr, hz);
+    let (db4, _) = eng4.push_interleaved(&in4, 4, 1.0).expect("spectrum");
+    let peak4 = db4
+      .iter()
+      .copied()
+      .fold(f64::NEG_INFINITY, |a, b| if b > a { b } else { a });
+
+    // With identical tone on all channels, summed power across 4 channels should be ~+6 dB vs stereo-average.
+    let diff = peak4 - peak2;
+    assert!(
+      diff > 5.0 && diff < 7.5,
+      "expected ~+6 dB for 4ch summed power, got diff={diff} dB (peak2={peak2}, peak4={peak4})"
+    );
   }
 }
