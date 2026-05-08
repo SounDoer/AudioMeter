@@ -5,7 +5,9 @@ use std::time::Instant;
 
 use crate::dsp::loudness::LoudnessBlock;
 use crate::dsp::paths::spectrum_paths_from_bands;
-use crate::dsp::peak::{sample_peak_db_interleaved, sample_peak_db_mono};
+use crate::dsp::peak::{
+  sample_peak_db_interleaved, sample_peak_db_mono, sample_peak_db_per_channel_interleaved,
+};
 use crate::dsp::{LoudnessMeter, SpectrumEngine, VectorscopeState};
 use crate::ipc::types::{
   AudioFramePayload, LoudnessSlowPayload, MeterHistoryBuf, MeterHistoryEntry,
@@ -268,7 +270,7 @@ impl MeterPipeline {
       (String::new(), String::new())
     };
 
-    let peak_db = vec![sl, sr];
+    let peak_db = sample_peak_db_per_channel_interleaved(interleaved, ch);
     let peak_hold_db = peak_db.clone();
 
     let loudness_hist_tick = if let Some((m, st)) = self.pending_loudness_hist.take() {
