@@ -131,6 +131,7 @@ fn run_macos_tap_worker(
   app: AppHandle,
   stop_rx: std::sync::mpsc::Receiver<()>,
   clear_peak_history: Arc<AtomicBool>,
+  vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
   meter_history: MeterHistoryBuf,
   dropped_chunks: Arc<AtomicU64>,
 ) -> Result<(), String> {
@@ -146,6 +147,7 @@ fn run_macos_tap_worker(
       frame_subscribers,
       app,
       clear_for_thread,
+      vectorscope_pair,
       meter_history,
       dropped_for_thread,
     );
@@ -223,6 +225,7 @@ impl MacosTapCaptureSession {
     frame_subscribers: FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
+    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
   ) -> Result<Self, String> {
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let clear_peak_history = Arc::new(AtomicBool::new(false));
@@ -238,6 +241,7 @@ impl MacosTapCaptureSession {
           app,
           stop_rx,
           clear_worker,
+          vectorscope_pair,
           meter_history,
           dropped_chunks,
         )
@@ -263,6 +267,7 @@ pub fn start_session(
   frame_subscribers: FrameSubscribers,
   app: AppHandle,
   meter_history: MeterHistoryBuf,
+  vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
 ) -> Result<Box<dyn AudioCaptureSession>, String> {
   if is_macos_loopback_selection(device_id) {
     Ok(Box::new(MacosTapCaptureSession::start(
@@ -270,8 +275,9 @@ pub fn start_session(
       frame_subscribers,
       app,
       meter_history,
+      vectorscope_pair,
     )?))
   } else {
-    CpalBackend.start_session(device_id, frame_subscribers, app, meter_history)
+    CpalBackend.start_session(device_id, frame_subscribers, app, meter_history, vectorscope_pair)
   }
 }

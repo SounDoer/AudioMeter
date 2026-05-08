@@ -249,6 +249,7 @@ struct RunCaptureArgs {
   app: tauri::AppHandle,
   stop_rx: std::sync::mpsc::Receiver<()>,
   clear_peak_history: Arc<AtomicBool>,
+  vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
   meter_history: MeterHistoryBuf,
   dropped_chunks: Arc<AtomicU64>,
 }
@@ -262,6 +263,7 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
   frame_subscribers: crate::ipc::types::FrameSubscribers,
   app: tauri::AppHandle,
   clear_peak_history: Arc<AtomicBool>,
+  vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
   meter_history: MeterHistoryBuf,
   dropped_chunks: Arc<AtomicU64>,
 ) {
@@ -286,7 +288,8 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
       clear_peak_history.store(false, Ordering::Release);
       pipeline.clear_peak_and_history();
     }
-    let (frame, slow) = pipeline.push_pcm_f32(&floats);
+    let pair = vectorscope_pair.lock().map(|g| *g).unwrap_or((0, 1));
+    let (frame, slow) = pipeline.push_pcm_f32(&floats, pair);
     if let Some(f) = frame {
       if let Ok(mut m) = frame_subscribers.lock() {
         {
@@ -332,6 +335,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     app,
     stop_rx,
     clear_peak_history,
+    vectorscope_pair,
     meter_history,
     dropped_chunks,
   } = args;
@@ -352,6 +356,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
       frame_subscribers,
       app,
       clear_peak_history,
+      vectorscope_pair,
       meter_history,
       dropped_chunks,
     );
@@ -457,6 +462,7 @@ impl CaptureSession {
     frame_subscribers: crate::ipc::types::FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
+    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
   ) -> Result<Self, String> {
     let (device, supported) = resolve_device(device_id)?;
     let sample_rate = supported.sample_rate().0;
@@ -478,6 +484,7 @@ impl CaptureSession {
           app,
           stop_rx,
           clear_peak_history: clear_worker,
+          vectorscope_pair,
           meter_history,
           dropped_chunks,
         })
@@ -506,12 +513,14 @@ impl AudioCapture for CpalBackend {
     frame_subscribers: crate::ipc::types::FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
+    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
   ) -> Result<Box<dyn AudioCaptureSession>, String> {
     Ok(Box::new(CaptureSession::start(
       device_id,
       frame_subscribers,
       app,
       meter_history,
+      vectorscope_pair,
     )?))
   }
 }

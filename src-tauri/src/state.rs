@@ -12,6 +12,8 @@ pub struct AppState {
   pub meter_history: MeterHistoryBuf,
   /// `Some` while the native engine is running; used by `meter_add_frame_subscriber` / `meter_remove_frame_subscriber`.
   pub frame_subscribers: Mutex<Option<FrameSubscribers>>,
+  /// Selected vectorscope XY channel pair (0-based). Updated by UI.
+  pub vectorscope_pair: Arc<Mutex<(u16, u16)>>,
 }
 
 impl Default for AppState {
@@ -20,6 +22,7 @@ impl Default for AppState {
       capture: Mutex::new(None),
       meter_history: Arc::new(Mutex::new(VecDeque::new())),
       frame_subscribers: Mutex::new(None),
+      vectorscope_pair: Arc::new(Mutex::new((0, 1))),
     }
   }
 }

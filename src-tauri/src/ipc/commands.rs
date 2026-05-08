@@ -76,7 +76,9 @@ pub fn audio_start(
     *slot = Some(pool.clone());
   }
   let mh = state.inner().meter_history.clone();
-  let session = AudioCapture::start_session(&AppAudioBackend, &device_id, pool, app.clone(), mh)?;
+  let pair = state.inner().vectorscope_pair.clone();
+  let session =
+    AudioCapture::start_session(&AppAudioBackend, &device_id, pool, app.clone(), mh, pair)?;
   {
     let mut g = state
       .inner()
@@ -95,6 +97,18 @@ pub fn audio_start(
       error: None,
     },
   );
+  Ok(())
+}
+
+/// Update vectorscope XY pair (0-based channel indices). Applied on the capture thread for subsequent frames.
+#[tauri::command]
+pub fn set_vectorscope_pair(x: u16, y: u16, state: State<'_, AppState>) -> Result<(), String> {
+  let mut g = state
+    .inner()
+    .vectorscope_pair
+    .lock()
+    .map_err(|_| "vectorscope pair lock poisoned".to_string())?;
+  *g = (x, y);
   Ok(())
 }
 

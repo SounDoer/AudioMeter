@@ -32,5 +32,6 @@ pub trait AudioCapture: Send + Sync {
     frame_subscribers: FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
+    vectorscope_pair: std::sync::Arc<std::sync::Mutex<(u16, u16)>>,
   ) -> Result<Box<dyn AudioCaptureSession>, String>;
 }

@@ -273,6 +273,9 @@ function FloatVectorView({ core }) {
         displayVectorPath={core.displayVectorPath}
         selectedOffset={core.selectedOffset}
         correlation={core.correlation}
+        channelCount={Array.isArray(core.displayAudio?.peakDb) ? core.displayAudio.peakDb.length : 0}
+        pairX={core.displayAudio?.vectorscopePairX}
+        pairY={core.displayAudio?.vectorscopePairY}
       />
     </div>
   );

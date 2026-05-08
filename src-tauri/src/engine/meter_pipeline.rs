@@ -108,12 +108,14 @@ impl MeterPipeline {
     }
   }
 
-  fn feed_vs_interleaved(&mut self, interleaved: &[f32], channels: u16) {
+  fn feed_vs_interleaved(&mut self, interleaved: &[f32], channels: u16, pair_x: u16, pair_y: u16) {
     let ch = channels.max(1) as usize;
     let frames = interleaved.len() / ch;
+    let x = (pair_x as usize).min(ch.saturating_sub(1));
+    let y = (pair_y as usize).min(ch.saturating_sub(1));
     for i in 0..frames {
-      let l = interleaved[i * ch];
-      let r = if ch >= 2 { interleaved[i * ch + 1] } else { l };
+      let l = interleaved[i * ch + x];
+      let r = interleaved[i * ch + y];
       self.push_vs_pair(l, r);
     }
   }
@@ -131,9 +133,11 @@ impl MeterPipeline {
   pub fn push_pcm_f32(
     &mut self,
     interleaved: &[f32],
+    vectorscope_pair: (u16, u16),
   ) -> (Option<AudioFramePayload>, Option<LoudnessSlowPayload>) {
     let now_sec = self.t0.elapsed().as_secs_f64();
     let ch = self.channels.max(1);
+    let (pair_x, pair_y) = vectorscope_pair;
     if ch == 1 {
       self.mono_scratch.clear();
       self.mono_scratch.extend_from_slice(interleaved);
@@ -154,7 +158,7 @@ impl MeterPipeline {
       {
         self.apply_loudness_block(&lb);
       }
-      self.feed_vs_interleaved(interleaved, self.channels);
+      self.feed_vs_interleaved(interleaved, self.channels, pair_x, pair_y);
       if let Some((sm, pk)) = self
         .spectrum
         .push_interleaved(interleaved, self.channels, now_sec)
@@ -288,6 +292,8 @@ impl MeterPipeline {
         sample_peak_max_r: self.sample_peak_max_r,
         correlation: corr,
         vectorscope_path: vpath.clone(),
+        vectorscope_pair_x: pair_x,
+        vectorscope_pair_y: pair_y,
         spectrum_path: spath.clone(),
         spectrum_peak_path: spk.clone(),
         spectrum_band_centers_hz: centers.clone(),
@@ -318,6 +324,8 @@ impl MeterPipeline {
       sample_r_db: sr,
       correlation: corr,
       vectorscope_path: vpath,
+      vectorscope_pair_x: pair_x,
+      vectorscope_pair_y: pair_y,
       spectrum_path: spath,
       spectrum_peak_path: spk,
       spectrum_band_centers_hz: centers.clone(),
@@ -347,5 +355,29 @@ impl MeterPipeline {
     }
     self.last_hist_emit = now;
     self.pending_loudness_hist = Some((lb.momentary, lb.short_term));
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::collections::VecDeque;
+  use std::sync::{Arc, Mutex};
+
+  fn dummy_history() -> MeterHistoryBuf {
+    Arc::new(Mutex::new(VecDeque::new()))
+  }
+
+  #[test]
+  fn vectorscope_pair_selects_requested_channels() {
+    // 3 channels, 2 frames:
+    // frame0: [0.1, 0.2, 0.3]
+    // frame1: [1.1, 1.2, 1.3]
+    let pcm = vec![0.1_f32, 0.2, 0.3, 1.1, 1.2, 1.3];
+    let mut p = MeterPipeline::new(48_000, 3, dummy_history());
+    let _ = p.push_pcm_f32(&pcm, (2, 0));
+    // Last pushed sample should be from frame1 ch2 (L) and ch0 (R).
+    assert_eq!(p.vs_l.back().copied().unwrap_or_default(), 1.3);
+    assert_eq!(p.vs_r.back().copied().unwrap_or_default(), 1.1);
   }
 }

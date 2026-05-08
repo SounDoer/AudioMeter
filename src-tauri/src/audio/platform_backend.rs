@@ -31,14 +31,15 @@ impl AudioCapture for AppAudioBackend {
     frame_subscribers: FrameSubscribers,
     app: AppHandle,
     meter_history: MeterHistoryBuf,
+    vectorscope_pair: std::sync::Arc<std::sync::Mutex<(u16, u16)>>,
   ) -> Result<Box<dyn AudioCaptureSession>, String> {
     #[cfg(target_os = "macos")]
     {
-      macos::start_session(device_id, frame_subscribers, app, meter_history)
+      macos::start_session(device_id, frame_subscribers, app, meter_history, vectorscope_pair)
     }
     #[cfg(not(target_os = "macos"))]
     {
-      CpalBackend.start_session(device_id, frame_subscribers, app, meter_history)
+      CpalBackend.start_session(device_id, frame_subscribers, app, meter_history, vectorscope_pair)
     }
   }
 }

@@ -30,6 +30,8 @@ const initialAudio = () => ({
   sampleR: -Infinity,
   samplePeak: -Infinity,
   correlation: -Infinity,
+  vectorscopePairX: 0,
+  vectorscopePairY: 1,
 });
 
 /**

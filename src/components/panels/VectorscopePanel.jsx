@@ -6,10 +6,46 @@ export function VectorscopePanel({
   displayVectorPath,
   selectedOffset,
   correlation,
+  channelCount = 0,
+  pairX = 0,
+  pairY = 1,
+  onPairChange,
 }) {
+  const canSelect = typeof onPairChange === "function" && Number.isFinite(channelCount) && channelCount >= 2;
+  const options = [];
+  if (canSelect) {
+    for (let x = 0; x < channelCount; x += 1) {
+      for (let y = x + 1; y < channelCount; y += 1) {
+        options.push({ x, y, key: `${x}-${y}`, label: `Ch ${x + 1}/Ch ${y + 1}` });
+      }
+    }
+  }
+  const valueKey = `${Number(pairX)}-${Number(pairY)}`;
   return (
     <article className="ui-article ui-min-h-spectrum flex-1">
-      <div className="ui-section-title ui-section-title-main min-w-0">Vectorscope</div>
+      <div className="flex min-w-0 items-baseline justify-between gap-3">
+        <div className="ui-section-title ui-section-title-main min-w-0">Vectorscope</div>
+        <div className="flex shrink-0 items-baseline gap-2 text-[length:var(--ui-fs-extra)]">
+          {canSelect ? (
+            <select
+              className="ui-select"
+              value={valueKey}
+              onChange={(e) => {
+                const [xRaw, yRaw] = String(e.target.value).split("-");
+                const x = Number.parseInt(xRaw || "0", 10);
+                const y = Number.parseInt(yRaw || "1", 10);
+                onPairChange({ x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 1 });
+              }}
+            >
+              {options.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+      </div>
       <div className="relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)]">
         <div className="absolute inset-[var(--ui-chart-outer-inset)] z-0 min-h-0 min-w-0 overflow-hidden">
           <svg

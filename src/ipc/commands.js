@@ -60,3 +60,8 @@ export async function meterAddFrameSubscriber(id, { onFrame }) {
 export function meterRemoveFrameSubscriber(id) {
   return invoke("meter_remove_frame_subscriber", { id });
 }
+
+/** @param {{ x: number; y: number }} pair 0-based channel indices. */
+export function setVectorscopePair({ x, y }) {
+  return invoke("set_vectorscope_pair", { x, y });
+}

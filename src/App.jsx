@@ -21,7 +21,7 @@ import { resolveChannelLayout } from "./math/channelLayoutResolver.js";
 import { PillButton } from "./components/PillButton";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { isTauri } from "./ipc/env.js";
-import { clearAudioHistory, listAudioDevices } from "./ipc/commands.js";
+import { clearAudioHistory, listAudioDevices, setVectorscopePair } from "./ipc/commands.js";
 import { onDeviceListChanged } from "./ipc/events.js";
 import {
   loadCaptureDeviceId,
@@ -58,6 +58,7 @@ export default function App() {
   const [status2, setStatus2] = useState("Device: Not connected");
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const meterHealth = useMeterHealth();
+  const [vectorscopePairUi, setVectorscopePairUi] = useState({ x: 0, y: 1 });
   const [audio, setAudio] = useState({
     peakDb: [],
     peakHoldDb: [],
@@ -78,6 +79,8 @@ export default function App() {
     sampleR: -Infinity,
     samplePeak: -Infinity,
     correlation: -Infinity,
+    vectorscopePairX: 0,
+    vectorscopePairY: 1,
   });
   const [spectrumPath, setSpectrumPath] = useState("");
   const [spectrumPeakPath, setSpectrumPeakPath] = useState("");
@@ -207,6 +210,21 @@ export default function App() {
     [channelLayout, channelCount]
   );
   const showLayoutUnknownMessage = layoutResolution.mode === "auto" && layoutResolution.resolved === "unknown" && channelCount > 2;
+
+
+  useEffect(() => {
+    const x = Number.isFinite(displayAudio?.vectorscopePairX) ? Number(displayAudio.vectorscopePairX) : 0;
+    const y = Number.isFinite(displayAudio?.vectorscopePairY) ? Number(displayAudio.vectorscopePairY) : 1;
+    setVectorscopePairUi({ x, y });
+  }, [displayAudio?.vectorscopePairX, displayAudio?.vectorscopePairY]);
+
+  const onVectorscopePairChange = async (pair) => {
+    setVectorscopePairUi(pair);
+    if (!isTauri()) return;
+    try {
+      await setVectorscopePair({ x: pair.x, y: pair.y });
+    } catch (_) {}
+  };
 
   const totalSamples = histSourceList.length;
   const { clampedWindowSec, visibleSamples, maxOffsetSamples, effectiveOffsetSamples, effectiveOffsetSec } = getHistoryViewport(
@@ -568,6 +586,10 @@ export default function App() {
               displayVectorPath={displayVectorPath}
               selectedOffset={selectedOffset}
               correlation={correlation}
+              channelCount={channelCount}
+              pairX={vectorscopePairUi.x}
+              pairY={vectorscopePairUi.y}
+              onPairChange={onVectorscopePairChange}
             />
           </section>
 

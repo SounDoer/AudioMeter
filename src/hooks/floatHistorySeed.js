@@ -20,6 +20,8 @@ function normalizeHistoryRow(row) {
     samplePeakMaxR: num(row.samplePeakMaxR ?? row.sample_peak_max_r),
     correlation: num(row.correlation),
     vectorscopePath: str(row.vectorscopePath ?? row.vectorscope_path),
+    vectorscopePairX: num(row.vectorscopePairX ?? row.vectorscope_pair_x),
+    vectorscopePairY: num(row.vectorscopePairY ?? row.vectorscope_pair_y),
     spectrumPath: str(row.spectrumPath ?? row.spectrum_path),
     spectrumPeakPath: str(row.spectrumPeakPath ?? row.spectrum_peak_path),
     spectrumBandCentersHz: arrNum(row.spectrumBandCentersHz ?? row.spectrum_band_centers_hz),
@@ -84,6 +86,8 @@ function appendSeededRow(row, pick, ctx, histMax) {
     samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
     samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
     correlation: Number.isFinite(row.correlation) ? row.correlation : -Infinity,
+    vectorscopePairX: Number.isFinite(row.vectorscopePairX) ? row.vectorscopePairX : 0,
+    vectorscopePairY: Number.isFinite(row.vectorscopePairY) ? row.vectorscopePairY : 1,
   };
   audioSnapRef.current.push(snap);
   if (audioSnapRef.current.length > histMax) audioSnapRef.current.shift();
@@ -134,6 +138,8 @@ function finalizeSeededState(row, pick, ctx) {
     sampleR: Number.isFinite(row.sampleRDb) ? row.sampleRDb : -Infinity,
     samplePeak: Number.isFinite(row.truePeakMaxDbtp) ? row.truePeakMaxDbtp : -Infinity,
     correlation: Number.isFinite(row.correlation) ? row.correlation : -Infinity,
+    vectorscopePairX: Number.isFinite(row.vectorscopePairX) ? row.vectorscopePairX : 0,
+    vectorscopePairY: Number.isFinite(row.vectorscopePairY) ? row.vectorscopePairY : 1,
   }));
 }
 

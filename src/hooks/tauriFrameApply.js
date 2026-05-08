@@ -71,6 +71,8 @@ export function buildTauriFrameApply({
       samplePeakMaxL: Number.isFinite(row.samplePeakMaxL) ? row.samplePeakMaxL : -Infinity,
       samplePeakMaxR: Number.isFinite(row.samplePeakMaxR) ? row.samplePeakMaxR : -Infinity,
       correlation: Number.isFinite(row.correlation) ? row.correlation : -Infinity,
+      vectorscopePairX: Number.isFinite(row.vectorscopePairX) ? row.vectorscopePairX : 0,
+      vectorscopePairY: Number.isFinite(row.vectorscopePairY) ? row.vectorscopePairY : 1,
     };
     audioSnapRef.current.push(snap);
     if (audioSnapRef.current.length > histMaxSamples) audioSnapRef.current.shift();
@@ -114,6 +116,8 @@ export function buildTauriFrameApply({
         samplePeakMaxL: Number.isFinite(f.sampleLDb) ? Math.max(prev.samplePeakMaxL, f.sampleLDb) : prev.samplePeakMaxL,
         samplePeakMaxR: Number.isFinite(f.sampleRDb) ? Math.max(prev.samplePeakMaxR, f.sampleRDb) : prev.samplePeakMaxR,
         correlation: Number.isFinite(f.correlation) ? f.correlation : -Infinity,
+        vectorscopePairX: Number.isFinite(f.vectorscopePairX) ? f.vectorscopePairX : prev.vectorscopePairX ?? 0,
+        vectorscopePairY: Number.isFinite(f.vectorscopePairY) ? f.vectorscopePairY : prev.vectorscopePairY ?? 1,
       };
       if (histTick != null) {
         pushHistorySnapFromRow(histTick);
