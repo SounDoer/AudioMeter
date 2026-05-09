@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { UI_PREFERENCES, applyUiPreferencesToDocument, readPersistedUiMode } from "../uiPreferences";
+import {
+  UI_PREFERENCES,
+  applyUiPreferencesToDocument,
+  readPersistedUiMode,
+  readSystemPrefersDark,
+  resolveEffectiveUiMode,
+} from "../uiPreferences";
 import { getDefaultLoudnessReferenceProfileId, normalizeLoudnessReferenceProfileId } from "../loudnessReferenceProfiles";
 
 export function useSettings() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uiMode, setUiMode] = useState(() => readPersistedUiMode());
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => readSystemPrefersDark());
   const [referenceProfileId, setReferenceProfileId] = useState(() => {
     try {
       const raw = localStorage.getItem(UI_PREFERENCES.layoutPersistKey);
@@ -14,15 +21,24 @@ export function useSettings() {
     } catch (_) {}
     return getDefaultLoudnessReferenceProfileId();
   });
-  const uiModeRef = useRef(uiMode);
+  const effectiveUiMode = resolveEffectiveUiMode(uiMode, systemPrefersDark);
+  const uiModeRef = useRef(effectiveUiMode);
 
   useEffect(() => {
-    uiModeRef.current = uiMode;
-  }, [uiMode]);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setSystemPrefersDark(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
-    applyUiPreferencesToDocument(UI_PREFERENCES, uiMode);
-  }, [uiMode]);
+    uiModeRef.current = effectiveUiMode;
+  }, [effectiveUiMode]);
+
+  useEffect(() => {
+    applyUiPreferencesToDocument(UI_PREFERENCES, effectiveUiMode);
+  }, [effectiveUiMode]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -39,8 +55,11 @@ export function useSettings() {
   return {
     settingsOpen,
     setSettingsOpen,
+    /** Stored preference: follow OS, force dark, or force light */
     uiMode,
     setUiMode,
+    /** Resolved `"dark"` | `"light"` for charts and CSS */
+    effectiveUiMode,
     referenceProfileId,
     setReferenceProfileId,
     uiModeRef,

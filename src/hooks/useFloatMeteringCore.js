@@ -40,7 +40,7 @@ const initialAudio = () => ({
 export function useFloatMeteringCore(floatKind) {
   const noopSetHistoryM = useCallback(() => {}, []);
   const noopSetHistoryST = useCallback(() => {}, []);
-  const { referenceProfileId, uiMode, uiModeRef: _u } = useSettings();
+  const { referenceProfileId, effectiveUiMode, uiModeRef: _u } = useSettings();
   const engineRunning = useFloatEngineState();
   const [selectedOffset, setSelectedOffset] = useState(-1);
   const [historyViewEpoch, setHistoryViewEpoch] = useState(0);
@@ -184,7 +184,7 @@ export function useFloatMeteringCore(floatKind) {
   return {
     engineRunning,
     referenceProfileId,
-    uiMode,
+    uiMode: effectiveUiMode,
     HIST_SAMPLE_SEC,
     selectedOffset,
     setSelectedOffset,

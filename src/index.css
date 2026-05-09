@@ -435,25 +435,6 @@ body {
   padding: var(--ui-settings-action-pad-y) var(--ui-settings-action-pad-x);
 }
 
-.ui-theme-btn-on {
-  border-radius: var(--ui-radius-pill);
-  padding: 0.25rem 0.75rem;
-  background-color: var(--ui-color-brand);
-  color: #fff;
-}
-
-.ui-theme-btn-off {
-  border: 1px solid color-mix(in srgb, var(--ui-color-border-default) 80%, var(--ui-color-panel-bg) 20%);
-  border-radius: var(--ui-radius-pill);
-  padding: 0.25rem 0.75rem;
-  background-color: var(--ui-color-control-bg);
-  color: var(--ui-color-text-muted);
-}
-
-.ui-theme-btn-off:hover {
-  background-color: var(--ui-color-control-hover-bg);
-}
-
 .ui-min-h-peak {
   min-height: var(--ui-min-h-peak);
 }

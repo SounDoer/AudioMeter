@@ -42,22 +42,11 @@ export function SettingsPanel({
           </div>
           <div className="ui-settings-row">
             <span className="ui-settings-label">Theme</span>
-            <div className="ui-settings-inline-actions flex">
-              <button
-                type="button"
-                onClick={() => setUiMode("dark")}
-                className={uiMode === "dark" ? "ui-theme-btn-on" : "ui-theme-btn-off"}
-              >
-                Dark
-              </button>
-              <button
-                type="button"
-                onClick={() => setUiMode("light")}
-                className={uiMode === "light" ? "ui-theme-btn-on" : "ui-theme-btn-off"}
-              >
-                Light
-              </button>
-            </div>
+            <select value={uiMode} onChange={(e) => setUiMode(e.target.value)} className="ui-select">
+              <option value="system">Follow system</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
           </div>
           <div className="ui-settings-row">
             <span className="ui-settings-label">Layout</span>

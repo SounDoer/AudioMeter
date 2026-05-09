@@ -56,6 +56,7 @@ export default function App() {
     settingsOpen,
     setSettingsOpen,
     uiMode,
+    effectiveUiMode,
     setUiMode,
     referenceProfileId,
     setReferenceProfileId,
@@ -180,7 +181,7 @@ export default function App() {
   };
   const meterGradientCfg = {
     ...UI_PREFERENCES.modules.peak.meterGradient,
-    ...(UI_PREFERENCES.themes[uiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
+    ...(UI_PREFERENCES.themes[effectiveUiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
   };
   const getSamplePeakLineColor = (dbValue) =>
     samplePeakLineColor(
