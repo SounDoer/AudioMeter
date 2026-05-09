@@ -6,6 +6,8 @@ import { peakFromTopFrac, LOUDNESS_TICKS, loudnessHistY, PEAK_DB_MAX, PEAK_DB_MI
 import { UI_PREFERENCES } from "./uiPreferences";
 import { samplePeakLineColor } from "./math/colorMath";
 import { useFloatMeteringCore } from "./hooks/useFloatMeteringCore";
+import { usePersistedChannelLayout } from "./hooks/usePersistedChannelLayout.js";
+import { resolveChannelLayout } from "./math/channelLayoutResolver.js";
 import { useFloatWindowPersistence } from "./hooks/useFloatWindowPersistence";
 import { useHistoryInteraction } from "./hooks/useHistoryInteraction";
 import { useHoverState } from "./hooks/useHoverState";
@@ -228,10 +230,20 @@ function FloatLoudnessBody({ core }) {
 
 function FloatPeakView({ core, uiMode }) {
   const v = useSharedPeakVis(uiMode, core.displayAudio);
+  const persistedLayout = usePersistedChannelLayout();
+  const chCount = Array.isArray(core.displayAudio?.peakDb) ? core.displayAudio.peakDb.length : 0;
+  const layoutResolution = useMemo(
+    () => resolveChannelLayout(persistedLayout, { channelCount: chCount }),
+    [persistedLayout, chCount]
+  );
   return (
     <div className="p-2">
       <PeakPanel
         displayAudio={core.displayAudio}
+        peakLabelContext={{
+          channelLayout: persistedLayout,
+          resolvedLayout: layoutResolution.resolved,
+        }}
         renderPeakFill={v.renderPeakFill}
         getSamplePeakLineColor={v.getSamplePeakLineColor}
         fmt={v.fmt}

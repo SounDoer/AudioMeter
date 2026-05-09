@@ -3,13 +3,15 @@ import { getPeakChannels } from "../../math/peakChannelMath";
 
 export function PeakPanel({
   displayAudio,
+  /** @type {import("../../math/peakMeterChannelLabels.js").PeakMeterChannelLabelsContext | undefined} */
+  peakLabelContext,
   renderPeakFill,
   getSamplePeakLineColor,
   fmt,
   hasTpMaxValue,
   tpMaxText,
 }) {
-  const channels = getPeakChannels(displayAudio);
+  const channels = getPeakChannels(displayAudio, peakLabelContext);
   return (
     <article className="ui-article ui-min-h-peak min-h-0">
       <div className="shrink-0">
@@ -26,8 +28,8 @@ export function PeakPanel({
           </div>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(0,1fr))] gap-[var(--ui-peak-channel-gap)]">
-          {channels.map((c) => (
-            <div key={c.label} className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
+          {channels.map((c, idx) => (
+            <div key={`${idx}-${c.label}`} className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
               <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
                 {renderPeakFill(c.valueDb)}
                 {Number.isFinite(c.holdDb) && (

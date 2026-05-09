@@ -641,6 +641,10 @@ export default function App() {
           >
             <PeakPanel
               displayAudio={displayAudio}
+              peakLabelContext={{
+                channelLayout,
+                resolvedLayout: layoutResolution.resolved,
+              }}
               renderPeakFill={renderPeakFill}
               getSamplePeakLineColor={getSamplePeakLineColor}
               fmt={fmt}
