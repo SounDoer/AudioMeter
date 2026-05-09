@@ -25,7 +25,13 @@ fn digest_v2_row(salt: &[u8], name: &str, nonce: u32) -> String {
 }
 
 /// Legacy v1 digest: name + channels + sample_rate + nonce (used only to resolve old saved ids).
-pub(crate) fn digest_legacy_v1(salt: &[u8], name: &str, channels: u16, sample_rate: u32, nonce: u32) -> String {
+pub(crate) fn digest_legacy_v1(
+  salt: &[u8],
+  name: &str,
+  channels: u16,
+  sample_rate: u32,
+  nonce: u32,
+) -> String {
   let mut h = Sha256::new();
   h.update(salt);
   h.update(name.as_bytes());
@@ -158,7 +164,10 @@ mod tests {
   fn v2_loopback_differs_per_label() {
     let mut u1 = HashSet::new();
     let mut u2 = HashSet::new();
-    assert_ne!(alloc_loopback_id("A", &mut u1), alloc_loopback_id("B", &mut u2));
+    assert_ne!(
+      alloc_loopback_id("A", &mut u1),
+      alloc_loopback_id("B", &mut u2)
+    );
   }
 
   #[test]

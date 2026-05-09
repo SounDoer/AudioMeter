@@ -170,8 +170,7 @@ pub(crate) fn append_input_devices(out: &mut Vec<DeviceInfo>) -> Result<(), Stri
   for (_idx, device, cfg) in collect_inputs()? {
     let key = device_id_key(&device)?;
     let label = device_list_label(&device)?;
-    let is_loopback =
-      is_name_heuristic_loopback(&key) || is_name_heuristic_loopback(&label);
+    let is_loopback = is_name_heuristic_loopback(&key) || is_name_heuristic_loopback(&label);
     let id = device_id::alloc_capture_id(&key, &mut used_cap);
     out.push(DeviceInfo {
       id,
@@ -227,7 +226,12 @@ fn resolve_stable_loopback(
   let mut used_legacy = HashSet::new();
   for (_, device, cfg) in collect_outputs()? {
     let name = device_id_key(&device)?;
-    let id = device_id::legacy_alloc_loopback_id(&name, cfg.channels(), cfg.sample_rate(), &mut used_legacy);
+    let id = device_id::legacy_alloc_loopback_id(
+      &name,
+      cfg.channels(),
+      cfg.sample_rate(),
+      &mut used_legacy,
+    );
     if id == target {
       return Ok((device, cfg));
     }
@@ -249,7 +253,12 @@ fn resolve_stable_capture(
   let mut used_legacy = HashSet::new();
   for (_, device, cfg) in collect_inputs()? {
     let name = device_id_key(&device)?;
-    let id = device_id::legacy_alloc_capture_id(&name, cfg.channels(), cfg.sample_rate(), &mut used_legacy);
+    let id = device_id::legacy_alloc_capture_id(
+      &name,
+      cfg.channels(),
+      cfg.sample_rate(),
+      &mut used_legacy,
+    );
     if id == target {
       return Ok((device, cfg));
     }
@@ -258,7 +267,11 @@ fn resolve_stable_capture(
 }
 
 /// v2 list id for a loopback row that matches the given **id key** (short name) and current default format.
-pub fn loopback_list_id_for_row(name: &str, channels: u16, sample_rate: u32) -> Result<Option<String>, String> {
+pub fn loopback_list_id_for_row(
+  name: &str,
+  channels: u16,
+  sample_rate: u32,
+) -> Result<Option<String>, String> {
   let mut used_lb = HashSet::new();
   for (_, device, cfg) in collect_outputs()? {
     let row_key = device_id_key(&device)?;
@@ -271,7 +284,11 @@ pub fn loopback_list_id_for_row(name: &str, channels: u16, sample_rate: u32) -> 
 }
 
 /// v2 list id for a capture row that matches the given **id key** (short name) and current default format.
-pub fn capture_list_id_for_row(name: &str, channels: u16, sample_rate: u32) -> Result<Option<String>, String> {
+pub fn capture_list_id_for_row(
+  name: &str,
+  channels: u16,
+  sample_rate: u32,
+) -> Result<Option<String>, String> {
   let mut used_cap = HashSet::new();
   for (_, device, cfg) in collect_inputs()? {
     let row_key = device_id_key(&device)?;
@@ -319,12 +336,7 @@ pub fn preview_device(device_id: &str) -> Result<(String, String, u32, u16), Str
   let (device, supported) = resolve_device(device_id)?;
   let label = device_list_label(&device)?;
   let key = device_id_key(&device)?;
-  Ok((
-    label,
-    key,
-    supported.sample_rate(),
-    supported.channels(),
-  ))
+  Ok((label, key, supported.sample_rate(), supported.channels()))
 }
 
 struct RunCaptureArgs {

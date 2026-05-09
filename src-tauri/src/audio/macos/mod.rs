@@ -125,8 +125,12 @@ fn resolve_tap_uid_channels_rate(device_id: &str) -> Result<(String, u32, u16), 
     let mut used_legacy = HashSet::new();
     for (_idx, device, cfg) in collect_outputs()? {
       let key = device_id_key(&device)?;
-      let legacy_id =
-        device_id::legacy_alloc_loopback_id(&key, cfg.channels(), cfg.sample_rate(), &mut used_legacy);
+      let legacy_id = device_id::legacy_alloc_loopback_id(
+        &key,
+        cfg.channels(),
+        cfg.sample_rate(),
+        &mut used_legacy,
+      );
       if legacy_id == device_id {
         let uid = uid_for_output_name(&key).ok_or_else(|| {
           format!(
