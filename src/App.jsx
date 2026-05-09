@@ -58,8 +58,6 @@ export default function App() {
     setSettingsOpen,
     uiMode,
     setUiMode,
-    standard,
-    setStandard,
     referenceProfileId,
     setReferenceProfileId,
     uiModeRef,
@@ -192,8 +190,8 @@ export default function App() {
       meterGradientCfg
     );
   const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
-  const targetLufs = standard === "ebu" ? -23 : -14;
   const referenceProfile = useMemo(() => getLoudnessReferenceProfileById(referenceProfileId), [referenceProfileId]);
+  const targetLufs = Number.isFinite(referenceProfile?.targetLufs) ? referenceProfile.targetLufs : -23;
   const historyYAxisTicks = useMemo(() => {
     const out = [...LOUDNESS_TICKS];
     if (!out.some((t) => t.v === targetLufs)) out.push({ v: targetLufs, lb: String(targetLufs) });
@@ -460,14 +458,13 @@ export default function App() {
           leftTopRatio,
           rightTopRatio,
           loudnessHistWidthRatio,
-          standard,
           referenceProfileId,
           uiMode,
           channelLayout,
         })
       );
     } catch (_) {}
-  }, [mainLeft, leftTopRatio, rightTopRatio, loudnessHistWidthRatio, standard, referenceProfileId, uiMode, channelLayout]);
+  }, [mainLeft, leftTopRatio, rightTopRatio, loudnessHistWidthRatio, referenceProfileId, uiMode, channelLayout]);
 
   useEffect(() => {
     selectedOffsetRef.current = selectedOffset;
@@ -766,7 +763,7 @@ export default function App() {
           <span className="h-3 w-px bg-[color:var(--ui-color-divider)]" />
           <MeterHealthBadge health={meterHealth} />
           <span className="h-3 w-px bg-[color:var(--ui-color-divider)]" />
-          <span>Loudness standard: {standard === "ebu" ? "EBU R128" : "Streaming"}</span>
+          <span>Ref: {referenceProfile.label}</span>
           <span className="h-3 w-px bg-[color:var(--ui-color-divider)]" />
           <span>Build: {buildVersion}</span>
         </footer>
@@ -777,8 +774,6 @@ export default function App() {
         setSettingsOpen={setSettingsOpen}
         uiMode={uiMode}
         setUiMode={setUiMode}
-        standard={standard}
-        setStandard={setStandard}
         referenceProfileId={referenceProfileId}
         setReferenceProfileId={setReferenceProfileId}
         loudnessReferenceProfiles={LOUDNESS_REFERENCE_PROFILES}

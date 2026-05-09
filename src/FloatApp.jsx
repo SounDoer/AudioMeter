@@ -53,7 +53,6 @@ function useSharedPeakVis(uiMode, displayAudio) {
 function FloatLoudnessBody({ core }) {
   const {
     engineRunning,
-    standard,
     referenceProfileId,
     HIST_SAMPLE_SEC,
     selectedOffset,
@@ -69,8 +68,8 @@ function FloatLoudnessBody({ core }) {
   const [historyHudHold, setHistoryHudHold] = useState(false);
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const loudnessHistWidthRatio = UI_PREFERENCES.layout.loudnessHistMetrics.initialRatio;
-  const targetLufs = standard === "ebu" ? -23 : -14;
   const referenceProfile = useMemo(() => getLoudnessReferenceProfileById(referenceProfileId), [referenceProfileId]);
+  const targetLufs = Number.isFinite(referenceProfile?.targetLufs) ? referenceProfile.targetLufs : -23;
   const historyYAxisTicks = useMemo(() => {
     const out = [...LOUDNESS_TICKS];
     if (!out.some((t) => t.v === targetLufs)) out.push({ v: targetLufs, lb: String(targetLufs) });

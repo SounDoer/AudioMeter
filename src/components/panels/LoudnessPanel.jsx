@@ -230,7 +230,7 @@ export function LoudnessPanel({
                       }}
                     />
                     <div
-                      className="absolute left-0 right-0 h-0 -translate-y-1/2 border-t"
+                      className="absolute left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed"
                       style={{
                         top: `${loudnessFromTopFrac(referenceLufs) * 100}%`,
                         borderTopColor: "var(--ui-color-loudness-target-line)",
@@ -244,12 +244,6 @@ export function LoudnessPanel({
                       Ref {referenceProfile?.label ?? `${referenceLufs} LUFS`}
                     </div>
                   </>
-                ) : null}
-                {hasHistoryData ? (
-                  <div
-                    className="absolute left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed border-[color:var(--ui-color-loudness-target-line)]"
-                    style={{ top: `${loudnessFromTopFrac(targetLufs) * 100}%` }}
-                  />
                 ) : null}
                 {selectedOffset >= 0 && showSelLine && (
                   <div

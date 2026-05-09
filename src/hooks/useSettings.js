@@ -5,15 +5,6 @@ import { getDefaultLoudnessReferenceProfileId, normalizeLoudnessReferenceProfile
 export function useSettings() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uiMode, setUiMode] = useState(() => readPersistedUiMode());
-  const [standard, setStandard] = useState(() => {
-    try {
-      const raw = localStorage.getItem(UI_PREFERENCES.layoutPersistKey);
-      if (!raw) return "ebu";
-      const s = JSON.parse(raw);
-      if (s.standard === "ebu" || s.standard === "stream") return s.standard;
-    } catch (_) {}
-    return "ebu";
-  });
   const [referenceProfileId, setReferenceProfileId] = useState(() => {
     try {
       const raw = localStorage.getItem(UI_PREFERENCES.layoutPersistKey);
@@ -50,8 +41,6 @@ export function useSettings() {
     setSettingsOpen,
     uiMode,
     setUiMode,
-    standard,
-    setStandard,
     referenceProfileId,
     setReferenceProfileId,
     uiModeRef,

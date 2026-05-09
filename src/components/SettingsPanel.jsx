@@ -3,8 +3,6 @@ export function SettingsPanel({
   setSettingsOpen,
   uiMode,
   setUiMode,
-  standard,
-  setStandard,
   referenceProfileId,
   setReferenceProfileId,
   loudnessReferenceProfiles,
@@ -28,13 +26,6 @@ export function SettingsPanel({
           </button>
         </div>
         <div className="ui-settings-content flex flex-col text-[length:var(--ui-fs-metric-meta)]">
-          <div className="ui-settings-row">
-            <span className="ui-settings-label">Loudness standard</span>
-            <select value={standard} onChange={(e) => setStandard(e.target.value)} className="ui-select">
-              <option value="ebu">EBU R128</option>
-              <option value="stream">Streaming</option>
-            </select>
-          </div>
           <div className="ui-settings-row">
             <span className="ui-settings-label">Loudness reference</span>
             <select
