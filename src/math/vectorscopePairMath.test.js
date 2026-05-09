@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { buildVectorscopePairOptions, formatVectorscopePairLabel } from "./vectorscopePairMath.js";
+import {
+  buildVectorscopePairOptions,
+  clampVectorscopePairToAvailable,
+  formatVectorscopePairLabel,
+} from "./vectorscopePairMath.js";
 
 describe("buildVectorscopePairOptions", () => {
   test("returns empty for <2 channels", () => {
@@ -30,5 +34,20 @@ describe("formatVectorscopePairLabel", () => {
   test("falls back to Ch numbering without labels array", () => {
     expect(formatVectorscopePairLabel({ x: 0, y: 1, channelLabels: [] })).toBe("Ch 1/Ch 2");
     expect(formatVectorscopePairLabel({ x: 2, y: 5 })).toBe("Ch 3/Ch 6");
+  });
+});
+
+test("idle UI can use stereo pair list: n=2 yields L/R", () => {
+  expect(buildVectorscopePairOptions(2).map((o) => o.key)).toEqual(["0-1"]);
+  expect(buildVectorscopePairOptions(0)).toEqual([]);
+});
+
+describe("clampVectorscopePairToAvailable", () => {
+  test("returns first pair (L/R) when pair is invalid for channel count", () => {
+    expect(clampVectorscopePairToAvailable({ x: 2, y: 5 }, 2)).toEqual({ x: 0, y: 1 });
+  });
+
+  test("keeps pair when valid", () => {
+    expect(clampVectorscopePairToAvailable({ x: 2, y: 5 }, 6)).toEqual({ x: 2, y: 5 });
   });
 });

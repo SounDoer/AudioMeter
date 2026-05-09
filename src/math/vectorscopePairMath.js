@@ -34,3 +34,21 @@ export function formatVectorscopePairLabel({ x, y, channelLabels }) {
   return `${lx}/${ly}`;
 }
 
+/**
+ * If the stored pair is not a valid X/Y choice for the current channel count, fall back to the
+ * first available pair (always channel indices 0 and 1 when n ≥ 2 — the L/R pair for standard layouts).
+ *
+ * @param {{ x?: number; y?: number }} pair
+ * @param {number} channelCount
+ * @param {import("./peakMeterChannelLabels.js").PeakMeterChannelLabelsContext} [labelCtx]
+ * @returns {{ x: number; y: number }}
+ */
+export function clampVectorscopePairToAvailable(pair, channelCount, labelCtx = {}) {
+  const options = buildVectorscopePairOptions(channelCount, labelCtx);
+  if (options.length === 0) return { x: 0, y: 1 };
+  const x = Number.isFinite(pair?.x) ? Math.floor(Number(pair.x)) : 0;
+  const y = Number.isFinite(pair?.y) ? Math.floor(Number(pair.y)) : 1;
+  if (options.some((o) => o.x === x && o.y === y)) return { x, y };
+  return { x: options[0].x, y: options[0].y };
+}
+

@@ -382,6 +382,20 @@ export const UI_PREFERENCES = {
 };
 
 /** Matches App persistence so first paint does not flash the wrong theme */
+/** Default stereo/surround L/R pair for vectorscope (first two channels in layout order). */
+export function readPersistedVectorscopePair(prefs) {
+  const p = prefs ?? UI_PREFERENCES;
+  try {
+    const raw = localStorage.getItem(p.layoutPersistKey);
+    if (!raw) return { x: 0, y: 1 };
+    const s = JSON.parse(raw);
+    if (typeof s.vectorscopePairX === "number" && typeof s.vectorscopePairY === "number") {
+      return { x: s.vectorscopePairX, y: s.vectorscopePairY };
+    }
+  } catch (_) {}
+  return { x: 0, y: 1 };
+}
+
 export function readPersistedUiMode(prefs) {
   const p = prefs ?? UI_PREFERENCES;
   try {

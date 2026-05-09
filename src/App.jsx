@@ -6,7 +6,7 @@ import {
   loudnessHistY,
   LOUDNESS_TICKS,
 } from "./scales";
-import { UI_PREFERENCES } from "./uiPreferences";
+import { UI_PREFERENCES, readPersistedVectorscopePair } from "./uiPreferences";
 import { buildHistoryPath, getHistoryViewport, HISTORY_MAX_WINDOW_SEC, HISTORY_MIN_WINDOW_SEC } from "./math/historyMath";
 import { fmtMetric } from "./math/formatMath";
 import { samplePeakLineColor } from "./math/colorMath";
@@ -19,8 +19,7 @@ import { useHoverState } from "./hooks/useHoverState";
 import { useMeterHealth } from "./hooks/useMeterHealth";
 import { resolveChannelLayout } from "./math/channelLayoutResolver.js";
 import { buildMeteringFootnoteHints } from "./math/meteringFootnoteHints.js";
-import { getPeakMeterChannelLabels } from "./math/peakMeterChannelLabels.js";
-import { formatVectorscopePairLabel } from "./math/vectorscopePairMath.js";
+import { buildVectorscopePairOptions, clampVectorscopePairToAvailable } from "./math/vectorscopePairMath.js";
 import { getLoudnessReferenceProfileById, LOUDNESS_REFERENCE_PROFILES } from "./loudnessReferenceProfiles.js";
 import { PillButton } from "./components/PillButton";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -78,7 +77,7 @@ export default function App() {
   const [status2, setStatus2] = useState("Device: Not connected");
   const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const meterHealth = useMeterHealth();
-  const [vectorscopePairUi, setVectorscopePairUi] = useState({ x: 0, y: 1 });
+  const [vectorscopePairUi, setVectorscopePairUi] = useState(() => readPersistedVectorscopePair());
   const [audio, setAudio] = useState({
     peakDb: [],
     peakHoldDb: [],
@@ -124,6 +123,7 @@ export default function App() {
   const corrSnapRef = useRef([]);
   const audioSnapRef = useRef([]);
   const selectedOffsetRef = useRef(-1);
+  const vectorscopePairRef = useRef(readPersistedVectorscopePair());
 
   const {
     histSourceList,
@@ -235,16 +235,15 @@ export default function App() {
     [running, channelLayout, channelCount]
   );
 
-  const peakMeterChannelLabels = useMemo(
-    () => getPeakMeterChannelLabels(channelCount, { channelLayout, resolvedLayout: layoutResolution.resolved }),
-    [channelCount, channelLayout, layoutResolution.resolved]
+  const vectorscopeLabelContext = useMemo(
+    () => ({ channelLayout, resolvedLayout: layoutResolution.resolved }),
+    [channelLayout, layoutResolution.resolved]
   );
-
-  const vectorscopePairLabel = formatVectorscopePairLabel({
-    x: vectorscopePairUi.x,
-    y: vectorscopePairUi.y,
-    channelLabels: peakMeterChannelLabels,
-  });
+  /** Use stereo (2ch) choices when idle so Settings shows default L/R instead of an empty state. */
+  const vectorscopePairOptions = useMemo(() => {
+    const n = channelCount >= 2 ? channelCount : channelCount === 0 ? 2 : 1;
+    return buildVectorscopePairOptions(n, vectorscopeLabelContext);
+  }, [channelCount, vectorscopeLabelContext]);
 
   const captureFormatSignature = useMemo(() => {
     if (!isTauri()) return "";
@@ -271,10 +270,18 @@ export default function App() {
   }, [audioDevices]);
 
   useEffect(() => {
+    if (!running) return;
     const x = Number.isFinite(displayAudio?.vectorscopePairX) ? Number(displayAudio.vectorscopePairX) : 0;
     const y = Number.isFinite(displayAudio?.vectorscopePairY) ? Number(displayAudio.vectorscopePairY) : 1;
     setVectorscopePairUi({ x, y });
-  }, [displayAudio?.vectorscopePairX, displayAudio?.vectorscopePairY]);
+  }, [running, displayAudio?.vectorscopePairX, displayAudio?.vectorscopePairY]);
+
+  useEffect(() => {
+    const next = clampVectorscopePairToAvailable(vectorscopePairUi, channelCount, vectorscopeLabelContext);
+    if (next.x === vectorscopePairUi.x && next.y === vectorscopePairUi.y) return;
+    setVectorscopePairUi(next);
+    if (isTauri() && running) void setVectorscopePair({ x: next.x, y: next.y });
+  }, [channelCount, vectorscopeLabelContext, vectorscopePairUi.x, vectorscopePairUi.y, running]);
 
   const onVectorscopePairChange = async (pair) => {
     setVectorscopePairUi(pair);
@@ -283,6 +290,10 @@ export default function App() {
       await setVectorscopePair({ x: pair.x, y: pair.y });
     } catch (_) {}
   };
+
+  useEffect(() => {
+    vectorscopePairRef.current = vectorscopePairUi;
+  }, [vectorscopePairUi]);
 
   const totalSamples = histSourceList.length;
   const { clampedWindowSec, visibleSamples, maxOffsetSamples, effectiveOffsetSamples, effectiveOffsetSec } = getHistoryViewport(
@@ -461,10 +472,12 @@ export default function App() {
           referenceProfileId,
           uiMode,
           channelLayout,
+          vectorscopePairX: vectorscopePairUi.x,
+          vectorscopePairY: vectorscopePairUi.y,
         })
       );
     } catch (_) {}
-  }, [mainLeft, leftTopRatio, rightTopRatio, loudnessHistWidthRatio, referenceProfileId, uiMode, channelLayout]);
+  }, [mainLeft, leftTopRatio, rightTopRatio, loudnessHistWidthRatio, referenceProfileId, uiMode, channelLayout, vectorscopePairUi]);
 
   useEffect(() => {
     selectedOffsetRef.current = selectedOffset;
@@ -561,6 +574,7 @@ export default function App() {
     audioSnapRef,
     selectedOffsetRef,
     uiModeRef,
+    vectorscopePairRef,
     setAudio,
     setSpectrumPath,
     setSpectrumPeakPath,
@@ -675,8 +689,6 @@ export default function App() {
               }}
               pairX={vectorscopePairUi.x}
               pairY={vectorscopePairUi.y}
-              onPairChange={onVectorscopePairChange}
-              pairLabel={vectorscopePairLabel}
             />
           </section>
 
@@ -778,6 +790,10 @@ export default function App() {
         loudnessReferenceProfiles={LOUDNESS_REFERENCE_PROFILES}
         channelLayout={channelLayout}
         setChannelLayout={setChannelLayout}
+        vectorscopePairOptions={vectorscopePairOptions}
+        vectorscopePairX={vectorscopePairUi.x}
+        vectorscopePairY={vectorscopePairUi.y}
+        onVectorscopePairChange={onVectorscopePairChange}
         resetLayout={resetLayout}
       />
     </div>

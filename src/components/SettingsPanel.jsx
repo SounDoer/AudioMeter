@@ -8,8 +8,14 @@ export function SettingsPanel({
   loudnessReferenceProfiles,
   channelLayout,
   setChannelLayout,
+  /** @type {{ key: string; label: string; x: number; y: number }[]} */
+  vectorscopePairOptions = [],
+  vectorscopePairX = 0,
+  vectorscopePairY = 1,
+  onVectorscopePairChange,
   resetLayout,
 }) {
+  const vsKey = `${vectorscopePairX}-${vectorscopePairY}`;
   if (!settingsOpen) return null;
   return (
     <div
@@ -61,6 +67,32 @@ export function SettingsPanel({
               <option value="stereo">Stereo</option>
               <option value="5.1">5.1</option>
             </select>
+          </div>
+          <div className="ui-settings-row">
+            <span className="ui-settings-label">Vectorscope Channels</span>
+            {vectorscopePairOptions.length > 0 && typeof onVectorscopePairChange === "function" ? (
+              <select
+                className="ui-select"
+                value={vectorscopePairOptions.some((o) => o.key === vsKey) ? vsKey : vectorscopePairOptions[0]?.key}
+                onChange={(e) => {
+                  const [xRaw, yRaw] = String(e.target.value).split("-");
+                  const x = Number.parseInt(xRaw || "0", 10);
+                  const y = Number.parseInt(yRaw || "1", 10);
+                  onVectorscopePairChange({
+                    x: Number.isFinite(x) ? x : 0,
+                    y: Number.isFinite(y) ? y : 1,
+                  });
+                }}
+              >
+                {vectorscopePairOptions.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-[color:var(--ui-color-text-muted)]">At least 2 channels (start monitoring)</span>
+            )}
           </div>
         </div>
       </div>

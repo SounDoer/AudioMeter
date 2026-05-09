@@ -1,6 +1,5 @@
 import { UI_PREFERENCES } from "../../uiPreferences";
 import { getPeakMeterChannelLabels } from "../../math/peakMeterChannelLabels.js";
-import { buildVectorscopePairOptions, formatVectorscopePairLabel } from "../../math/vectorscopePairMath.js";
 
 export function VectorscopePanel({
   vsGridDiagInset,
@@ -13,49 +12,20 @@ export function VectorscopePanel({
   peakLabelContext,
   pairX = 0,
   pairY = 1,
-  onPairChange,
-  pairLabel,
 }) {
-  const canSelect = typeof onPairChange === "function" && Number.isFinite(channelCount) && channelCount >= 2;
-  const stripLabels =
-    Number.isFinite(channelCount) && channelCount >= 2 ? getPeakMeterChannelLabels(channelCount, peakLabelContext || {}) : [];
-  const options = canSelect ? buildVectorscopePairOptions(channelCount, peakLabelContext) : [];
-  const effectiveLabel =
-    typeof pairLabel === "string" && pairLabel.length > 0
-      ? pairLabel
-      : formatVectorscopePairLabel({ x: pairX, y: pairY, channelLabels: stripLabels });
+  // Before metering (0 ch) or waiting for a multichannel layout, show standard L/R for the default 0–1 pair
+  // instead of generic Ch 1 / Ch 2.
+  const labelChannelCount =
+    Number.isFinite(channelCount) && channelCount >= 2 ? Math.floor(Number(channelCount)) : 2;
+  const stripLabels = getPeakMeterChannelLabels(labelChannelCount, peakLabelContext || {});
   const px = Number.isFinite(pairX) ? Math.max(0, Math.floor(Number(pairX))) : 0;
   const py = Number.isFinite(pairY) ? Math.max(0, Math.floor(Number(pairY))) : 1;
   const axisXLabel = stripLabels[px] ?? `Ch ${px + 1}`;
   const axisYLabel = stripLabels[py] ?? `Ch ${py + 1}`;
-  const valueKey = `${Number(pairX)}-${Number(pairY)}`;
   return (
     <article className="ui-article ui-min-h-spectrum flex-1">
       <div className="flex min-w-0 items-baseline justify-between gap-3">
         <div className="ui-section-title ui-section-title-main min-w-0">Vectorscope</div>
-        <div className="flex shrink-0 items-baseline gap-2 text-[length:var(--ui-fs-extra)]">
-          {canSelect ? (
-            <select
-              className="ui-select"
-              title={effectiveLabel}
-              value={valueKey}
-              onChange={(e) => {
-                const [xRaw, yRaw] = String(e.target.value).split("-");
-                const x = Number.parseInt(xRaw || "0", 10);
-                const y = Number.parseInt(yRaw || "1", 10);
-                onPairChange({ x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 1 });
-              }}
-            >
-              {options.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          ) : stripLabels.length > 1 ? (
-            <span className="text-[color:var(--ui-color-text-muted)]">{effectiveLabel}</span>
-          ) : null}
-        </div>
       </div>
       <div className="relative min-h-0 flex-1 rounded-lg bg-[var(--ui-color-inset-bg)]">
         <div className="absolute inset-[var(--ui-chart-outer-inset)] z-0 min-h-0 min-w-0 overflow-hidden">
