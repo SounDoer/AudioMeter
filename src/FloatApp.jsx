@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { buildHistoryPath, getHistoryViewport, HISTORY_MAX_WINDOW_SEC, HISTORY_MIN_WINDOW_SEC } from "./math/historyMath";
 import { fmtMetric } from "./math/formatMath";
 import { isTauri } from "./ipc/env.js";
@@ -22,19 +23,6 @@ const PANELS = new Set(["peak", "loudness", "spectrum", "vector"]);
 
 function useSharedPeakVis(uiMode, displayAudio) {
   const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
-  const renderPeakFill = (dbValue) => {
-    if (!Number.isFinite(dbValue)) return null;
-    const clamped = Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue));
-    const clipTopPct = peakFromTopFrac(clamped) * 100;
-    return (
-      <div
-        className="absolute inset-0 overflow-hidden rounded-md"
-        style={{ clipPath: `inset(${clipTopPct}% 0 0 0 round 0.375rem)` }}
-      >
-        <div className="meter-gradient absolute inset-0" />
-      </div>
-    );
-  };
   const meterGradientCfg = {
     ...UI_PREFERENCES.modules.peak.meterGradient,
     ...(UI_PREFERENCES.themes[uiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
@@ -47,7 +35,7 @@ function useSharedPeakVis(uiMode, displayAudio) {
     );
   const hasTpMaxValue = Number.isFinite(displayAudio.tpMax);
   const tpMaxText = hasTpMaxValue ? `${displayAudio.tpMax.toFixed(1)} dBTP` : "-";
-  return { fmt, renderPeakFill, getSamplePeakLineColor, hasTpMaxValue, tpMaxText };
+  return { fmt, getSamplePeakLineColor, hasTpMaxValue, tpMaxText };
 }
 
 function FloatLoudnessBody({ core }) {
@@ -243,7 +231,6 @@ function FloatPeakView({ core, uiMode }) {
           channelLayout: persistedLayout,
           resolvedLayout: layoutResolution.resolved,
         }}
-        renderPeakFill={v.renderPeakFill}
         getSamplePeakLineColor={v.getSamplePeakLineColor}
         fmt={v.fmt}
         hasTpMaxValue={v.hasTpMaxValue}
@@ -313,6 +300,7 @@ export function FloatApp({ kind }) {
   useFloatWindowPersistence(kind);
   const core = useFloatMeteringCore(kind);
   const { uiMode } = core;
+  const reduceMotion = useReducedMotion();
   if (!PANELS.has(kind)) {
     return (
       <div className="ui-page p-4 text-sm text-[color:var(--ui-color-muted)]">
@@ -340,10 +328,43 @@ export function FloatApp({ kind }) {
             <FloatLoudnessBody core={core} />
           </main>
         ) : (
-          <main className="min-h-0 min-w-0 flex-1 overflow-auto">
-            {kind === "peak" && <FloatPeakView core={core} uiMode={uiMode} />}
-            {kind === "spectrum" && <FloatSpectrumView core={core} />}
-            {kind === "vector" && <FloatVectorView core={core} />}
+          <main className="relative min-h-0 min-w-0 flex-1 overflow-auto">
+            <AnimatePresence mode="wait">
+              {kind === "peak" ? (
+                <motion.div
+                  key="float-peak"
+                  className="min-h-0 min-w-0"
+                  initial={reduceMotion ? false : { opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={reduceMotion ? { opacity: 1 } : { opacity: 0, x: 8 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <FloatPeakView core={core} uiMode={uiMode} />
+                </motion.div>
+              ) : kind === "spectrum" ? (
+                <motion.div
+                  key="float-spectrum"
+                  className="min-h-0 min-w-0"
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <FloatSpectrumView core={core} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="float-vector"
+                  className="min-h-0 min-w-0"
+                  initial={reduceMotion ? false : { opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={reduceMotion ? { opacity: 1 } : { opacity: 0, x: -8 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <FloatVectorView core={core} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </main>
         )}
       </div>

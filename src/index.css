@@ -108,7 +108,13 @@
 
 /* Defaults aligned with --ui-* tokens injected by uiPreferences.applyUiPreferencesToDocument */
 :root {
+  --ui-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-family: var(--ui-font-sans, Inter, system-ui, sans-serif);
+}
+
+.ui-numeric {
+  font-family: var(--ui-font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 html {
@@ -344,7 +350,7 @@ body {
 .ui-metric-value {
   flex-shrink: 0;
   text-align: right;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--ui-font-mono);
   font-size: var(--ui-fs-metric-value);
   font-weight: 600;
   font-variant-numeric: tabular-nums;

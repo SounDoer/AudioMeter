@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FREQ_LABELS, SPEC_Y_TICKS, freqToXFrac, spectrumDbToTopFrac, spectrumDbToYViewBox } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 
@@ -17,8 +18,10 @@ export function SpectrumPanel({
   onSpectrumHoverLeave,
 }) {
   const spectrumSvgRef = useRef(null);
+  const reduceMotion = useReducedMotion();
   const displaySpectrumAreaPath = buildSpectrumAreaPath(displaySpectrumPath);
   const isSummedMultichannel = Number.isFinite(channelCount) && channelCount > 2;
+  const spectrumPaletteKey = selectedOffset >= 0 ? "snap" : "live";
 
   return (
     <article className="ui-article ui-min-h-spectrum flex-1">
@@ -119,28 +122,36 @@ export function SpectrumPanel({
                   })}
                 </g>
                 {displaySpectrumPath ? (
-                  <>
-                    <path
-                      d={displaySpectrumAreaPath}
-                      fill={selectedOffset >= 0 ? "url(#spectrumFillSnap)" : "url(#spectrumFillLive)"}
-                    />
-                    <path
-                      d={displaySpectrumPath}
-                      fill="none"
-                      stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
-                      strokeWidth={UI_PREFERENCES.modules.spectrum.charts.spectrum.strokeWidth}
-                    />
-                    {displaySpectrumPeakPath ? (
+                  <AnimatePresence mode="sync">
+                    <motion.g
+                      key={spectrumPaletteKey}
+                      initial={reduceMotion ? false : { opacity: 0.88 }}
+                      animate={{ opacity: 1 }}
+                      exit={reduceMotion ? { opacity: 1 } : { opacity: 0.82 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
+                    >
                       <path
-                        d={displaySpectrumPeakPath}
-                        fill="none"
-                        stroke="var(--ui-chart-spectrum-snap)"
-                        strokeWidth={Math.max(1, UI_PREFERENCES.modules.spectrum.charts.spectrum.strokeWidth - 1)}
-                        strokeDasharray="8 6"
-                        opacity="0.8"
+                        d={displaySpectrumAreaPath}
+                        fill={selectedOffset >= 0 ? "url(#spectrumFillSnap)" : "url(#spectrumFillLive)"}
                       />
-                    ) : null}
-                  </>
+                      <path
+                        d={displaySpectrumPath}
+                        fill="none"
+                        stroke={selectedOffset >= 0 ? "var(--ui-chart-spectrum-snap)" : "var(--ui-chart-spectrum-live)"}
+                        strokeWidth={UI_PREFERENCES.modules.spectrum.charts.spectrum.strokeWidth}
+                      />
+                      {displaySpectrumPeakPath ? (
+                        <path
+                          d={displaySpectrumPeakPath}
+                          fill="none"
+                          stroke="var(--ui-chart-spectrum-snap)"
+                          strokeWidth={Math.max(1, UI_PREFERENCES.modules.spectrum.charts.spectrum.strokeWidth - 1)}
+                          strokeDasharray="8 6"
+                          opacity="0.8"
+                        />
+                      ) : null}
+                    </motion.g>
+                  </AnimatePresence>
                 ) : null}
               </svg>
             </div>
@@ -164,7 +175,7 @@ export function SpectrumPanel({
                 />
                 <div className="absolute left-[var(--ui-hud-inset)] top-[var(--ui-hud-inset)] rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-1 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)] shadow-sm">
                   <div>{spectrumHover.freqLabel}</div>
-                  <div>{spectrumHover.dbLabel}</div>
+                  <div className="ui-numeric">{spectrumHover.dbLabel}</div>
                 </div>
               </div>
             ) : null}

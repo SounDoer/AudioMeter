@@ -1,11 +1,53 @@
-import { PEAK_TICKS, peakFromTopFrac } from "../../scales";
+import { useEffect } from "react";
+import { motion, useReducedMotion, useSpring } from "framer-motion";
+import { PEAK_TICKS, peakFromTopFrac, PEAK_DB_MIN, PEAK_DB_MAX } from "../../scales";
 import { getPeakChannels } from "../../math/peakChannelMath";
+
+function AnimatedPeakFill({ dbValue }) {
+  const reduceMotion = useReducedMotion();
+  const clamped = Number.isFinite(dbValue) ? Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue)) : null;
+  const clipTopFrac = clamped != null ? peakFromTopFrac(clamped) : 1;
+  const targetScaleY = Math.max(0, Math.min(1, 1 - clipTopFrac));
+  const spring = useSpring(targetScaleY, {
+    stiffness: reduceMotion ? 8000 : 520,
+    damping: reduceMotion ? 120 : 42,
+    mass: reduceMotion ? 0.08 : 0.35,
+  });
+
+  useEffect(() => {
+    spring.set(targetScaleY);
+  }, [spring, targetScaleY]);
+
+  if (clamped == null) return null;
+
+  return (
+    <div className="absolute inset-0 overflow-hidden rounded-md">
+      <motion.div
+        className="meter-gradient absolute inset-0 will-change-transform"
+        style={{ scaleY: spring, transformOrigin: "bottom" }}
+      />
+    </div>
+  );
+}
+
+function AnimatedHoldLine({ holdDb, lineColor }) {
+  const reduceMotion = useReducedMotion();
+  const topPct = peakFromTopFrac(Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, holdDb))) * 100;
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-x-0 z-[5] border-t"
+      initial={false}
+      animate={{ top: `${topPct}%` }}
+      transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 38 }}
+      style={{ borderTopColor: lineColor }}
+    />
+  );
+}
 
 export function PeakPanel({
   displayAudio,
   /** @type {import("../../math/peakMeterChannelLabels.js").PeakMeterChannelLabelsContext | undefined} */
   peakLabelContext,
-  renderPeakFill,
   getSamplePeakLineColor,
   fmt,
   hasTpMaxValue,
@@ -31,19 +73,14 @@ export function PeakPanel({
           {channels.map((c, idx) => (
             <div key={`${idx}-${c.label}`} className="relative h-full min-h-0 rounded-lg bg-[var(--ui-color-inset-bg)] p-0">
               <div className="absolute inset-x-[var(--ui-meter-chart-inset-x)] bottom-[var(--ui-peak-display-bottom-inset)] top-[var(--ui-peak-display-top-inset)]">
-                {renderPeakFill(c.valueDb)}
+                <AnimatedPeakFill dbValue={c.valueDb} />
                 {Number.isFinite(c.holdDb) && (
-                  <div
-                    className="pointer-events-none absolute inset-x-0 z-[5] border-t"
-                    style={{
-                      top: `${peakFromTopFrac(c.holdDb) * 100}%`,
-                      borderTopColor: getSamplePeakLineColor(c.holdDb),
-                    }}
-                  />
+                  <AnimatedHoldLine holdDb={c.holdDb} lineColor={getSamplePeakLineColor(c.holdDb)} />
                 )}
               </div>
               <div className="absolute left-[var(--ui-meter-label-left-inset)] right-0 top-[var(--ui-meter-label-top-inset)] text-left text-[length:var(--ui-fs-extra)] text-[color:var(--ui-color-text-secondary)]">
-                {c.label} <span className="tabular-nums text-[color:var(--ui-color-text-muted)]">{fmt(c.valueDb)}</span>
+                {c.label}{" "}
+                <span className="ui-numeric text-[color:var(--ui-color-text-muted)]">{fmt(c.valueDb)}</span>
               </div>
             </div>
           ))}
@@ -53,7 +90,13 @@ export function PeakPanel({
         <div className="shrink-0" style={{ width: "var(--ui-tp-info-left-blank)" }} />
         <div className="flex items-baseline gap-[var(--ui-inline-value-gap)]">
           <span className="text-[color:var(--ui-color-text-muted)]">TP MAX</span>
-          <span className={hasTpMaxValue ? "font-semibold text-[color:var(--ui-color-tp-max)]" : "font-semibold text-[color:var(--ui-color-text-muted)]"}>
+          <span
+            className={
+              hasTpMaxValue
+                ? "ui-numeric font-semibold text-[color:var(--ui-color-tp-max)]"
+                : "ui-numeric font-semibold text-[color:var(--ui-color-text-muted)]"
+            }
+          >
             {tpMaxText}
           </span>
         </div>

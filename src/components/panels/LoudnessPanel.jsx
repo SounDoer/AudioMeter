@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion, useSpring } from "framer-motion";
 import { LOUDNESS_DB_MAX, LOUDNESS_DB_MIN, loudnessFromTopFrac } from "../../scales";
 import { UI_PREFERENCES } from "../../uiPreferences";
 import { fmtSec } from "../../math/formatMath";
@@ -85,6 +86,16 @@ export function LoudnessPanel({
 
   const referenceLufs = Number.isFinite(referenceProfile?.targetLufs) ? referenceProfile.targetLufs : null;
   const referenceBandLu = 1;
+
+  const reduceMotion = useReducedMotion();
+  const selSpring = useSpring(selLineX, {
+    stiffness: reduceMotion ? 20000 : 540,
+    damping: reduceMotion ? 200 : 46,
+    mass: reduceMotion ? 0.06 : 0.28,
+  });
+  useEffect(() => {
+    selSpring.set(selLineX);
+  }, [selLineX, selSpring]);
 
   const historyGridRef = useRef(null);
   /** Per-tick horizontal guide line top (px), full container height on whole pixels to reduce subpixel AA banding */
@@ -217,6 +228,18 @@ export function LoudnessPanel({
                     opacity={UI_PREFERENCES.modules.loudness.charts.loudnessHistory.shortTermOpacity}
                   />
                 )}
+                {selectedOffset >= 0 && showSelLine ? (
+                  <motion.line
+                    x1={selSpring}
+                    x2={selSpring}
+                    y1={0}
+                    y2={220}
+                    stroke="var(--ui-chart-selection)"
+                    strokeWidth={UI_PREFERENCES.modules.loudness.charts.loudnessHistory.selectionStrokeWidth}
+                    strokeDasharray="5 4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ) : null}
               </svg>
               <div className="pointer-events-none absolute inset-x-[var(--ui-history-svg-pad)] top-[var(--ui-history-display-top-inset)] bottom-[var(--ui-history-display-bottom-inset)] z-10">
                 {referenceLufs != null ? (
@@ -229,10 +252,14 @@ export function LoudnessPanel({
                         background: "color-mix(in srgb, var(--ui-color-loudness-target-line) 12%, transparent)",
                       }}
                     />
-                    <div
+                    <motion.div
                       className="absolute left-0 right-0 h-0 -translate-y-1/2 border-t border-dashed"
+                      initial={false}
+                      animate={{ top: `${loudnessFromTopFrac(referenceLufs) * 100}%` }}
+                      transition={
+                        reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 32 }
+                      }
                       style={{
-                        top: `${loudnessFromTopFrac(referenceLufs) * 100}%`,
                         borderTopColor: "var(--ui-color-loudness-target-line)",
                         borderTopWidth: 2,
                       }}
@@ -245,16 +272,6 @@ export function LoudnessPanel({
                     </div>
                   </>
                 ) : null}
-                {selectedOffset >= 0 && showSelLine && (
-                  <div
-                    className="absolute bottom-0 top-0 border-l border-dashed border-[color:var(--ui-chart-selection)]"
-                    style={{
-                      left: `${(selLineX / 600) * 100}%`,
-                      width: 0,
-                      borderLeftWidth: `${UI_PREFERENCES.modules.loudness.charts.loudnessHistory.selectionStrokeWidth}px`,
-                    }}
-                  />
-                )}
                 {historyHover?.leftPct != null ? (
                   <div
                     className="absolute bottom-0 top-0 border-l border-dashed border-[color:color-mix(in_srgb,var(--ui-color-text-secondary)_55%,transparent)]"
@@ -269,14 +286,26 @@ export function LoudnessPanel({
                 ) : null}
                 {isHistoryHudVisible && (
                   <div className="absolute bottom-[var(--ui-hud-inset)] right-[var(--ui-hud-inset)] rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-0.5 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)]">
-                    Window {fmtSec(clampedWindowSec)} | Offset {fmtSec(effectiveOffsetSec)}
+                    <span className="ui-numeric">Window {fmtSec(clampedWindowSec)}</span>
+                    {" | "}
+                    <span className="ui-numeric">Offset {fmtSec(effectiveOffsetSec)}</span>
                   </div>
                 )}
                 {historyHover ? (
                   <div className="absolute left-[var(--ui-hud-inset)] top-[var(--ui-hud-inset)] rounded border border-[color:var(--ui-color-divider)] bg-[color:var(--ui-color-panel-bg-splitter)] px-2 py-1 text-[length:var(--ui-fs-axis-value)] text-[color:var(--ui-color-text-secondary)] shadow-sm">
                     <div>{historyHover.offsetLabel}</div>
-                    <div>M {historyHover.momentary != null ? `${historyHover.momentary.toFixed(1)} LUFS` : "-"}</div>
-                    <div>ST {historyHover.shortTerm != null ? `${historyHover.shortTerm.toFixed(1)} LUFS` : "-"}</div>
+                    <div>
+                      M{" "}
+                      <span className="ui-numeric">
+                        {historyHover.momentary != null ? `${historyHover.momentary.toFixed(1)} LUFS` : "-"}
+                      </span>
+                    </div>
+                    <div>
+                      ST{" "}
+                      <span className="ui-numeric">
+                        {historyHover.shortTerm != null ? `${historyHover.shortTerm.toFixed(1)} LUFS` : "-"}
+                      </span>
+                    </div>
                   </div>
                 ) : null}
               </div>

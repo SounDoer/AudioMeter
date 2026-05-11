@@ -94,8 +94,8 @@ export function VectorscopePanel({
           <span
             className={
               Number.isFinite(correlation)
-                ? "font-semibold tabular-nums text-[color:var(--ui-color-tp-max)]"
-                : "font-semibold text-[color:var(--ui-color-text-muted)]"
+                ? "ui-numeric font-semibold text-[color:var(--ui-color-tp-max)]"
+                : "ui-numeric font-semibold text-[color:var(--ui-color-text-muted)]"
             }
           >
             {Number.isFinite(correlation) ? correlation.toFixed(2) : "-"}

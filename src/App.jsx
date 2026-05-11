@@ -176,19 +176,6 @@ export default function App() {
   }, [historyOffsetSec, historyWindowSec]);
 
   const fmt = (v) => (Number.isFinite(v) ? v.toFixed(1) : "-");
-  const renderPeakFill = (dbValue) => {
-    if (!Number.isFinite(dbValue)) return null;
-    const clamped = Math.max(PEAK_DB_MIN, Math.min(PEAK_DB_MAX, dbValue));
-    const clipTopPct = peakFromTopFrac(clamped) * 100;
-    return (
-      <div
-        className="absolute inset-0 overflow-hidden rounded-md"
-        style={{ clipPath: `inset(${clipTopPct}% 0 0 0 round 0.375rem)` }}
-      >
-        <div className="meter-gradient absolute inset-0" />
-      </div>
-    );
-  };
   const meterGradientCfg = {
     ...UI_PREFERENCES.modules.peak.meterGradient,
     ...(UI_PREFERENCES.themes[effectiveUiMode === "light" ? "light" : "dark"]?.meterGradient || {}),
@@ -694,7 +681,6 @@ export default function App() {
                 channelLayout,
                 resolvedLayout: layoutResolution.resolved,
               }}
-              renderPeakFill={renderPeakFill}
               getSamplePeakLineColor={getSamplePeakLineColor}
               fmt={fmt}
               hasTpMaxValue={hasTpMaxValue}
