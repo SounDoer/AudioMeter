@@ -22,7 +22,7 @@ This ADR supersedes the following earlier ideas where they conflict with ADR 000
 
 5. **Layout is orthogonal to theme** — Splitter spacing, min-heights, insets, and other **`--ui-*` layout variables** do **not** vary with `themeId`. If a future “compact density” preset is needed, model it as a separate **`layoutPresetId`** (or similar), not as part of colour themes.
 
-6. **Persistence** — One **JSON blob** under a **versioned storage key** (`layoutPersistKey` will change when the schema changes; **no migration** from older keys during solo dev). Fields include at least:
+6. **Persistence** — One **JSON blob** under a **storage key** that changes when the persisted shape changes (**no migration** from older keys during solo dev). Use **`audiometer.ui`** as `layoutPersistKey` (do **not** embed version suffixes like `v2` in the key name). Fields include at least:
    - **`appearance`**: `"system"` | `"fixed"`.
    - **`themeId`**: required when `appearance === "fixed"`; **omit or `null` when `appearance === "system"`** (resolved theme is computed at runtime, not stored as a fixed choice).
 
