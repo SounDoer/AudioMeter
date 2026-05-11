@@ -3,6 +3,7 @@
 pub mod capture;
 pub mod cpal_backend;
 pub mod device;
+pub mod device_enum;
 pub mod device_id;
 #[cfg(target_os = "macos")]
 pub mod macos;

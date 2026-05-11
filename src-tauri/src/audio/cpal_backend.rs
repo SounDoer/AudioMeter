@@ -1,342 +1,124 @@
-//! cpal / WASAPI loopback: **render** devices are opened with `build_input_stream` as loopback; **capture** devices are mics, etc.
-//! Implements `AudioCapture`; the capture thread and `CaptureSession` live here (formerly `session.rs`).
-//!
-//! WASAPI: `render device + input stream` ⇒ `AUDCLNT_STREAMFLAGS_LOOPBACK`.
+//! cpal / WASAPI capture loop and session management.
+//! Device enumeration and id resolution live in `device_enum`.
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{SampleFormat, StreamConfig};
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use super::capture::{AudioCapture, AudioCaptureSession};
 use super::device::DeviceInfo;
-use super::device_id;
+use super::device_enum::{build_device_list, resolve_device};
 
 use crate::engine::ChannelLayoutSetting;
 use crate::engine::MeterPipeline;
 use crate::ipc::types::{EngineBackpressurePayload, MeterHistoryBuf};
 use tauri::{AppHandle, Emitter};
 
-fn is_name_heuristic_loopback(name: &str) -> bool {
-  let n = name.to_lowercase();
-  n.contains("loopback")
-    || n.contains("stereo mix")
-    || n.contains("what u hear")
-    || n.contains("立体声混音")
-}
+// Re-export device helpers for ipc/commands.rs (all platforms).
+pub use super::device_enum::{
+  capture_list_id_for_row, device_default_format, loopback_list_id_for_row, preview_device,
+};
+// Re-export helpers used by macos/mod.rs (compiled only on macOS).
+#[cfg(target_os = "macos")]
+pub(crate) use super::device_enum::{
+  append_input_devices, collect_outputs, device_id_key, device_list_label, pick_output_by_index,
+  resolve_default_output,
+};
 
-/// Short name from cpal / WASAPI (`DeviceDesc` on Windows). Used for **stable device ids** (`lb-*` / `cap-*`)
-/// so ids do not change when we only enrich the UI label.
-pub(crate) fn device_id_key(device: &cpal::Device) -> Result<String, String> {
-  Ok(
-    device
-      .description()
-      .map_err(|e| e.to_string())?
-      .name()
-      .trim()
-      .to_string(),
-  )
-}
+/// Zero-sized type: the only capture backend in v1.0.
+pub struct CpalBackend;
 
-/// User-facing list label: on Windows, cpal often puts the generic endpoint name in `name()` and the
-/// hardware / driver product string in `extended()` (e.g. FriendlyName vs DeviceDesc).
-pub(crate) fn device_list_label(device: &cpal::Device) -> Result<String, String> {
-  let d = device.description().map_err(|e| e.to_string())?;
-  let primary = d.name().trim();
-  let parts: Vec<&str> = d
-    .extended()
-    .iter()
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-    .collect();
-  if parts.is_empty() {
-    return Ok(primary.to_string());
+impl AudioCapture for CpalBackend {
+  fn list_devices(&self) -> Result<Vec<DeviceInfo>, String> {
+    build_device_list()
   }
-  let detail = parts.join(" · ");
-  if detail == primary {
-    return Ok(primary.to_string());
+
+  fn start_session(
+    &self,
+    device_id: &str,
+    frame_subscribers: crate::ipc::types::FrameSubscribers,
+    app: AppHandle,
+    meter_history: MeterHistoryBuf,
+    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
+    channel_layout: Arc<std::sync::Mutex<ChannelLayoutSetting>>,
+  ) -> Result<Box<dyn AudioCaptureSession>, String> {
+    Ok(Box::new(CaptureSession::start(
+      device_id,
+      frame_subscribers,
+      app,
+      meter_history,
+      vectorscope_pair,
+      channel_layout,
+    )?))
   }
-  Ok(format!("{detail} — {primary}"))
 }
 
-pub(crate) fn collect_outputs(
-) -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
-  let host = cpal::default_host();
-  let mut rows = Vec::new();
-  for (idx, device) in host
-    .output_devices()
-    .map_err(|e| e.to_string())?
-    .enumerate()
-  {
-    if let Ok(cfg) = device.default_output_config() {
-      rows.push((idx, device, cfg));
+pub(crate) struct CaptureSession {
+  stop_tx: std::sync::mpsc::Sender<()>,
+  join: Option<JoinHandle<Result<(), String>>>,
+  clear_peak_history: Arc<AtomicBool>,
+}
+
+impl Drop for CaptureSession {
+  fn drop(&mut self) {
+    let _ = self.stop_tx.send(());
+    if let Some(j) = self.join.take() {
+      let _ = j.join();
     }
   }
-  rows.sort_by(|a, b| {
-    let na = device_list_label(&a.1).unwrap_or_default();
-    let nb = device_list_label(&b.1).unwrap_or_default();
-    na.to_lowercase().cmp(&nb.to_lowercase())
-  });
-  Ok(rows)
 }
 
-pub(crate) fn collect_inputs(
-) -> Result<Vec<(usize, cpal::Device, cpal::SupportedStreamConfig)>, String> {
-  let host = cpal::default_host();
-  let mut rows = Vec::new();
-  for (idx, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
-    if let Ok(cfg) = device.default_input_config() {
-      rows.push((idx, device, cfg));
-    }
+impl AudioCaptureSession for CaptureSession {
+  fn request_clear_peak_history(&self) {
+    self.clear_peak_history.store(true, Ordering::Release);
   }
-  rows.sort_by(|a, b| {
-    let na = device_list_label(&a.1).unwrap_or_default();
-    let nb = device_list_label(&b.1).unwrap_or_default();
-    na.to_lowercase().cmp(&nb.to_lowercase())
-  });
-  Ok(rows)
 }
 
-pub(crate) fn pick_output_by_index(
-  target: usize,
-) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
-  let host = cpal::default_host();
-  for (idx, device) in host
-    .output_devices()
-    .map_err(|e| e.to_string())?
-    .enumerate()
-  {
-    if idx != target {
-      continue;
-    }
-    let cfg = device
-      .default_output_config()
-      .map_err(|e| format!("{e} (output index {target})"))?;
-    return Ok((device, cfg));
+impl CaptureSession {
+  pub(crate) fn start(
+    device_id: &str,
+    frame_subscribers: crate::ipc::types::FrameSubscribers,
+    app: AppHandle,
+    meter_history: MeterHistoryBuf,
+    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
+    channel_layout: Arc<std::sync::Mutex<ChannelLayoutSetting>>,
+  ) -> Result<Self, String> {
+    let (device, supported) = resolve_device(device_id)?;
+    let sample_rate = supported.sample_rate();
+    let channels = supported.channels();
+    let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
+    let clear_peak_history = Arc::new(AtomicBool::new(false));
+    let clear_worker = clear_peak_history.clone();
+    let dropped_chunks = Arc::new(AtomicU64::new(0));
+
+    let join = std::thread::Builder::new()
+      .name("audiometer-capture".into())
+      .spawn(move || {
+        run_capture_worker(RunCaptureArgs {
+          device,
+          supported,
+          sample_rate,
+          channels,
+          frame_subscribers,
+          app,
+          stop_rx,
+          clear_peak_history: clear_worker,
+          vectorscope_pair,
+          channel_layout,
+          meter_history,
+          dropped_chunks,
+        })
+      })
+      .map_err(|e| e.to_string())?;
+
+    Ok(CaptureSession {
+      stop_tx,
+      join: Some(join),
+      clear_peak_history,
+    })
   }
-  Err(format!("Output device index not found: {target}"))
-}
-
-fn pick_input_by_index(
-  target: usize,
-) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
-  let host = cpal::default_host();
-  for (idx, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
-    if idx != target {
-      continue;
-    }
-    let cfg = device
-      .default_input_config()
-      .map_err(|e| format!("{e} (input index {target})"))?;
-    return Ok((device, cfg));
-  }
-  Err(format!("Input device index not found: {target}"))
-}
-
-/// Selectable sources: system **outputs** (loopback) first, then **inputs** (mics, line in, virtual cables, etc.).
-///
-/// Device ids are stable across **UI refreshes and default format changes** (`lb-*` / `cap-*`: short
-/// endpoint name + collision nonce). List `label` may include extra lines from cpal (e.g. Windows
-/// hardware name). Legacy format-based v1 hashes and `out:N` / `in:N` index ids are still accepted in [`resolve_device`].
-pub(crate) fn build_device_list() -> Result<Vec<DeviceInfo>, String> {
-  let mut out = Vec::new();
-  let mut used_lb = HashSet::new();
-
-  for (_idx, device, cfg) in collect_outputs()? {
-    let key = device_id_key(&device)?;
-    let label = device_list_label(&device)?;
-    let id = device_id::alloc_loopback_id(&key, &mut used_lb);
-    out.push(DeviceInfo {
-      id,
-      label,
-      is_system_output_monitor: true,
-      is_loopback: true,
-      default_sample_rate: cfg.sample_rate(),
-      channels: cfg.channels(),
-      core_audio_output_uid: None,
-    });
-  }
-
-  append_input_devices(&mut out)?;
-
-  Ok(out)
-}
-
-/// Input-only rows (microphones, line-in, virtual inputs) using the same `cap-*` ids as [`build_device_list`].
-pub(crate) fn append_input_devices(out: &mut Vec<DeviceInfo>) -> Result<(), String> {
-  let mut used_cap = HashSet::new();
-  for (_idx, device, cfg) in collect_inputs()? {
-    let key = device_id_key(&device)?;
-    let label = device_list_label(&device)?;
-    let is_loopback = is_name_heuristic_loopback(&key) || is_name_heuristic_loopback(&label);
-    let id = device_id::alloc_capture_id(&key, &mut used_cap);
-    out.push(DeviceInfo {
-      id,
-      label,
-      is_system_output_monitor: false,
-      is_loopback,
-      default_sample_rate: cfg.sample_rate(),
-      channels: cfg.channels(),
-      core_audio_output_uid: None,
-    });
-  }
-
-  Ok(())
-}
-
-pub(crate) fn resolve_default_output() -> Result<(cpal::Device, cpal::SupportedStreamConfig), String>
-{
-  let host = cpal::default_host();
-  if let Some(def) = host.default_output_device() {
-    let def_name = device_id_key(&def)?;
-    for device in host.output_devices().map_err(|e| e.to_string())? {
-      let Ok(name) = device_id_key(&device) else {
-        continue;
-      };
-      if name == def_name {
-        let cfg = device
-          .default_output_config()
-          .map_err(|e| format!("default output format: {e}"))?;
-        return Ok((device, cfg));
-      }
-    }
-  }
-  let host = cpal::default_host();
-  for device in host.output_devices().map_err(|e| e.to_string())? {
-    if let Ok(cfg) = device.default_output_config() {
-      return Ok((device, cfg));
-    }
-  }
-  pick_input_by_index(0)
-}
-
-fn resolve_stable_loopback(
-  target: &str,
-) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
-  let mut used_lb = HashSet::new();
-  for (_, device, cfg) in collect_outputs()? {
-    let key = device_id_key(&device)?;
-    let id = device_id::alloc_loopback_id(&key, &mut used_lb);
-    if id == target {
-      return Ok((device, cfg));
-    }
-  }
-  let mut used_legacy = HashSet::new();
-  for (_, device, cfg) in collect_outputs()? {
-    let name = device_id_key(&device)?;
-    let id = device_id::legacy_alloc_loopback_id(
-      &name,
-      cfg.channels(),
-      cfg.sample_rate(),
-      &mut used_legacy,
-    );
-    if id == target {
-      return Ok((device, cfg));
-    }
-  }
-  Err(format!("Unknown loopback device id: {target}"))
-}
-
-fn resolve_stable_capture(
-  target: &str,
-) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
-  let mut used_cap = HashSet::new();
-  for (_, device, cfg) in collect_inputs()? {
-    let key = device_id_key(&device)?;
-    let id = device_id::alloc_capture_id(&key, &mut used_cap);
-    if id == target {
-      return Ok((device, cfg));
-    }
-  }
-  let mut used_legacy = HashSet::new();
-  for (_, device, cfg) in collect_inputs()? {
-    let name = device_id_key(&device)?;
-    let id = device_id::legacy_alloc_capture_id(
-      &name,
-      cfg.channels(),
-      cfg.sample_rate(),
-      &mut used_legacy,
-    );
-    if id == target {
-      return Ok((device, cfg));
-    }
-  }
-  Err(format!("Unknown capture device id: {target}"))
-}
-
-/// v2 list id for a loopback row that matches the given **id key** (short name) and current default format.
-pub fn loopback_list_id_for_row(
-  name: &str,
-  channels: u16,
-  sample_rate: u32,
-) -> Result<Option<String>, String> {
-  let mut used_lb = HashSet::new();
-  for (_, device, cfg) in collect_outputs()? {
-    let row_key = device_id_key(&device)?;
-    let id = device_id::alloc_loopback_id(&row_key, &mut used_lb);
-    if row_key == name && cfg.channels() == channels && cfg.sample_rate() == sample_rate {
-      return Ok(Some(id));
-    }
-  }
-  Ok(None)
-}
-
-/// v2 list id for a capture row that matches the given **id key** (short name) and current default format.
-pub fn capture_list_id_for_row(
-  name: &str,
-  channels: u16,
-  sample_rate: u32,
-) -> Result<Option<String>, String> {
-  let mut used_cap = HashSet::new();
-  for (_, device, cfg) in collect_inputs()? {
-    let row_key = device_id_key(&device)?;
-    let id = device_id::alloc_capture_id(&row_key, &mut used_cap);
-    if row_key == name && cfg.channels() == channels && cfg.sample_rate() == sample_rate {
-      return Ok(Some(id));
-    }
-  }
-  Ok(None)
-}
-
-fn resolve_device(device_id: &str) -> Result<(cpal::Device, cpal::SupportedStreamConfig), String> {
-  if device_id.is_empty() || device_id == "default" {
-    return resolve_default_output();
-  }
-
-  if let Some(n) = device_id::parse_legacy_output_index(device_id) {
-    return pick_output_by_index(n);
-  }
-
-  if let Some(n) = device_id::parse_legacy_input_index(device_id) {
-    return pick_input_by_index(n);
-  }
-
-  if device_id::is_stable_loopback_id(device_id) {
-    return resolve_stable_loopback(device_id);
-  }
-
-  if device_id::is_stable_capture_id(device_id) {
-    return resolve_stable_capture(device_id);
-  }
-
-  Err(format!("Unknown device id: {device_id}"))
-}
-
-/// Default `(sample_rate_hz, channels)` for a device id (UI hints / `sample-rate-changed` event).
-pub fn device_default_format(device_id: &str) -> Result<(u32, u16), String> {
-  let (_, supported) = resolve_device(device_id)?;
-  Ok((supported.sample_rate(), supported.channels()))
-}
-
-/// Human-readable list label, **stable id key** (short name), and format for a capture target
-/// (including `"default"` → OS default output).
-pub fn preview_device(device_id: &str) -> Result<(String, String, u32, u16), String> {
-  let (device, supported) = resolve_device(device_id)?;
-  let label = device_list_label(&device)?;
-  let key = device_id_key(&device)?;
-  Ok((label, key, supported.sample_rate(), supported.channels()))
 }
 
 struct RunCaptureArgs {
@@ -354,7 +136,7 @@ struct RunCaptureArgs {
   dropped_chunks: Arc<AtomicU64>,
 }
 
-/// Feeds interleaved f32 PCM from `audio_rx` into [`MeterPipeline`] until the sender side is dropped.
+/// Feeds interleaved f32 PCM from `audio_rx` into [`MeterPipeline`] until the sender side drops.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_meter_pipeline_bridge_thread(
   audio_rx: std::sync::mpsc::Receiver<Vec<f32>>,
@@ -407,7 +189,7 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
             break;
           }
         }
-        // Avoid per-key remove/insert on every frame; drop dead float subscribers when send fails.
+        // Avoid per-key remove/insert on every frame; drop dead float subscribers lazily.
         let mut to_remove: Vec<String> = Vec::new();
         for (id, tx) in m.iter_mut() {
           if id == "main" {
@@ -534,106 +316,11 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
   };
 
   stream.play().map_err(|e| e.to_string())?;
-
   let _ = stop_rx.recv();
   drop(stream);
   drop(audio_tx);
   let _ = bridge.join();
   Ok(())
-}
-
-pub(crate) struct CaptureSession {
-  stop_tx: std::sync::mpsc::Sender<()>,
-  join: Option<JoinHandle<Result<(), String>>>,
-  clear_peak_history: Arc<AtomicBool>,
-}
-
-impl Drop for CaptureSession {
-  fn drop(&mut self) {
-    let _ = self.stop_tx.send(());
-    if let Some(j) = self.join.take() {
-      let _ = j.join();
-    }
-  }
-}
-
-impl AudioCaptureSession for CaptureSession {
-  fn request_clear_peak_history(&self) {
-    self.clear_peak_history.store(true, Ordering::Release);
-  }
-}
-
-impl CaptureSession {
-  pub(crate) fn start(
-    device_id: &str,
-    frame_subscribers: crate::ipc::types::FrameSubscribers,
-    app: AppHandle,
-    meter_history: MeterHistoryBuf,
-    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
-    channel_layout: Arc<std::sync::Mutex<ChannelLayoutSetting>>,
-  ) -> Result<Self, String> {
-    let (device, supported) = resolve_device(device_id)?;
-    let sample_rate = supported.sample_rate();
-    let channels = supported.channels();
-    let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
-    let clear_peak_history = Arc::new(AtomicBool::new(false));
-    let clear_worker = clear_peak_history.clone();
-    let dropped_chunks = Arc::new(AtomicU64::new(0));
-
-    let join = std::thread::Builder::new()
-      .name("audiometer-capture".into())
-      .spawn(move || {
-        run_capture_worker(RunCaptureArgs {
-          device,
-          supported,
-          sample_rate,
-          channels,
-          frame_subscribers,
-          app,
-          stop_rx,
-          clear_peak_history: clear_worker,
-          vectorscope_pair,
-          channel_layout,
-          meter_history,
-          dropped_chunks,
-        })
-      })
-      .map_err(|e| e.to_string())?;
-
-    Ok(CaptureSession {
-      stop_tx,
-      join: Some(join),
-      clear_peak_history,
-    })
-  }
-}
-
-/// Zero-sized type: the only capture backend in v1.0.
-pub struct CpalBackend;
-
-impl AudioCapture for CpalBackend {
-  fn list_devices(&self) -> Result<Vec<DeviceInfo>, String> {
-    build_device_list()
-  }
-
-  fn start_session(
-    &self,
-    device_id: &str,
-    frame_subscribers: crate::ipc::types::FrameSubscribers,
-    app: AppHandle,
-    meter_history: MeterHistoryBuf,
-    vectorscope_pair: Arc<std::sync::Mutex<(u16, u16)>>,
-    channel_layout: Arc<std::sync::Mutex<ChannelLayoutSetting>>,
-  ) -> Result<Box<dyn AudioCaptureSession>, String> {
-    Ok(Box::new(CaptureSession::start(
-      device_id,
-      frame_subscribers,
-      app,
-      meter_history,
-      vectorscope_pair,
-      channel_layout,
-    )?))
-  }
 }
 
 #[cfg(test)]
