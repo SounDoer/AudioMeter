@@ -1,16 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { loudnessHistY, LOUDNESS_TICKS } from "./scales";
 import { UI_PREFERENCES, readPersistedVectorscopePair } from "./uiPreferences";
 import {
-  buildHistoryPath,
-  buildHistoryTimeAxisLabels,
-  getHistoryViewport,
   HISTORY_MAX_WINDOW_SEC,
   HISTORY_MIN_WINDOW_SEC,
   HISTORY_TIME_TICK_STEPS,
 } from "./math/historyMath";
-import { fmtMetric } from "./math/formatMath";
 import { useHistoryInteraction } from "./hooks/useHistoryInteraction";
+import { useLoudnessHistory, HIST_SAMPLE_SEC } from "./hooks/useLoudnessHistory.js";
 import { useLayoutDrag } from "./hooks/useLayoutDrag";
 import { useAudioEngine } from "./hooks/useAudioEngine";
 import { useSettings } from "./hooks/useSettings";
@@ -26,10 +22,7 @@ import {
   clampVectorscopePairToAvailable,
 } from "./math/vectorscopePairMath.js";
 import { getBuiltinTheme } from "./theme/builtinThemes.js";
-import {
-  getLoudnessReferenceProfileById,
-  LOUDNESS_REFERENCE_PROFILES,
-} from "./loudnessReferenceProfiles.js";
+import { LOUDNESS_REFERENCE_PROFILES } from "./loudnessReferenceProfiles.js";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CaptureDeviceSelect } from "./components/CaptureDeviceSelect";
@@ -52,7 +45,6 @@ import { LoudnessPanel } from "./components/panels/LoudnessPanel";
 import { SpectrumPanel } from "./components/panels/SpectrumPanel";
 import { VectorscopePanel } from "./components/panels/VectorscopePanel";
 
-const HIST_SAMPLE_SEC = 0.1;
 const HIST_MAX_SAMPLES = 36000;
 
 const buildVersionRaw = import.meta.env.VITE_APP_VERSION || "dev";
@@ -86,15 +78,8 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [channelLayout, setChannelLayout] = useState("auto");
   const [selectedOffset, setSelectedOffset] = useState(-1);
-  const [historyWindowSec, setHistoryWindowSec] = useState(
-    UI_PREFERENCES.modules.loudness.history.defaultWindowSec
-  );
-  const [historyOffsetSec, setHistoryOffsetSec] = useState(0);
-  const [historyHudUntilTs, setHistoryHudUntilTs] = useState(0);
-  const [historyHudHold, setHistoryHudHold] = useState(false);
   const [status, setStatus] = useState("Ready - click Start to begin monitoring");
   const [status2, setStatus2] = useState("Device: Not connected");
-  const [histCurves, setHistCurves] = useState({ m: false, st: true });
   const meterHealth = useMeterHealth();
   const [vectorscopePairUi, setVectorscopePairUi] = useState(() => readPersistedVectorscopePair());
   const [audio, setAudio] = useState({
@@ -171,52 +156,49 @@ export default function App() {
     vectorPath,
   });
 
-  const historyTimeTicks = useMemo(
-    () => buildHistoryTimeAxisLabels(historyOffsetSec, historyWindowSec),
-    [historyOffsetSec, historyWindowSec]
-  );
+  const {
+    historyWindowSec,
+    setHistoryWindowSec,
+    historyOffsetSec,
+    setHistoryOffsetSec,
+    historyHudUntilTs,
+    setHistoryHudUntilTs,
+    historyHudHold,
+    setHistoryHudHold,
+    histCurves,
+    toggleCurve,
+    historyChartInteractive,
+    totalSamples,
+    clampedWindowSec,
+    visibleSamples,
+    maxOffsetSamples,
+    effectiveOffsetSamples,
+    effectiveOffsetSec,
+    displayHistoryPathM,
+    displayHistoryPathST,
+    selectedHistSteps,
+    showSelLine,
+    selLineX,
+    isHistoryHudVisible,
+    historyTimeTicks,
+    referenceProfile,
+    targetLufs,
+    historyYAxisTicks,
+    primaryMetrics,
+    secondaryMetrics,
+  } = useLoudnessHistory({
+    histSourceList,
+    hasHistoryData,
+    running,
+    displayAudio,
+    referenceProfileId,
+    selectedOffset,
+  });
 
   const { fmt, getSamplePeakLineColor, hasTpMaxValue, tpMaxText } = usePeakVis(
     resolvedThemeId,
     displayAudio
   );
-  const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
-  const referenceProfile = useMemo(
-    () => getLoudnessReferenceProfileById(referenceProfileId),
-    [referenceProfileId]
-  );
-  const targetLufs = Number.isFinite(referenceProfile?.targetLufs)
-    ? referenceProfile.targetLufs
-    : -23;
-  const historyYAxisTicks = useMemo(() => {
-    const out = [...LOUDNESS_TICKS];
-    if (!out.some((t) => t.v === targetLufs)) out.push({ v: targetLufs, lb: String(targetLufs) });
-    out.sort((a, b) => b.v - a.v);
-    return out;
-  }, [targetLufs]);
-
-  const psr =
-    Number.isFinite(displayAudio.tpMax) && Number.isFinite(displayAudio.shortTerm)
-      ? displayAudio.tpMax - displayAudio.shortTerm
-      : -Infinity;
-  const plr =
-    Number.isFinite(displayAudio.tpMax) && Number.isFinite(displayAudio.integrated)
-      ? displayAudio.tpMax - displayAudio.integrated
-      : -Infinity;
-  const primaryMetrics = [
-    { label: "Momentary", value: fmtMetric(displayAudio.momentary), unit: "LUFS" },
-    { label: "Short-term", value: fmtMetric(displayAudio.shortTerm), unit: "LUFS" },
-    { label: "Integrated", value: fmtMetric(displayAudio.integrated), unit: "LUFS" },
-    { label: "Momentary Max", value: fmtMetric(displayAudio.mMax), unit: "LUFS" },
-    { label: "Short-term Max", value: fmtMetric(displayAudio.stMax), unit: "LUFS" },
-    { label: "Loudness Range (LRA)", value: fmtMetric(displayAudio.lra), unit: "LU" },
-  ];
-  const secondaryMetrics = [
-    { label: "Dynamics (PSR)", value: fmtMetric(psr), unit: "dB" },
-    { label: "Avg. Dynamics (PLR)", value: fmtMetric(plr), unit: "dB" },
-  ];
-
-  const historyChartInteractive = running || hasHistoryData;
   const vsGridDiagInset = useMemo(() => {
     const pct = getBuiltinTheme(resolvedThemeId).charts.vectorscope.gridDiagInsetPct ?? 0;
     return Math.max(0, Math.min(20, pct));
@@ -286,45 +268,6 @@ export default function App() {
   useEffect(() => {
     vectorscopePairRef.current = vectorscopePairUi;
   }, [vectorscopePairUi]);
-
-  const totalSamples = histSourceList.length;
-  const {
-    clampedWindowSec,
-    visibleSamples,
-    maxOffsetSamples,
-    effectiveOffsetSamples,
-    effectiveOffsetSec,
-  } = getHistoryViewport(totalSamples, historyWindowSec, historyOffsetSec, HIST_SAMPLE_SEC);
-  const displayHistoryPathM = buildHistoryPath(
-    histSourceList,
-    "m",
-    visibleSamples,
-    effectiveOffsetSamples,
-    (v) => loudnessHistY(v, 220)
-  );
-  const displayHistoryPathST = buildHistoryPath(
-    histSourceList,
-    "st",
-    visibleSamples,
-    effectiveOffsetSamples,
-    (v) => loudnessHistY(v, 220)
-  );
-  const selectedHistSteps =
-    selectedOffset >= 0 ? Math.max(0, Math.round(selectedOffset / HIST_SAMPLE_SEC)) : -1;
-  const showSelLine =
-    selectedOffset >= 0 &&
-    totalSamples > 0 &&
-    selectedHistSteps >= 0 &&
-    selectedHistSteps < totalSamples;
-  const isHistoryHudVisible =
-    historyChartInteractive && (historyHudHold || historyHudUntilTs > Date.now());
-  const selLineX = Math.max(
-    0,
-    Math.min(
-      600,
-      600 - ((selectedHistSteps - effectiveOffsetSamples) / Math.max(1, visibleSamples - 1)) * 600
-    )
-  );
 
   const {
     historyHover,
@@ -453,20 +396,6 @@ export default function App() {
     }
     setRunning(true);
   };
-
-  useEffect(() => {
-    if (historyHudHold) return;
-    const remain = historyHudUntilTs - Date.now();
-    if (remain <= 0) return;
-    const t = setTimeout(() => setHistoryHudUntilTs(0), remain + 24);
-    return () => clearTimeout(t);
-  }, [historyHudUntilTs, historyHudHold]);
-
-  useEffect(() => {
-    if (historyChartInteractive) return;
-    setHistoryHudHold(false);
-    setHistoryHudUntilTs(0);
-  }, [historyChartInteractive]);
 
   useEffect(() => {
     try {

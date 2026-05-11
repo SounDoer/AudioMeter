@@ -1,16 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  buildHistoryPath,
-  buildHistoryTimeAxisLabels,
-  getHistoryViewport,
   HISTORY_MAX_WINDOW_SEC,
   HISTORY_MIN_WINDOW_SEC,
   HISTORY_TIME_TICK_STEPS,
 } from "./math/historyMath";
-import { fmtMetric } from "./math/formatMath";
 import { isTauri } from "./ipc/env.js";
-import { LOUDNESS_TICKS, loudnessHistY } from "./scales";
 import { getBuiltinTheme } from "./theme/builtinThemes.js";
 import { UI_PREFERENCES } from "./uiPreferences";
 import { usePeakVis } from "./hooks/usePeakVis.js";
@@ -20,12 +15,12 @@ import { resolveChannelLayout } from "./math/channelLayoutResolver.js";
 import { useFloatWindowPersistence } from "./hooks/useFloatWindowPersistence";
 import { useHistoryInteraction } from "./hooks/useHistoryInteraction";
 import { useHoverState } from "./hooks/useHoverState";
+import { useLoudnessHistory, HIST_SAMPLE_SEC } from "./hooks/useLoudnessHistory.js";
 import { Card, CardContent } from "@/components/ui/card";
 import { PeakPanel } from "./components/panels/PeakPanel";
 import { LoudnessPanel } from "./components/panels/LoudnessPanel";
 import { SpectrumPanel } from "./components/panels/SpectrumPanel";
 import { VectorscopePanel } from "./components/panels/VectorscopePanel";
-import { getLoudnessReferenceProfileById } from "./loudnessReferenceProfiles.js";
 import { cn } from "@/lib/utils";
 import { SHELL_INNER, SHELL_PAGE } from "@/lib/shellLayout";
 
@@ -35,7 +30,6 @@ function FloatLoudnessBody({ core }) {
   const {
     engineRunning,
     referenceProfileId,
-    HIST_SAMPLE_SEC,
     selectedOffset,
     setSelectedOffset,
     displayAudio,
@@ -43,107 +37,46 @@ function FloatLoudnessBody({ core }) {
     hasHistoryData,
     histSourceList,
   } = core;
-  const [historyWindowSec, setHistoryWindowSec] = useState(
-    UI_PREFERENCES.modules.loudness.history.defaultWindowSec
-  );
-  const [historyOffsetSec, setHistoryOffsetSec] = useState(0);
-  const [historyHudUntilTs, setHistoryHudUntilTs] = useState(0);
-  const [historyHudHold, setHistoryHudHold] = useState(false);
-  const [histCurves, setHistCurves] = useState({ m: false, st: true });
-  const loudnessHistWidthRatio = UI_PREFERENCES.layout.loudnessHistMetrics.initialRatio;
-  const referenceProfile = useMemo(
-    () => getLoudnessReferenceProfileById(referenceProfileId),
-    [referenceProfileId]
-  );
-  const targetLufs = Number.isFinite(referenceProfile?.targetLufs)
-    ? referenceProfile.targetLufs
-    : -23;
-  const historyYAxisTicks = useMemo(() => {
-    const out = [...LOUDNESS_TICKS];
-    if (!out.some((t) => t.v === targetLufs)) out.push({ v: targetLufs, lb: String(targetLufs) });
-    out.sort((a, b) => b.v - a.v);
-    return out;
-  }, [targetLufs]);
-  const psr =
-    Number.isFinite(displayAudio.tpMax) && Number.isFinite(displayAudio.shortTerm)
-      ? displayAudio.tpMax - displayAudio.shortTerm
-      : -Infinity;
-  const plr =
-    Number.isFinite(displayAudio.tpMax) && Number.isFinite(displayAudio.integrated)
-      ? displayAudio.tpMax - displayAudio.integrated
-      : -Infinity;
-  const primaryMetrics = useMemo(
-    () => [
-      { label: "Momentary", value: fmtMetric(displayAudio.momentary), unit: "LUFS" },
-      { label: "Short-term", value: fmtMetric(displayAudio.shortTerm), unit: "LUFS" },
-      { label: "Integrated", value: fmtMetric(displayAudio.integrated), unit: "LUFS" },
-      { label: "Momentary Max", value: fmtMetric(displayAudio.mMax), unit: "LUFS" },
-      { label: "Short-term Max", value: fmtMetric(displayAudio.stMax), unit: "LUFS" },
-      { label: "Loudness Range (LRA)", value: fmtMetric(displayAudio.lra), unit: "LU" },
-    ],
-    [displayAudio]
-  );
-  const secondaryMetrics = useMemo(
-    () => [
-      { label: "Dynamics (PSR)", value: fmtMetric(psr), unit: "dB" },
-      { label: "Avg. Dynamics (PLR)", value: fmtMetric(plr), unit: "dB" },
-    ],
-    [plr, psr]
-  );
-  const historyChartInteractive = engineRunning || hasHistoryData;
-  const totalSamples = histSourceList.length;
+
   const {
+    historyWindowSec,
+    setHistoryWindowSec,
+    historyOffsetSec,
+    setHistoryOffsetSec,
+    setHistoryHudUntilTs,
+    setHistoryHudHold,
+    histCurves,
+    toggleCurve,
+    historyChartInteractive,
+    totalSamples,
     clampedWindowSec,
     visibleSamples,
     maxOffsetSamples,
     effectiveOffsetSamples,
     effectiveOffsetSec,
-  } = getHistoryViewport(totalSamples, historyWindowSec, historyOffsetSec, HIST_SAMPLE_SEC);
-  const displayHistoryPathM = buildHistoryPath(
+    displayHistoryPathM,
+    displayHistoryPathST,
+    showSelLine,
+    selLineX,
+    isHistoryHudVisible,
+    historyTimeTicks,
+    referenceProfile,
+    targetLufs,
+    historyYAxisTicks,
+    primaryMetrics,
+    secondaryMetrics,
+  } = useLoudnessHistory({
     histSourceList,
-    "m",
-    visibleSamples,
-    effectiveOffsetSamples,
-    (v) => loudnessHistY(v, 220)
-  );
-  const displayHistoryPathST = buildHistoryPath(
-    histSourceList,
-    "st",
-    visibleSamples,
-    effectiveOffsetSamples,
-    (v) => loudnessHistY(v, 220)
-  );
-  const selectedHistSteps =
-    selectedOffset >= 0 ? Math.max(0, Math.round(selectedOffset / HIST_SAMPLE_SEC)) : -1;
-  const showSelLine =
-    selectedOffset >= 0 &&
-    totalSamples > 0 &&
-    selectedHistSteps >= 0 &&
-    selectedHistSteps < totalSamples;
-  const isHistoryHudVisible =
-    historyChartInteractive && (historyHudHold || historyHudUntilTs > Date.now());
-  const selLineX = Math.max(
-    0,
-    Math.min(
-      600,
-      600 - ((selectedHistSteps - effectiveOffsetSamples) / Math.max(1, visibleSamples - 1)) * 600
-    )
-  );
-  const { historyTimeTicks, historyTickSteps } = useMemo(
-    () => ({
-      historyTimeTicks: buildHistoryTimeAxisLabels(historyOffsetSec, clampedWindowSec),
-      historyTickSteps: HISTORY_TIME_TICK_STEPS,
-    }),
-    [clampedWindowSec, historyOffsetSec]
-  );
-  const {
-    historyHover,
-    spectrumHover,
-    onHistoryHoverMove,
-    onHistoryHoverLeave,
-    onSpectrumHoverMove,
-    onSpectrumHoverLeave,
-  } = useHoverState({
+    hasHistoryData,
+    running: engineRunning,
+    displayAudio,
+    referenceProfileId,
+    selectedOffset,
+  });
+
+  const loudnessHistWidthRatio = UI_PREFERENCES.layout.loudnessHistMetrics.initialRatio;
+
+  const { historyHover, onHistoryHoverMove, onHistoryHoverLeave } = useHoverState({
     historyChartInteractive,
     histSourceList,
     effectiveOffsetSamples,
@@ -151,6 +84,7 @@ function FloatLoudnessBody({ core }) {
     sampleSec: HIST_SAMPLE_SEC,
     displaySpectrumData,
   });
+
   const {
     showHistoryHud,
     holdHistoryHud,
@@ -175,15 +109,7 @@ function FloatLoudnessBody({ core }) {
     setHistoryHudUntilTs,
     setHistoryHudHold,
   });
-  useEffect(() => {
-    if (historyHudHold) return;
-    const remain = historyHudUntilTs - Date.now();
-    if (remain <= 0) return;
-    const t = setTimeout(() => setHistoryHudUntilTs(0), remain + 24);
-    return () => clearTimeout(t);
-  }, [historyHudUntilTs, historyHudHold]);
-  const setStatus = () => {};
-  const toggleCurve = (key) => setHistCurves((prev) => ({ ...prev, [key]: !prev[key] }));
+
   return (
     <LoudnessPanel
       loudnessHistWidthRatio={loudnessHistWidthRatio}
@@ -194,7 +120,7 @@ function FloatLoudnessBody({ core }) {
       historyChartInteractive={historyChartInteractive}
       running={engineRunning}
       setSelectedOffset={setSelectedOffset}
-      setStatus={setStatus}
+      setStatus={() => {}}
       holdHistoryHud={holdHistoryHud}
       showHistoryHud={showHistoryHud}
       onHistoryWheel={onHistoryWheel}
@@ -212,7 +138,7 @@ function FloatLoudnessBody({ core }) {
       effectiveOffsetSec={effectiveOffsetSec}
       historyHover={historyHover}
       historyTimeTicks={historyTimeTicks}
-      historyTickSteps={historyTickSteps}
+      historyTickSteps={HISTORY_TIME_TICK_STEPS}
       primaryMetrics={primaryMetrics}
       secondaryMetrics={secondaryMetrics}
       toggleCurve={toggleCurve}
