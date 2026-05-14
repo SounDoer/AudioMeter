@@ -110,52 +110,6 @@ function SlotDivider({ regionKey, aboveIdx, belowIdx, regionIsHorizontal }) {
 }
 
 // ---------------------------------------------------------------------------
-// Activity Bar
-// ---------------------------------------------------------------------------
-
-function ActivityBar() {
-  const { state, setFocus, toggleModuleVisible } = useWorkspaceStore();
-  const { visibleModules, focusId } = state;
-
-  return (
-    <div className="flex w-11 shrink-0 flex-col items-center gap-1 border-r border-border/60 bg-card/40 py-2">
-      {Object.values(MODULE_REGISTRY).map(({ id, title, Icon }) => {
-        const isVisible = visibleModules.includes(id);
-        const isFocused = focusId === id;
-        return (
-          <button
-            key={id}
-            type="button"
-            title={`${title} — ${isFocused ? 'focused' : isVisible ? 'visible' : 'hidden'}`}
-            aria-label={title}
-            onClick={() => {
-              if (!isVisible) {
-                toggleModuleVisible(id);
-                setFocus(id);
-              } else if (isFocused) {
-                toggleModuleVisible(id);
-              } else {
-                setFocus(id);
-              }
-            }}
-            className={cn(
-              'relative flex h-8 w-8 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
-              isFocused
-                ? 'bg-primary/20 text-primary before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-primary'
-                : isVisible
-                ? 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30'
-            )}
-          >
-            <Icon />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Dock Region
 // ---------------------------------------------------------------------------
 
@@ -324,8 +278,6 @@ function DockContent() {
   return (
     <DragProvider onDrop={onDrop}>
       <main className="relative flex min-h-0 flex-1 overflow-hidden">
-        <ActivityBar />
-
         <div className="flex min-h-0 flex-1 flex-col p-[var(--ui-panel-gap,6px)]">
           {/* Main row: left | divider | center | divider | right */}
           <div className="flex min-h-0 flex-1">
