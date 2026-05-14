@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-05-14
+
+### Added
+
+- Spectrogram panel: full-width waterfall below the 4-panel grid, synchronized zoom/pan/scrub with Loudness History; Inferno colormap, log-frequency Y-axis, `ImageData` rendering (~10 fps cap via data-change guard), resizable height splitter persisted to `localStorage` (#63–#66).
+- Design token system documented in `docs/design-tokens.md`: 7-role font scale (`--ui-fs-*`), 6-namespace spacing tokens (`--ui-panel-*`, `--ui-chart-*`, `--ui-metric-*`, `--ui-modal-*`), `--ui-signal-*` meter-colour tokens; tabular-nums applied to all live-changing numeric displays (#67–#75).
+- `Meter` trait (`push_pcm` / `reset`) in `dsp/meter.rs`; `LoudnessMeter`, `SpectrumMeter`, `VectorscopeMeter` all implement it; `meter_pipeline` now uses a uniform ctx-push loop (#81).
+- `FrameIntake` class owns all live-data rings (`loudnessHist`, `audioSnap`, `corrSnap`, `vectorSnap`, `spectrumSnap`, …); `buildSpectrumDataSnapshot` absorbed into `FrameIntake`; 13 unit tests (#85).
+- `PanelSet` component extracts the 4-panel grid from `App.jsx` (`~800 → 637` lines) (#86).
+- `resolveDevice` / `buildDeviceStatus` extracted to `lib/audioEngineCommands.js` with 12 unit tests (#84).
+- Vitest explicit config (`environment: 'jsdom'`, `globals: true`), `@vitest/coverage-v8`, `test:coverage` script, CI coverage lcov artifact upload (#76).
+- Rust unit tests added to `engine/channel_layout.rs`, `dsp/filters.rs`, and `dsp/vectorscope.rs` (22 → 36 tests) (#78).
+
+### Changed
+
+- Design tokens: retire `--ui-color-*` bridge aliases; components now use shadcn tokens directly; `--ui-radius-card` replaced with `var(--radius)` (#67–#75).
+- `tauriFrameApply`: parameter count reduced from 18 to 11 via `FrameIntake.pushFrame()` (#85).
+- `getCurrentWindow()` moved into `ipc/floatWindowPrefs.js`; IPC seam fully isolated (#82).
+- Non-hook utilities (`floatHistorySeed`, `tauriFrameApply`, `resetFloatMeteringState`) moved from `src/hooks/` to `src/lib/`; domain data (`scales`, `loudnessReferenceProfiles`) moved to `src/config/` (#79).
+
+### Fixed
+
+- `aria-describedby={undefined}` added to `SettingsPanel` `<DialogContent>` to clear the Radix accessibility warning (#77).
+- Legacy web artifacts (`public/worklets/`, `public/CNAME`, `.nojekyll`) removed from `main` branch (#80).
+
 ## [0.0.12] - 2026-05-11
 
 ### Added
