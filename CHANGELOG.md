@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-05-15
+
+### Added
+
+- Split-tree workspace layout: panels are arranged in a recursive binary split tree (`SplitLayout` + `LeafView` + `SplitDivider`); each leaf holds a tab stack; splits can be horizontal or vertical and are resized via drag dividers (#105–#107).
+- `treeUtils.js` — pure tree manipulation helpers (`insertLeaf`, `removeLeaf`, `movTab`, `setSizes`, …) with 325 unit tests (#105).
+- `WorkspaceState.tree` reducer with storage format v2, `reducer-tree.test.js` with 316 unit tests; replaces the previous dock-slot reducer (#106).
+- Dock+Tabs workspace foundation: `AudioDataContext` (audio state lifted to context, no prop drilling), `WorkspaceContext` + `useReducer` with localStorage persistence (`audiometer:workspace:v1`), `WorkspaceToolbar` (Modules visibility popover + preset dropdown with save-as), keyboard shortcuts 1–6 toggle, Ctrl+1–6 focus, F fullscreen, Esc exit (#93–#103).
+- `LoudnessStatsPanel` split out from `LoudnessPanel` as an independent dockable module (#93–#103).
+- Spectrogram panel: time axis below the canvas chart using `buildHistoryTimeAxisLabels`, matching the Loudness History X-axis style.
+
+### Changed
+
+- `ActivityBar` replaced by a Modules visibility popover inside `WorkspaceToolbar`; icon bar removed from the layout (#104).
+- Tab pill now shows the module icon alongside the module name for visual consistency with the Modules popover.
+- Slot highlight shown only while the Modules popover is open, not persistently.
+- `MODULE_REGISTRY` `minWidth` / `minHeight` wired into drag-drop size constraints.
+
+### Fixed
+
+- Spectrogram canvas background unified with other panels: Inferno alpha scales with signal level (`t × 255`) so silence is transparent and `bg-muted` shows through, matching the SVG-on-`bg-muted` pattern of Spectrum and Vectorscope panels.
+- `MOVE_TAB` reducer: guard against stale leaf path after a single-tab leaf is removed.
+- `insertLeaf`: use flex-fill sizes (`0`) instead of fixed `200px` for newly created splits so panes share space proportionally.
+- Module area edges aligned flush with header and footer; removed erroneous `max-w-*` constraint that prevented full-width layout.
+
 ## [0.0.13] - 2026-05-14
 
 ### Added
