@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CaptureDeviceSelect } from "./components/CaptureDeviceSelect";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { DockLayout } from "./workspace/DockLayout.jsx";
+import { SplitLayout } from "./workspace/SplitLayout.jsx";
 import { PresetDropdown, VisibilityPopover } from "./workspace/WorkspaceToolbar.jsx";
 import { cn } from "@/lib/utils";
 import {
@@ -601,7 +601,7 @@ export default function App() {
           </div>
         </header>
 
-        <DockLayout />
+        <SplitLayout />
 
         <footer className={SHELL_FOOTER}>
           <span>{status}</span>

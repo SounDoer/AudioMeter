@@ -3,18 +3,19 @@ import { MODULE_REGISTRY } from './registry.jsx';
 
 export const DragContext = createContext(null);
 
-/** Compute drop target from mouse position using elementsFromPoint. */
+/**
+ * Compute drop target from mouse position using elementsFromPoint.
+ * Returns { targetPath, zone, tabIndex? } or null.
+ */
 function computeDropTarget(x, y) {
   const elements = document.elementsFromPoint(x, y);
 
-  // Find nearest slot element
-  const slotEl = elements.find((el) => el.hasAttribute('data-slot'));
-  if (slotEl) {
-    const regionKey = slotEl.dataset.region;
-    const slotIndex = parseInt(slotEl.dataset.slotIndex, 10);
+  const leafEl = elements.find((el) => el.hasAttribute('data-leaf'));
+  if (leafEl) {
+    const targetPath = JSON.parse(leafEl.dataset.leafPath ?? '[]');
 
-    const tabsEl = slotEl.querySelector('[data-slot-tabs]');
-    const bodyEl = slotEl.querySelector('[data-slot-body]');
+    const tabsEl = leafEl.querySelector('[data-leaf-tabs]');
+    const bodyEl = leafEl.querySelector('[data-leaf-body]');
 
     if (tabsEl) {
       const tabsRect = tabsEl.getBoundingClientRect();
@@ -28,23 +29,39 @@ function computeDropTarget(x, y) {
             break;
           }
         }
-        return { targetRegion: regionKey, slotIndex, zone: 'tabs', tabIndex };
+        return { targetPath, zone: 'tabs', tabIndex };
       }
     }
 
     if (bodyEl) {
-      const bodyRect = bodyEl.getBoundingClientRect();
-      const mid = bodyRect.top + bodyRect.height / 2;
-      return { targetRegion: regionKey, slotIndex, zone: y < mid ? 'above' : 'below' };
+      const r = bodyEl.getBoundingClientRect();
+      const relX = x - r.left;
+      const relY = y - r.top;
+      const w = r.width;
+      const h = r.height;
+
+      // Edge thresholds: 20% from each side
+      const edgeX = w * 0.2;
+      const edgeY = h * 0.2;
+
+      if (relX < edgeX) return { targetPath, zone: 'left' };
+      if (relX > w - edgeX) return { targetPath, zone: 'right' };
+      if (relY < edgeY) return { targetPath, zone: 'above' };
+      if (relY > h - edgeY) return { targetPath, zone: 'below' };
+
+      // Center region: find closest edge
+      const distLeft = relX;
+      const distRight = w - relX;
+      const distTop = relY;
+      const distBottom = h - relY;
+      const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+      if (minDist === distLeft) return { targetPath, zone: 'left' };
+      if (minDist === distRight) return { targetPath, zone: 'right' };
+      if (minDist === distTop) return { targetPath, zone: 'above' };
+      return { targetPath, zone: 'below' };
     }
 
-    return { targetRegion: regionKey, slotIndex, zone: 'below' };
-  }
-
-  // Find empty region placeholder
-  const emptyEl = elements.find((el) => el.hasAttribute('data-empty-region'));
-  if (emptyEl) {
-    return { targetRegion: emptyEl.dataset.emptyRegion, slotIndex: 0, zone: 'empty-region' };
+    return { targetPath, zone: 'below' };
   }
 
   return null;
@@ -54,7 +71,7 @@ export function DragProvider({ children, onDrop }) {
   const [dragState, setDragState] = useState(null); // { sourceId, x, y }
   const [hoverDrop, setHoverDrop] = useState(null);
 
-  const startRef = useRef(null); // { x, y, tabId }
+  const startRef = useRef(null);
   const activeRef = useRef(false);
   const hoverDropRef = useRef(null);
 
@@ -115,7 +132,6 @@ export function DragProvider({ children, onDrop }) {
   return (
     <DragContext.Provider value={{ dragState, hoverDrop, onTabMouseDown }}>
       {children}
-      {/* Ghost label follows the cursor */}
       {dragState && (
         <div
           className="pointer-events-none fixed z-50 rounded border border-primary/60 bg-card px-2 py-0.5 text-xs font-medium shadow-lg"
