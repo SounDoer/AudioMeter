@@ -1,9 +1,16 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useAudioData } from "../../workspace/AudioDataContext.jsx";
 import { cn } from "@/lib/utils";
-import { CHART_INSET_MIN_H, PANEL_MIN_SPECTROGRAM, W_SPECTRUM_Y_AXIS } from "@/lib/shellLayout";
+import {
+  CAPTION_TEXT,
+  CHART_INSET_MIN_H,
+  PANEL_MIN_SPECTROGRAM,
+  W_SPECTRUM_Y_AXIS,
+} from "@/lib/shellLayout";
 import { FREQ_LABELS, freqToXFrac } from "../../config/scales";
 import { useSpectrogramCanvas } from "../../hooks/useSpectrogramCanvas";
+import { buildHistoryTimeAxisLabels, HISTORY_TIME_TICK_STEPS } from "../../math/historyMath";
+import { HIST_SAMPLE_SEC } from "../../hooks/useLoudnessHistory";
 
 function useCanvasSize(canvasRef, containerRef) {
   useEffect(() => {
@@ -37,6 +44,14 @@ export function SpectrogramPanel({ compact = false }) {
     totalSamples,
   });
 
+  const spectrogramTimeTicks = useMemo(
+    () => buildHistoryTimeAxisLabels(
+      effectiveOffsetSamples * HIST_SAMPLE_SEC,
+      visibleSamples * HIST_SAMPLE_SEC
+    ),
+    [effectiveOffsetSamples, visibleSamples]
+  );
+
   return (
     <div
       className={cn(
@@ -47,10 +62,11 @@ export function SpectrogramPanel({ compact = false }) {
       <div className="flex min-h-0 flex-1 flex-col gap-0">
         <div
           className={cn(
-            "grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] gap-x-[var(--ui-chart-axis-gap)] items-stretch",
+            "grid min-h-0 flex-1 grid-cols-[var(--ui-w-spectrum-y-axis)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_var(--ui-chart-x-axis-row-h)] gap-x-[var(--ui-chart-axis-gap)] gap-y-[var(--ui-chart-axis-gap)] items-stretch",
             PANEL_MIN_SPECTROGRAM
           )}
         >
+          {/* Y-axis frequency labels */}
           <div
             className={cn(
               W_SPECTRUM_Y_AXIS,
@@ -69,6 +85,8 @@ export function SpectrogramPanel({ compact = false }) {
               ))}
             </div>
           </div>
+
+          {/* Canvas chart */}
           <div className="relative min-h-0 min-w-0">
             <div
               ref={containerRef}
@@ -80,6 +98,40 @@ export function SpectrogramPanel({ compact = false }) {
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
               />
+            </div>
+          </div>
+
+          {/* X-axis: empty Y-axis column placeholder */}
+          <div />
+
+          {/* X-axis: time tick labels */}
+          <div className={cn(CAPTION_TEXT, "relative h-[var(--ui-chart-x-axis-row-h)] w-full")}>
+            <div className="absolute inset-x-[var(--ui-chart-pad)] top-0 h-full">
+              {spectrogramTimeTicks.map((tick, i) => {
+                if (i === 0) {
+                  return (
+                    <span key={`${i}-${tick}`} className="absolute left-0 top-0 text-left">
+                      {tick}
+                    </span>
+                  );
+                }
+                if (i === HISTORY_TIME_TICK_STEPS) {
+                  return (
+                    <span key={`${i}-${tick}`} className="absolute right-0 top-0 text-right">
+                      {tick}
+                    </span>
+                  );
+                }
+                return (
+                  <span
+                    key={`${i}-${tick}`}
+                    className="absolute top-0 -translate-x-1/2 text-center"
+                    style={{ left: `${(i / HISTORY_TIME_TICK_STEPS) * 100}%` }}
+                  >
+                    {tick}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
