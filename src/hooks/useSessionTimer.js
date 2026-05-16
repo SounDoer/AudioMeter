@@ -11,24 +11,20 @@ function formatClock(ms) {
 /**
  * Session timer driven by rAF, decoupled from React render cycle.
  *
- * Usage:
- *   const { clockRef, elapsedMsRef, canClearRef, startTimer, stopTimer, resetTimer } = useSessionTimer();
- *
  * Attach `clockRef` to a DOM text node to get ~10Hz clock updates without
- * triggering React re-renders. Read `elapsedMsRef.current` for the accumulated ms.
+ * triggering React re-renders. Read `elapsedMsRef.current` for accumulated ms.
  * Read `canClearRef.current` to gate the Clear button.
- *
- * The parent component is responsible for re-rendering when transport state changes
- * (e.g. switching ready↔live); the timer only touches the clock text node.
  */
 export function useSessionTimer() {
   const runStartedAtRef = useRef(null); // Date.now() when last started, null when stopped
-  const accumulatedMsRef = useRef(0); // ms accumulated from previous start/stop cycles
+  const accumulatedMsRef = useRef(0); // ms from previous start/stop cycles
   const rafIdRef = useRef(0);
   const lastTickMsRef = useRef(0);
   const clockRef = useRef(null); // attach to a DOM text node
-  const elapsedMsRef = useRef(0); // current total elapsed ms (readable by caller)
+  const elapsedMsRef = useRef(0); // current total elapsed ms
   const canClearRef = useRef(false);
+  // Stable wrapper ref so RAF loop can reschedule itself without self-reference in useCallback
+  const loopRef = useRef(null);
 
   const updateClockDom = useCallback(() => {
     if (clockRef.current) {
@@ -36,28 +32,25 @@ export function useSessionTimer() {
     }
   }, []);
 
-  const tick = useCallback(
-    (now) => {
-      rafIdRef.current = requestAnimationFrame(tick);
+  useEffect(() => {
+    loopRef.current = (now) => {
+      rafIdRef.current = requestAnimationFrame(loopRef.current);
       if (now - lastTickMsRef.current < 100) return; // ~10 Hz throttle
       lastTickMsRef.current = now;
-
-      const running = runStartedAtRef.current !== null;
-      if (running) {
+      if (runStartedAtRef.current !== null) {
         elapsedMsRef.current = accumulatedMsRef.current + (Date.now() - runStartedAtRef.current);
         canClearRef.current = true;
         updateClockDom();
       }
-    },
-    [updateClockDom]
-  );
+    };
+  }, [updateClockDom]);
 
   const startTimer = useCallback(() => {
     if (runStartedAtRef.current !== null) return; // already running
     runStartedAtRef.current = Date.now();
     lastTickMsRef.current = 0;
-    rafIdRef.current = requestAnimationFrame(tick);
-  }, [tick]);
+    rafIdRef.current = requestAnimationFrame(loopRef.current);
+  }, []);
 
   const stopTimer = useCallback(() => {
     if (runStartedAtRef.current === null) return;
