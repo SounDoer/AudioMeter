@@ -48,7 +48,7 @@ export function updateNode(root, path, updater) {
  * @returns {number[] | null}
  */
 export function findLeafWithTab(root, tabId) {
-  if (root.type === 'leaf') {
+  if (root.type === "leaf") {
     return root.tabs.includes(tabId) ? [] : null;
   }
   for (let i = 0; i < root.children.length; i++) {
@@ -70,7 +70,7 @@ export function findLeafWithTab(root, tabId) {
  * @returns {TreeNode | null}
  */
 export function pruneTree(root) {
-  if (root.type === 'leaf') {
+  if (root.type === "leaf") {
     return root.tabs.length > 0 ? root : null;
   }
   const prunedPairs = root.children.map((child, i) => ({
@@ -108,9 +108,7 @@ export function removeTab(root, tabId) {
   const newTabs = targetLeaf.tabs.filter((t) => t !== tabId);
 
   if (newTabs.length > 0) {
-    const newActiveTab = newTabs.includes(targetLeaf.activeTab)
-      ? targetLeaf.activeTab
-      : newTabs[0];
+    const newActiveTab = newTabs.includes(targetLeaf.activeTab) ? targetLeaf.activeTab : newTabs[0];
     return updateNode(root, path, () => ({
       ...targetLeaf,
       tabs: newTabs,
@@ -136,7 +134,7 @@ export function removeTab(root, tabId) {
 // insertLeaf
 // ---------------------------------------------------------------------------
 
-const ZONE_DIR = { above: 'v', below: 'v', left: 'h', right: 'h' };
+const ZONE_DIR = { above: "v", below: "v", left: "h", right: "h" };
 const ZONE_BEFORE = { above: true, left: true, below: false, right: false };
 
 /**
@@ -154,7 +152,7 @@ const ZONE_BEFORE = { above: true, left: true, below: false, right: false };
  * @returns {TreeNode}
  */
 export function insertLeaf(root, targetPath, zone, newLeaf, tabIndex = 0) {
-  if (zone === 'tabs') {
+  if (zone === "tabs") {
     return updateNode(root, targetPath, (target) => {
       const tabs = [...target.tabs];
       tabs.splice(tabIndex, 0, ...newLeaf.tabs);
@@ -168,7 +166,7 @@ export function insertLeaf(root, targetPath, zone, newLeaf, tabIndex = 0) {
   // Target is root — always wrap in a new split
   if (targetPath.length === 0) {
     const children = before ? [newLeaf, root] : [root, newLeaf];
-    return { type: 'split', direction: dir, children, sizes: [0, 0] };
+    return { type: "split", direction: dir, children, sizes: [0, 0] };
   }
 
   const parentPath = targetPath.slice(0, -1);
@@ -190,6 +188,6 @@ export function insertLeaf(root, targetPath, zone, newLeaf, tabIndex = 0) {
   // No promotion — wrap target leaf in a new split
   return updateNode(root, targetPath, (target) => {
     const children = before ? [newLeaf, target] : [target, newLeaf];
-    return { type: 'split', direction: dir, children, sizes: [0, 0] };
+    return { type: "split", direction: dir, children, sizes: [0, 0] };
   });
 }

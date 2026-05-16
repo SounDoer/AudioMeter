@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import { Check, ChevronDown, LayoutGrid } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useWorkspaceStore } from './WorkspaceContext.jsx';
-import { MODULE_REGISTRY } from './registry.jsx';
-import { BUILTIN_PRESETS } from './constants.js';
-import { cn } from '@/lib/utils';
+import { useState, useRef, useEffect } from "react";
+import { Check, ChevronDown, LayoutGrid } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useWorkspaceStore } from "./WorkspaceContext.jsx";
+import { MODULE_REGISTRY } from "./registry.jsx";
+import { BUILTIN_PRESETS } from "./constants.js";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Visibility Popover — toggle module visibility from the header
@@ -15,7 +15,11 @@ export function VisibilityPopover() {
   const { visibleModules } = state;
 
   return (
-    <Popover onOpenChange={(open) => { if (!open) setHoveredModuleId(null); }}>
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) setHoveredModuleId(null);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -36,8 +40,8 @@ export function VisibilityPopover() {
               key={id}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50',
-                isVisible ? 'text-foreground' : 'text-muted-foreground'
+                "flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50",
+                isVisible ? "text-foreground" : "text-muted-foreground"
               )}
               onMouseEnter={() => setHoveredModuleId(id)}
               onMouseLeave={() => setHoveredModuleId(null)}
@@ -46,14 +50,19 @@ export function VisibilityPopover() {
                 if (!isVisible) setFocus(id);
               }}
             >
-              <span className={cn('flex shrink-0', isVisible ? 'text-foreground' : 'text-muted-foreground/40')}>
+              <span
+                className={cn(
+                  "flex shrink-0",
+                  isVisible ? "text-foreground" : "text-muted-foreground/40"
+                )}
+              >
                 <Icon />
               </span>
               <span className="flex-1 text-left">{title}</span>
               <span
                 className={cn(
-                  'h-1.5 w-1.5 shrink-0 rounded-full',
-                  isVisible ? 'bg-primary' : 'bg-muted-foreground/25'
+                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                  isVisible ? "bg-primary" : "bg-muted-foreground/25"
                 )}
               />
             </button>
@@ -69,7 +78,7 @@ export function VisibilityPopover() {
 // ---------------------------------------------------------------------------
 
 function SavePresetForm({ onSave, onCancel }) {
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -90,8 +99,8 @@ function SavePresetForm({ onSave, onCancel }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
-          if (e.key === 'Escape') onCancel();
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") onCancel();
         }}
         placeholder="Preset name…"
         className="h-7 w-24 rounded border border-primary bg-background px-2 text-xs outline-none"
@@ -123,7 +132,7 @@ export function PresetDropdown() {
   const [saving, setSaving] = useState(false);
 
   const allPresets = [...BUILTIN_PRESETS, ...customPresets];
-  const displayName = allPresets.find((p) => p.id === activePresetId)?.name ?? 'Custom';
+  const displayName = allPresets.find((p) => p.id === activePresetId)?.name ?? "Custom";
 
   if (saving) {
     return (
@@ -157,11 +166,16 @@ export function PresetDropdown() {
             key={p.id}
             type="button"
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-            onClick={() => { applyPreset(p.id); setOpen(false); }}
+            onClick={() => {
+              applyPreset(p.id);
+              setOpen(false);
+            }}
           >
-            {p.id === activePresetId
-              ? <Check size={10} className="shrink-0 text-primary" />
-              : <span className="w-[10px] shrink-0" />}
+            {p.id === activePresetId ? (
+              <Check size={10} className="shrink-0 text-primary" />
+            ) : (
+              <span className="w-[10px] shrink-0" />
+            )}
             {p.name}
           </button>
         ))}
@@ -173,11 +187,16 @@ export function PresetDropdown() {
                 key={p.id}
                 type="button"
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-                onClick={() => { applyPreset(p.id); setOpen(false); }}
+                onClick={() => {
+                  applyPreset(p.id);
+                  setOpen(false);
+                }}
               >
-                {p.id === activePresetId
-                  ? <Check size={10} className="shrink-0 text-primary" />
-                  : <span className="w-[10px] shrink-0" />}
+                {p.id === activePresetId ? (
+                  <Check size={10} className="shrink-0 text-primary" />
+                ) : (
+                  <span className="w-[10px] shrink-0" />
+                )}
                 {p.name}
               </button>
             ))}
@@ -187,7 +206,10 @@ export function PresetDropdown() {
         <button
           type="button"
           className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          onClick={() => { setOpen(false); setSaving(true); }}
+          onClick={() => {
+            setOpen(false);
+            setSaving(true);
+          }}
         >
           <span className="w-[10px] shrink-0" />
           Save as preset…

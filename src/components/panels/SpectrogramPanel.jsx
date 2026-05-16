@@ -28,8 +28,14 @@ function useCanvasSize(canvasRef, containerRef) {
 }
 
 export function SpectrogramPanel({ compact = false }) {
-  const { spectrogramSnapRef: snapRef, effectiveOffsetSamples, visibleSamples, selectedOffset, setSelectedOffset, totalSamples } =
-    useAudioData();
+  const {
+    spectrogramSnapRef: snapRef,
+    effectiveOffsetSamples,
+    visibleSamples,
+    selectedOffset,
+    setSelectedOffset,
+    totalSamples,
+  } = useAudioData();
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   useCanvasSize(canvasRef, containerRef);
@@ -45,10 +51,11 @@ export function SpectrogramPanel({ compact = false }) {
   });
 
   const spectrogramTimeTicks = useMemo(
-    () => buildHistoryTimeAxisLabels(
-      effectiveOffsetSamples * HIST_SAMPLE_SEC,
-      visibleSamples * HIST_SAMPLE_SEC
-    ),
+    () =>
+      buildHistoryTimeAxisLabels(
+        effectiveOffsetSamples * HIST_SAMPLE_SEC,
+        visibleSamples * HIST_SAMPLE_SEC
+      ),
     [effectiveOffsetSamples, visibleSamples]
   );
 

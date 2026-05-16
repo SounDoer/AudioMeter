@@ -1,6 +1,6 @@
 /** @import { WorkspaceState, ModuleId, DropTarget, TreeNode } from './types.js' */
-import { BUILTIN_PRESETS, DEFAULT_WORKSPACE_STATE } from './constants.js';
-import { findLeafWithTab, insertLeaf, pruneTree, removeTab, updateNode } from './treeUtils.js';
+import { BUILTIN_PRESETS, DEFAULT_WORKSPACE_STATE } from "./constants.js";
+import { findLeafWithTab, insertLeaf, pruneTree, removeTab, updateNode } from "./treeUtils.js";
 
 // ---------------------------------------------------------------------------
 // MOVE_TAB helpers
@@ -41,10 +41,10 @@ function isPathValid(root, path) {
  */
 export function workspaceReducer(state, action) {
   switch (action.type) {
-    case 'SET_TREE':
+    case "SET_TREE":
       return { ...state, tree: action.payload.tree, activePresetId: null };
 
-    case 'RESIZE_CHILDREN': {
+    case "RESIZE_CHILDREN": {
       const { path, aboveIdx, aboveSize, belowSize } = action.payload;
       const newTree = updateNode(state.tree, path, (node) => {
         const sizes = [...node.sizes];
@@ -55,13 +55,13 @@ export function workspaceReducer(state, action) {
       return { ...state, tree: newTree };
     }
 
-    case 'SET_ACTIVE_TAB': {
+    case "SET_ACTIVE_TAB": {
       const { path, tabId } = action.payload;
       const newTree = updateNode(state.tree, path, (node) => ({ ...node, activeTab: tabId }));
       return { ...state, tree: newTree };
     }
 
-    case 'TOGGLE_MODULE_VISIBLE': {
+    case "TOGGLE_MODULE_VISIBLE": {
       const { id } = action.payload;
       const isVisible = state.visibleModules.includes(id);
       const visibleModules = isVisible
@@ -72,7 +72,7 @@ export function workspaceReducer(state, action) {
       return { ...state, visibleModules, focusId };
     }
 
-    case 'SET_FOCUS': {
+    case "SET_FOCUS": {
       const { id } = action.payload;
       const path = findLeafWithTab(state.tree, id);
       if (!path) return { ...state, focusId: id };
@@ -80,10 +80,10 @@ export function workspaceReducer(state, action) {
       return { ...state, tree: newTree, focusId: id };
     }
 
-    case 'SET_FULLSCREEN':
+    case "SET_FULLSCREEN":
       return { ...state, fullscreenId: action.payload };
 
-    case 'MOVE_TAB': {
+    case "MOVE_TAB": {
       const { sourceId, drop } = action.payload;
       const { targetPath, zone, tabIndex = 0 } = drop;
 
@@ -92,7 +92,7 @@ export function workspaceReducer(state, action) {
         try {
           let node = state.tree;
           for (const idx of targetPath) node = node.children[idx];
-          return node.type === 'leaf' ? node : null;
+          return node.type === "leaf" ? node : null;
         } catch (_) {
           return null;
         }
@@ -108,13 +108,13 @@ export function workspaceReducer(state, action) {
       const safeTargetPath = isPathValid(treeAfterRemove, resolvedPath) ? resolvedPath : [];
 
       // Insert new leaf at resolved target
-      const newLeaf = { type: 'leaf', tabs: [sourceId], activeTab: sourceId };
+      const newLeaf = { type: "leaf", tabs: [sourceId], activeTab: sourceId };
       const newTree = insertLeaf(treeAfterRemove, safeTargetPath, zone, newLeaf, tabIndex);
 
       return { ...state, tree: newTree, activePresetId: null };
     }
 
-    case 'APPLY_PRESET': {
+    case "APPLY_PRESET": {
       const { presetId } = action.payload;
       const preset =
         BUILTIN_PRESETS.find((p) => p.id === presetId) ||
@@ -129,7 +129,7 @@ export function workspaceReducer(state, action) {
       };
     }
 
-    case 'SAVE_PRESET': {
+    case "SAVE_PRESET": {
       const { name } = action.payload;
       const id = `custom-${Date.now()}`;
       const newPreset = {
@@ -158,15 +158,15 @@ export function workspaceReducer(state, action) {
 /** @param {React.Dispatch} dispatch */
 export function bindWorkspaceActions(dispatch) {
   return {
-    setTree: (tree) => dispatch({ type: 'SET_TREE', payload: { tree } }),
-    moveTab: (sourceId, drop) => dispatch({ type: 'MOVE_TAB', payload: { sourceId, drop } }),
-    setActiveTab: (path, tabId) => dispatch({ type: 'SET_ACTIVE_TAB', payload: { path, tabId } }),
-    toggleModuleVisible: (id) => dispatch({ type: 'TOGGLE_MODULE_VISIBLE', payload: { id } }),
-    setFocus: (id) => dispatch({ type: 'SET_FOCUS', payload: { id } }),
-    setFullscreen: (id) => dispatch({ type: 'SET_FULLSCREEN', payload: id }),
+    setTree: (tree) => dispatch({ type: "SET_TREE", payload: { tree } }),
+    moveTab: (sourceId, drop) => dispatch({ type: "MOVE_TAB", payload: { sourceId, drop } }),
+    setActiveTab: (path, tabId) => dispatch({ type: "SET_ACTIVE_TAB", payload: { path, tabId } }),
+    toggleModuleVisible: (id) => dispatch({ type: "TOGGLE_MODULE_VISIBLE", payload: { id } }),
+    setFocus: (id) => dispatch({ type: "SET_FOCUS", payload: { id } }),
+    setFullscreen: (id) => dispatch({ type: "SET_FULLSCREEN", payload: id }),
     resizeChildren: (path, aboveIdx, aboveSize, belowSize) =>
-      dispatch({ type: 'RESIZE_CHILDREN', payload: { path, aboveIdx, aboveSize, belowSize } }),
-    applyPreset: (presetId) => dispatch({ type: 'APPLY_PRESET', payload: { presetId } }),
-    saveCurrentAsPreset: (name) => dispatch({ type: 'SAVE_PRESET', payload: { name } }),
+      dispatch({ type: "RESIZE_CHILDREN", payload: { path, aboveIdx, aboveSize, belowSize } }),
+    applyPreset: (presetId) => dispatch({ type: "APPLY_PRESET", payload: { presetId } }),
+    saveCurrentAsPreset: (name) => dispatch({ type: "SAVE_PRESET", payload: { name } }),
   };
 }

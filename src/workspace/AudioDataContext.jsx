@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext } from "react";
 
 /**
  * Provides all audio-domain data and callbacks to module components,

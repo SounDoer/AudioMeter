@@ -538,113 +538,113 @@ export default function App() {
 
   return (
     <WorkspaceProvider>
-    <AudioDataContext.Provider value={audioData}>
-    <div className={SHELL_PAGE}>
-      <div className={SHELL_INNER}>
-        <header className={SHELL_HEADER}>
-          <div className={APP_TITLE}>
-            Audio<span className={APP_TITLE_BRAND}>Meter</span>
-          </div>
-          <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
-            {isTauri() && (
-              <CaptureDeviceSelect
-                audioDevices={audioDevices}
-                value={captureDeviceId}
-                disabled={!audioDevices.length}
-                onValueChange={(v) => setCaptureDeviceIdAndPersist(v)}
-              />
-            )}
-            <PresetDropdown />
-            <VisibilityPopover />
-          </div>
-          <div className="flex items-center gap-[var(--ui-header-action-gap)]">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={clearAll}
-              className="gap-2 font-semibold"
-            >
-              <Trash2 className="size-4 shrink-0" aria-hidden />
-              Clear
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={onStartClick}
-              className={cn(
-                "min-w-[5.75rem] gap-2 font-semibold",
-                startMode === "live" &&
-                  "live-snap-pulse !bg-[var(--ui-chart-vectorscope-snap)] !text-white shadow-none hover:!brightness-[0.94]"
-              )}
-            >
-              {startMode === "live" ? (
-                <Radio className="size-4 shrink-0" aria-hidden />
-              ) : startMode === "stop" ? (
-                <Square className="size-4 shrink-0" aria-hidden />
-              ) : (
-                <Play className="size-4 shrink-0" aria-hidden />
-              )}
-              {startLabel}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setSettingsOpen(true)}
-              className="gap-2 font-semibold"
-            >
-              <Settings className="size-4 shrink-0" aria-hidden />
-              Settings
-            </Button>
-          </div>
-        </header>
+      <AudioDataContext.Provider value={audioData}>
+        <div className={SHELL_PAGE}>
+          <div className={SHELL_INNER}>
+            <header className={SHELL_HEADER}>
+              <div className={APP_TITLE}>
+                Audio<span className={APP_TITLE_BRAND}>Meter</span>
+              </div>
+              <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
+                {isTauri() && (
+                  <CaptureDeviceSelect
+                    audioDevices={audioDevices}
+                    value={captureDeviceId}
+                    disabled={!audioDevices.length}
+                    onValueChange={(v) => setCaptureDeviceIdAndPersist(v)}
+                  />
+                )}
+                <PresetDropdown />
+                <VisibilityPopover />
+              </div>
+              <div className="flex items-center gap-[var(--ui-header-action-gap)]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAll}
+                  className="gap-2 font-semibold"
+                >
+                  <Trash2 className="size-4 shrink-0" aria-hidden />
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={onStartClick}
+                  className={cn(
+                    "min-w-[5.75rem] gap-2 font-semibold",
+                    startMode === "live" &&
+                      "live-snap-pulse !bg-[var(--ui-chart-vectorscope-snap)] !text-white shadow-none hover:!brightness-[0.94]"
+                  )}
+                >
+                  {startMode === "live" ? (
+                    <Radio className="size-4 shrink-0" aria-hidden />
+                  ) : startMode === "stop" ? (
+                    <Square className="size-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Play className="size-4 shrink-0" aria-hidden />
+                  )}
+                  {startLabel}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSettingsOpen(true)}
+                  className="gap-2 font-semibold"
+                >
+                  <Settings className="size-4 shrink-0" aria-hidden />
+                  Settings
+                </Button>
+              </div>
+            </header>
 
-        <SplitLayout />
+            <SplitLayout />
 
-        <footer className={SHELL_FOOTER}>
-          <span>{status}</span>
-          <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-          <span>{status2}</span>
-          {meteringFootnotes.map((hint) => (
-            <Fragment key={hint.id}>
+            <footer className={SHELL_FOOTER}>
+              <span>{status}</span>
               <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-              <span className="text-muted-foreground" title={hint.title}>
-                {hint.message}
-              </span>
-            </Fragment>
-          ))}
-          <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-          <MeterHealthBadge health={meterHealth} />
-          <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-          <span>Ref: {referenceProfile.label}</span>
-          <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-          <span>Build: {buildVersion}</span>
-        </footer>
-      </div>
+              <span>{status2}</span>
+              {meteringFootnotes.map((hint) => (
+                <Fragment key={hint.id}>
+                  <Separator orientation="vertical" className="h-3 shrink-0" decorative />
+                  <span className="text-muted-foreground" title={hint.title}>
+                    {hint.message}
+                  </span>
+                </Fragment>
+              ))}
+              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
+              <MeterHealthBadge health={meterHealth} />
+              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
+              <span>Ref: {referenceProfile.label}</span>
+              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
+              <span>Build: {buildVersion}</span>
+            </footer>
+          </div>
 
-      <SettingsPanel
-        settingsOpen={settingsOpen}
-        setSettingsOpen={setSettingsOpen}
-        appearance={appearance}
-        setAppearanceMode={setAppearanceMode}
-        fixedThemeSelectValue={fixedThemeSelectValue}
-        setFixedThemeIdFromPicker={setFixedThemeIdFromPicker}
-        themeSelectOptions={themeSelectOptions}
-        referenceProfileId={referenceProfileId}
-        setReferenceProfileId={setReferenceProfileId}
-        loudnessReferenceProfiles={LOUDNESS_REFERENCE_PROFILES}
-        channelLayout={channelLayout}
-        setChannelLayout={setChannelLayout}
-        vectorscopePairOptions={vectorscopePairOptions}
-        vectorscopePairX={vectorscopePairUi.x}
-        vectorscopePairY={vectorscopePairUi.y}
-        onVectorscopePairChange={onVectorscopePairChange}
-        resetLayout={resetLayout}
-      />
-    </div>
-    </AudioDataContext.Provider>
+          <SettingsPanel
+            settingsOpen={settingsOpen}
+            setSettingsOpen={setSettingsOpen}
+            appearance={appearance}
+            setAppearanceMode={setAppearanceMode}
+            fixedThemeSelectValue={fixedThemeSelectValue}
+            setFixedThemeIdFromPicker={setFixedThemeIdFromPicker}
+            themeSelectOptions={themeSelectOptions}
+            referenceProfileId={referenceProfileId}
+            setReferenceProfileId={setReferenceProfileId}
+            loudnessReferenceProfiles={LOUDNESS_REFERENCE_PROFILES}
+            channelLayout={channelLayout}
+            setChannelLayout={setChannelLayout}
+            vectorscopePairOptions={vectorscopePairOptions}
+            vectorscopePairX={vectorscopePairUi.x}
+            vectorscopePairY={vectorscopePairUi.y}
+            onVectorscopePairChange={onVectorscopePairChange}
+            resetLayout={resetLayout}
+          />
+        </div>
+      </AudioDataContext.Provider>
     </WorkspaceProvider>
   );
 }

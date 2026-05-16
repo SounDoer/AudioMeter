@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useState } from 'react';
-import { bindWorkspaceActions, workspaceReducer } from './reducer.js';
-import { DEFAULT_WORKSPACE_STATE, WORKSPACE_STORAGE_KEY } from './constants.js';
+import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import { bindWorkspaceActions, workspaceReducer } from "./reducer.js";
+import { DEFAULT_WORKSPACE_STATE, WORKSPACE_STORAGE_KEY } from "./constants.js";
 
 const WorkspaceContext = createContext(null);
 
@@ -41,6 +41,6 @@ export function WorkspaceProvider({ children }) {
 /** @returns {{ state: import('./types.js').WorkspaceState } & ReturnType<import('./reducer.js').bindWorkspaceActions>} */
 export function useWorkspaceStore() {
   const ctx = useContext(WorkspaceContext);
-  if (!ctx) throw new Error('useWorkspaceStore must be used inside WorkspaceProvider');
+  if (!ctx) throw new Error("useWorkspaceStore must be used inside WorkspaceProvider");
   return ctx;
 }

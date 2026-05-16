@@ -1,21 +1,21 @@
 /**
  * Tests for the tree-based workspace reducer (replaces dock-based reducer.test.js).
  */
-import { describe, it, expect } from 'vitest';
-import { workspaceReducer } from './reducer.js';
-import { DEFAULT_WORKSPACE_STATE } from './constants.js';
-import { findLeafWithTab } from './treeUtils.js';
+import { describe, it, expect } from "vitest";
+import { workspaceReducer } from "./reducer.js";
+import { DEFAULT_WORKSPACE_STATE } from "./constants.js";
+import { findLeafWithTab } from "./treeUtils.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function leaf(tabs, activeTab = tabs[0]) {
-  return { type: 'leaf', tabs: [...tabs], activeTab };
+  return { type: "leaf", tabs: [...tabs], activeTab };
 }
 
 function split(direction, children, sizes) {
-  return { type: 'split', direction, children, sizes: sizes ?? children.map(() => 200) };
+  return { type: "split", direction, children, sizes: sizes ?? children.map(() => 200) };
 }
 
 function state(tree, extra = {}) {
@@ -26,20 +26,20 @@ function state(tree, extra = {}) {
 // SET_TREE
 // ---------------------------------------------------------------------------
 
-describe('SET_TREE', () => {
-  it('replaces the entire tree', () => {
-    const newTree = leaf(['peak']);
+describe("SET_TREE", () => {
+  it("replaces the entire tree", () => {
+    const newTree = leaf(["peak"]);
     const next = workspaceReducer(DEFAULT_WORKSPACE_STATE, {
-      type: 'SET_TREE',
+      type: "SET_TREE",
       payload: { tree: newTree },
     });
     expect(next.tree).toBe(newTree);
   });
 
-  it('clears activePresetId', () => {
+  it("clears activePresetId", () => {
     const next = workspaceReducer(DEFAULT_WORKSPACE_STATE, {
-      type: 'SET_TREE',
-      payload: { tree: leaf(['peak']) },
+      type: "SET_TREE",
+      payload: { tree: leaf(["peak"]) },
     });
     expect(next.activePresetId).toBeNull();
   });
@@ -49,24 +49,24 @@ describe('SET_TREE', () => {
 // RESIZE_CHILDREN
 // ---------------------------------------------------------------------------
 
-describe('RESIZE_CHILDREN', () => {
-  it('updates sizes of adjacent children in a SplitNode at root', () => {
-    const root = split('v', [leaf(['peak']), leaf(['loudness'])], [200, 200]);
+describe("RESIZE_CHILDREN", () => {
+  it("updates sizes of adjacent children in a SplitNode at root", () => {
+    const root = split("v", [leaf(["peak"]), leaf(["loudness"])], [200, 200]);
     const s = state(root);
     const next = workspaceReducer(s, {
-      type: 'RESIZE_CHILDREN',
+      type: "RESIZE_CHILDREN",
       payload: { path: [], aboveIdx: 0, aboveSize: 300, belowSize: 100 },
     });
     expect(next.tree.sizes[0]).toBe(300);
     expect(next.tree.sizes[1]).toBe(100);
   });
 
-  it('updates sizes in a nested SplitNode', () => {
-    const inner = split('h', [leaf(['peak']), leaf(['loudness'])], [150, 150]);
-    const root = split('v', [inner, leaf(['spectrum'])]);
+  it("updates sizes in a nested SplitNode", () => {
+    const inner = split("h", [leaf(["peak"]), leaf(["loudness"])], [150, 150]);
+    const root = split("v", [inner, leaf(["spectrum"])]);
     const s = state(root);
     const next = workspaceReducer(s, {
-      type: 'RESIZE_CHILDREN',
+      type: "RESIZE_CHILDREN",
       payload: { path: [0], aboveIdx: 0, aboveSize: 250, belowSize: 50 },
     });
     expect(next.tree.children[0].sizes[0]).toBe(250);
@@ -79,22 +79,22 @@ describe('RESIZE_CHILDREN', () => {
 // SET_ACTIVE_TAB
 // ---------------------------------------------------------------------------
 
-describe('SET_ACTIVE_TAB', () => {
-  it('sets activeTab on a leaf at a given path', () => {
-    const root = split('h', [leaf(['peak', 'loudness'], 'peak'), leaf(['spectrum'])]);
+describe("SET_ACTIVE_TAB", () => {
+  it("sets activeTab on a leaf at a given path", () => {
+    const root = split("h", [leaf(["peak", "loudness"], "peak"), leaf(["spectrum"])]);
     const next = workspaceReducer(state(root), {
-      type: 'SET_ACTIVE_TAB',
-      payload: { path: [0], tabId: 'loudness' },
+      type: "SET_ACTIVE_TAB",
+      payload: { path: [0], tabId: "loudness" },
     });
-    expect(next.tree.children[0].activeTab).toBe('loudness');
+    expect(next.tree.children[0].activeTab).toBe("loudness");
   });
 
-  it('does not touch other leaves', () => {
-    const right = leaf(['spectrum']);
-    const root = split('h', [leaf(['peak', 'loudness'], 'peak'), right]);
+  it("does not touch other leaves", () => {
+    const right = leaf(["spectrum"]);
+    const root = split("h", [leaf(["peak", "loudness"], "peak"), right]);
     const next = workspaceReducer(state(root), {
-      type: 'SET_ACTIVE_TAB',
-      payload: { path: [0], tabId: 'loudness' },
+      type: "SET_ACTIVE_TAB",
+      payload: { path: [0], tabId: "loudness" },
     });
     expect(next.tree.children[1]).toBe(right);
   });
@@ -104,35 +104,35 @@ describe('SET_ACTIVE_TAB', () => {
 // TOGGLE_MODULE_VISIBLE
 // ---------------------------------------------------------------------------
 
-describe('TOGGLE_MODULE_VISIBLE', () => {
-  it('removes module from visibleModules when hiding', () => {
+describe("TOGGLE_MODULE_VISIBLE", () => {
+  it("removes module from visibleModules when hiding", () => {
     const s = { ...DEFAULT_WORKSPACE_STATE };
-    const next = workspaceReducer(s, { type: 'TOGGLE_MODULE_VISIBLE', payload: { id: 'peak' } });
-    expect(next.visibleModules).not.toContain('peak');
+    const next = workspaceReducer(s, { type: "TOGGLE_MODULE_VISIBLE", payload: { id: "peak" } });
+    expect(next.visibleModules).not.toContain("peak");
   });
 
-  it('adds module to visibleModules when showing', () => {
-    const s = { ...DEFAULT_WORKSPACE_STATE, visibleModules: ['loudness'] };
-    const next = workspaceReducer(s, { type: 'TOGGLE_MODULE_VISIBLE', payload: { id: 'peak' } });
-    expect(next.visibleModules).toContain('peak');
+  it("adds module to visibleModules when showing", () => {
+    const s = { ...DEFAULT_WORKSPACE_STATE, visibleModules: ["loudness"] };
+    const next = workspaceReducer(s, { type: "TOGGLE_MODULE_VISIBLE", payload: { id: "peak" } });
+    expect(next.visibleModules).toContain("peak");
   });
 
-  it('does NOT change tree structure when toggling visibility', () => {
+  it("does NOT change tree structure when toggling visibility", () => {
     const s = { ...DEFAULT_WORKSPACE_STATE };
-    const next = workspaceReducer(s, { type: 'TOGGLE_MODULE_VISIBLE', payload: { id: 'peak' } });
+    const next = workspaceReducer(s, { type: "TOGGLE_MODULE_VISIBLE", payload: { id: "peak" } });
     expect(next.tree).toBe(s.tree);
   });
 
-  it('clears focusId when hiding the focused module', () => {
-    const s = { ...DEFAULT_WORKSPACE_STATE, focusId: 'peak' };
-    const next = workspaceReducer(s, { type: 'TOGGLE_MODULE_VISIBLE', payload: { id: 'peak' } });
+  it("clears focusId when hiding the focused module", () => {
+    const s = { ...DEFAULT_WORKSPACE_STATE, focusId: "peak" };
+    const next = workspaceReducer(s, { type: "TOGGLE_MODULE_VISIBLE", payload: { id: "peak" } });
     expect(next.focusId).toBeNull();
   });
 
-  it('preserves focusId when hiding a non-focused module', () => {
-    const s = { ...DEFAULT_WORKSPACE_STATE, focusId: 'loudness' };
-    const next = workspaceReducer(s, { type: 'TOGGLE_MODULE_VISIBLE', payload: { id: 'peak' } });
-    expect(next.focusId).toBe('loudness');
+  it("preserves focusId when hiding a non-focused module", () => {
+    const s = { ...DEFAULT_WORKSPACE_STATE, focusId: "loudness" };
+    const next = workspaceReducer(s, { type: "TOGGLE_MODULE_VISIBLE", payload: { id: "peak" } });
+    expect(next.focusId).toBe("loudness");
   });
 });
 
@@ -140,23 +140,23 @@ describe('TOGGLE_MODULE_VISIBLE', () => {
 // SET_FOCUS
 // ---------------------------------------------------------------------------
 
-describe('SET_FOCUS', () => {
-  it('sets focusId to the given module id', () => {
+describe("SET_FOCUS", () => {
+  it("sets focusId to the given module id", () => {
     const s = { ...DEFAULT_WORKSPACE_STATE, focusId: null };
-    const next = workspaceReducer(s, { type: 'SET_FOCUS', payload: { id: 'peak' } });
-    expect(next.focusId).toBe('peak');
+    const next = workspaceReducer(s, { type: "SET_FOCUS", payload: { id: "peak" } });
+    expect(next.focusId).toBe("peak");
   });
 
-  it('makes focused tab active in its leaf', () => {
-    const root = split('h', [leaf(['peak', 'loudness'], 'peak'), leaf(['spectrum'])]);
-    const next = workspaceReducer(state(root), { type: 'SET_FOCUS', payload: { id: 'loudness' } });
-    expect(next.tree.children[0].activeTab).toBe('loudness');
+  it("makes focused tab active in its leaf", () => {
+    const root = split("h", [leaf(["peak", "loudness"], "peak"), leaf(["spectrum"])]);
+    const next = workspaceReducer(state(root), { type: "SET_FOCUS", payload: { id: "loudness" } });
+    expect(next.tree.children[0].activeTab).toBe("loudness");
   });
 
-  it('does not change tree when module is already active', () => {
-    const root = leaf(['peak']);
-    const next = workspaceReducer(state(root), { type: 'SET_FOCUS', payload: { id: 'peak' } });
-    expect(next.tree.children?.[0] ?? next.tree).toMatchObject({ activeTab: 'peak' });
+  it("does not change tree when module is already active", () => {
+    const root = leaf(["peak"]);
+    const next = workspaceReducer(state(root), { type: "SET_FOCUS", payload: { id: "peak" } });
+    expect(next.tree.children?.[0] ?? next.tree).toMatchObject({ activeTab: "peak" });
   });
 });
 
@@ -164,18 +164,18 @@ describe('SET_FOCUS', () => {
 // SET_FULLSCREEN
 // ---------------------------------------------------------------------------
 
-describe('SET_FULLSCREEN', () => {
-  it('sets fullscreenId', () => {
+describe("SET_FULLSCREEN", () => {
+  it("sets fullscreenId", () => {
     const next = workspaceReducer(DEFAULT_WORKSPACE_STATE, {
-      type: 'SET_FULLSCREEN',
-      payload: 'peak',
+      type: "SET_FULLSCREEN",
+      payload: "peak",
     });
-    expect(next.fullscreenId).toBe('peak');
+    expect(next.fullscreenId).toBe("peak");
   });
 
-  it('clears fullscreenId with null', () => {
-    const s = { ...DEFAULT_WORKSPACE_STATE, fullscreenId: 'peak' };
-    const next = workspaceReducer(s, { type: 'SET_FULLSCREEN', payload: null });
+  it("clears fullscreenId with null", () => {
+    const s = { ...DEFAULT_WORKSPACE_STATE, fullscreenId: "peak" };
+    const next = workspaceReducer(s, { type: "SET_FULLSCREEN", payload: null });
     expect(next.fullscreenId).toBeNull();
   });
 });
@@ -184,75 +184,75 @@ describe('SET_FULLSCREEN', () => {
 // MOVE_TAB
 // ---------------------------------------------------------------------------
 
-describe('MOVE_TAB: zone=tabs', () => {
-  it('merges source tab into target leaf', () => {
-    const root = split('h', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { visibleModules: ['peak', 'loudness'] });
+describe("MOVE_TAB: zone=tabs", () => {
+  it("merges source tab into target leaf", () => {
+    const root = split("h", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { visibleModules: ["peak", "loudness"] });
     const next = workspaceReducer(s, {
-      type: 'MOVE_TAB',
-      payload: { sourceId: 'peak', drop: { targetPath: [1], zone: 'tabs', tabIndex: 0 } },
+      type: "MOVE_TAB",
+      payload: { sourceId: "peak", drop: { targetPath: [1], zone: "tabs", tabIndex: 0 } },
     });
     // left leaf emptied → pruned → root unwraps to right leaf
-    expect(next.tree.type).toBe('leaf');
-    expect(next.tree.tabs).toContain('peak');
-    expect(next.tree.tabs).toContain('loudness');
-    expect(next.tree.activeTab).toBe('peak'); // moved tab becomes active
+    expect(next.tree.type).toBe("leaf");
+    expect(next.tree.tabs).toContain("peak");
+    expect(next.tree.tabs).toContain("loudness");
+    expect(next.tree.activeTab).toBe("peak"); // moved tab becomes active
   });
 });
 
-describe('MOVE_TAB: zone=below', () => {
-  it('places source tab in a new leaf below target', () => {
-    const root = split('h', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { visibleModules: ['peak', 'loudness'] });
+describe("MOVE_TAB: zone=below", () => {
+  it("places source tab in a new leaf below target", () => {
+    const root = split("h", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { visibleModules: ["peak", "loudness"] });
     const next = workspaceReducer(s, {
-      type: 'MOVE_TAB',
-      payload: { sourceId: 'peak', drop: { targetPath: [1], zone: 'below' } },
+      type: "MOVE_TAB",
+      payload: { sourceId: "peak", drop: { targetPath: [1], zone: "below" } },
     });
     // peak removed from [0] → left leaf empty → root = loudness leaf
     // Then peak inserted below loudness → V[loudness, peak]
-    expect(next.tree.direction).toBe('v');
-    expect(next.tree.children[0].tabs).toContain('loudness');
-    expect(next.tree.children[1].tabs).toContain('peak');
+    expect(next.tree.direction).toBe("v");
+    expect(next.tree.children[0].tabs).toContain("loudness");
+    expect(next.tree.children[1].tabs).toContain("peak");
   });
 
-  it('adjusts path when source removal changes tree structure', () => {
+  it("adjusts path when source removal changes tree structure", () => {
     // V[leaf(peak), leaf(loudness)] — drag peak to below loudness (targetPath=[1])
     // After removing peak: root = leaf(loudness) (unwrapped)
     // targetPath [1] is stale; should resolve to insert below root
-    const root = split('v', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { visibleModules: ['peak', 'loudness'] });
+    const root = split("v", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { visibleModules: ["peak", "loudness"] });
     const next = workspaceReducer(s, {
-      type: 'MOVE_TAB',
-      payload: { sourceId: 'peak', drop: { targetPath: [1], zone: 'below' } },
+      type: "MOVE_TAB",
+      payload: { sourceId: "peak", drop: { targetPath: [1], zone: "below" } },
     });
-    expect(next.tree.direction).toBe('v');
-    expect(next.tree.children[0].tabs).toContain('loudness');
-    expect(next.tree.children[1].tabs).toContain('peak');
+    expect(next.tree.direction).toBe("v");
+    expect(next.tree.children[0].tabs).toContain("loudness");
+    expect(next.tree.children[1].tabs).toContain("peak");
   });
 });
 
-describe('MOVE_TAB: zone=right', () => {
-  it('places source tab in a new leaf to the right of target', () => {
-    const root = split('v', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { visibleModules: ['peak', 'loudness'] });
+describe("MOVE_TAB: zone=right", () => {
+  it("places source tab in a new leaf to the right of target", () => {
+    const root = split("v", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { visibleModules: ["peak", "loudness"] });
     const next = workspaceReducer(s, {
-      type: 'MOVE_TAB',
-      payload: { sourceId: 'loudness', drop: { targetPath: [0], zone: 'right' } },
+      type: "MOVE_TAB",
+      payload: { sourceId: "loudness", drop: { targetPath: [0], zone: "right" } },
     });
     // loudness removed from [1] → root = leaf(peak); then loudness inserted right of peak
-    expect(next.tree.direction).toBe('h');
-    expect(next.tree.children[0].tabs).toContain('peak');
-    expect(next.tree.children[1].tabs).toContain('loudness');
+    expect(next.tree.direction).toBe("h");
+    expect(next.tree.children[0].tabs).toContain("peak");
+    expect(next.tree.children[1].tabs).toContain("loudness");
   });
 });
 
-describe('MOVE_TAB: clears activePresetId', () => {
-  it('clears activePresetId after any move', () => {
-    const root = split('h', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { activePresetId: 'default' });
+describe("MOVE_TAB: clears activePresetId", () => {
+  it("clears activePresetId after any move", () => {
+    const root = split("h", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { activePresetId: "default" });
     const next = workspaceReducer(s, {
-      type: 'MOVE_TAB',
-      payload: { sourceId: 'peak', drop: { targetPath: [1], zone: 'tabs', tabIndex: 0 } },
+      type: "MOVE_TAB",
+      payload: { sourceId: "peak", drop: { targetPath: [1], zone: "tabs", tabIndex: 0 } },
     });
     expect(next.activePresetId).toBeNull();
   });
@@ -262,37 +262,37 @@ describe('MOVE_TAB: clears activePresetId', () => {
 // MOVE_TAB: drag single-tab leaf back onto itself (stale path crash)
 // ---------------------------------------------------------------------------
 
-describe('MOVE_TAB: drag to same single-tab leaf edge (regression)', () => {
+describe("MOVE_TAB: drag to same single-tab leaf edge (regression)", () => {
   // Bug: dragging the only tab in a leaf back onto that leaf's edge zone
   // causes anchorTab=null → stale fallbackPath → insertLeaf throws on LeafNode
 
-  it('zone=above on same single-tab leaf does not throw and preserves both tabs', () => {
-    const root = split('h', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { visibleModules: ['peak', 'loudness'] });
+  it("zone=above on same single-tab leaf does not throw and preserves both tabs", () => {
+    const root = split("h", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { visibleModules: ["peak", "loudness"] });
     // sourceId 'peak' is in leaf at [0]; targetPath=[0] is same leaf
     expect(() =>
       workspaceReducer(s, {
-        type: 'MOVE_TAB',
-        payload: { sourceId: 'peak', drop: { targetPath: [0], zone: 'above' } },
+        type: "MOVE_TAB",
+        payload: { sourceId: "peak", drop: { targetPath: [0], zone: "above" } },
       })
     ).not.toThrow();
     const next = workspaceReducer(s, {
-      type: 'MOVE_TAB',
-      payload: { sourceId: 'peak', drop: { targetPath: [0], zone: 'above' } },
+      type: "MOVE_TAB",
+      payload: { sourceId: "peak", drop: { targetPath: [0], zone: "above" } },
     });
     expect(next.tree).toBeDefined();
     // Both modules must still be in the tree
-    expect(findLeafWithTab(next.tree, 'peak')).not.toBeNull();
-    expect(findLeafWithTab(next.tree, 'loudness')).not.toBeNull();
+    expect(findLeafWithTab(next.tree, "peak")).not.toBeNull();
+    expect(findLeafWithTab(next.tree, "loudness")).not.toBeNull();
   });
 
-  it('zone=right on same single-tab leaf does not throw', () => {
-    const root = split('v', [leaf(['peak']), leaf(['loudness'])]);
-    const s = state(root, { visibleModules: ['peak', 'loudness'] });
+  it("zone=right on same single-tab leaf does not throw", () => {
+    const root = split("v", [leaf(["peak"]), leaf(["loudness"])]);
+    const s = state(root, { visibleModules: ["peak", "loudness"] });
     expect(() =>
       workspaceReducer(s, {
-        type: 'MOVE_TAB',
-        payload: { sourceId: 'peak', drop: { targetPath: [0], zone: 'right' } },
+        type: "MOVE_TAB",
+        payload: { sourceId: "peak", drop: { targetPath: [0], zone: "right" } },
       })
     ).not.toThrow();
   });
@@ -302,27 +302,27 @@ describe('MOVE_TAB: drag to same single-tab leaf edge (regression)', () => {
 // APPLY_PRESET
 // ---------------------------------------------------------------------------
 
-describe('APPLY_PRESET', () => {
-  it('applies a builtin preset, replacing tree and visibleModules', () => {
+describe("APPLY_PRESET", () => {
+  it("applies a builtin preset, replacing tree and visibleModules", () => {
     const next = workspaceReducer(DEFAULT_WORKSPACE_STATE, {
-      type: 'APPLY_PRESET',
-      payload: { presetId: 'broadcast' },
+      type: "APPLY_PRESET",
+      payload: { presetId: "broadcast" },
     });
-    expect(next.activePresetId).toBe('broadcast');
+    expect(next.activePresetId).toBe("broadcast");
     expect(next.tree).toBeDefined();
     expect(next.tree.type).toMatch(/leaf|split/);
   });
 
-  it('clears fullscreenId when applying a preset', () => {
-    const s = { ...DEFAULT_WORKSPACE_STATE, fullscreenId: 'peak' };
-    const next = workspaceReducer(s, { type: 'APPLY_PRESET', payload: { presetId: 'default' } });
+  it("clears fullscreenId when applying a preset", () => {
+    const s = { ...DEFAULT_WORKSPACE_STATE, fullscreenId: "peak" };
+    const next = workspaceReducer(s, { type: "APPLY_PRESET", payload: { presetId: "default" } });
     expect(next.fullscreenId).toBeNull();
   });
 
-  it('does nothing when preset id is unknown', () => {
+  it("does nothing when preset id is unknown", () => {
     const next = workspaceReducer(DEFAULT_WORKSPACE_STATE, {
-      type: 'APPLY_PRESET',
-      payload: { presetId: 'nonexistent' },
+      type: "APPLY_PRESET",
+      payload: { presetId: "nonexistent" },
     });
     expect(next).toBe(DEFAULT_WORKSPACE_STATE);
   });
@@ -332,26 +332,26 @@ describe('APPLY_PRESET', () => {
 // SAVE_PRESET
 // ---------------------------------------------------------------------------
 
-describe('SAVE_PRESET', () => {
-  it('saves current tree and visibleModules as a custom preset', () => {
+describe("SAVE_PRESET", () => {
+  it("saves current tree and visibleModules as a custom preset", () => {
     const s = { ...DEFAULT_WORKSPACE_STATE, customPresets: [] };
-    const next = workspaceReducer(s, { type: 'SAVE_PRESET', payload: { name: 'My Layout' } });
+    const next = workspaceReducer(s, { type: "SAVE_PRESET", payload: { name: "My Layout" } });
     expect(next.customPresets).toHaveLength(1);
-    expect(next.customPresets[0].name).toBe('My Layout');
+    expect(next.customPresets[0].name).toBe("My Layout");
     expect(next.customPresets[0].tree).toBe(s.tree);
     expect(next.customPresets[0].visibleModules).toEqual(s.visibleModules);
   });
 
-  it('sets activePresetId to the new preset id', () => {
+  it("sets activePresetId to the new preset id", () => {
     const s = { ...DEFAULT_WORKSPACE_STATE, customPresets: [] };
-    const next = workspaceReducer(s, { type: 'SAVE_PRESET', payload: { name: 'Custom' } });
+    const next = workspaceReducer(s, { type: "SAVE_PRESET", payload: { name: "Custom" } });
     expect(next.activePresetId).toBe(next.customPresets[0].id);
   });
 
-  it('appends to existing custom presets', () => {
-    const existing = [{ id: 'x', name: 'Old', tree: leaf(['peak']), visibleModules: [] }];
+  it("appends to existing custom presets", () => {
+    const existing = [{ id: "x", name: "Old", tree: leaf(["peak"]), visibleModules: [] }];
     const s = { ...DEFAULT_WORKSPACE_STATE, customPresets: existing };
-    const next = workspaceReducer(s, { type: 'SAVE_PRESET', payload: { name: 'New' } });
+    const next = workspaceReducer(s, { type: "SAVE_PRESET", payload: { name: "New" } });
     expect(next.customPresets).toHaveLength(2);
   });
 });

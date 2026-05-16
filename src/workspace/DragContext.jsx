@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { MODULE_REGISTRY } from './registry.jsx';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { MODULE_REGISTRY } from "./registry.jsx";
 
 export const DragContext = createContext(null);
 
@@ -10,17 +10,17 @@ export const DragContext = createContext(null);
 function computeDropTarget(x, y) {
   const elements = document.elementsFromPoint(x, y);
 
-  const leafEl = elements.find((el) => el.hasAttribute('data-leaf'));
+  const leafEl = elements.find((el) => el.hasAttribute("data-leaf"));
   if (leafEl) {
-    const targetPath = JSON.parse(leafEl.dataset.leafPath ?? '[]');
+    const targetPath = JSON.parse(leafEl.dataset.leafPath ?? "[]");
 
-    const tabsEl = leafEl.querySelector('[data-leaf-tabs]');
-    const bodyEl = leafEl.querySelector('[data-leaf-body]');
+    const tabsEl = leafEl.querySelector("[data-leaf-tabs]");
+    const bodyEl = leafEl.querySelector("[data-leaf-body]");
 
     if (tabsEl) {
       const tabsRect = tabsEl.getBoundingClientRect();
       if (y >= tabsRect.top && y <= tabsRect.bottom) {
-        const pills = Array.from(tabsEl.querySelectorAll('[data-tab-pill]'));
+        const pills = Array.from(tabsEl.querySelectorAll("[data-tab-pill]"));
         let tabIndex = pills.length;
         for (let i = 0; i < pills.length; i++) {
           const rect = pills[i].getBoundingClientRect();
@@ -29,7 +29,7 @@ function computeDropTarget(x, y) {
             break;
           }
         }
-        return { targetPath, zone: 'tabs', tabIndex };
+        return { targetPath, zone: "tabs", tabIndex };
       }
     }
 
@@ -44,10 +44,10 @@ function computeDropTarget(x, y) {
       const edgeX = w * 0.2;
       const edgeY = h * 0.2;
 
-      if (relX < edgeX) return { targetPath, zone: 'left' };
-      if (relX > w - edgeX) return { targetPath, zone: 'right' };
-      if (relY < edgeY) return { targetPath, zone: 'above' };
-      if (relY > h - edgeY) return { targetPath, zone: 'below' };
+      if (relX < edgeX) return { targetPath, zone: "left" };
+      if (relX > w - edgeX) return { targetPath, zone: "right" };
+      if (relY < edgeY) return { targetPath, zone: "above" };
+      if (relY > h - edgeY) return { targetPath, zone: "below" };
 
       // Center region: find closest edge
       const distLeft = relX;
@@ -55,13 +55,13 @@ function computeDropTarget(x, y) {
       const distTop = relY;
       const distBottom = h - relY;
       const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-      if (minDist === distLeft) return { targetPath, zone: 'left' };
-      if (minDist === distRight) return { targetPath, zone: 'right' };
-      if (minDist === distTop) return { targetPath, zone: 'above' };
-      return { targetPath, zone: 'below' };
+      if (minDist === distLeft) return { targetPath, zone: "left" };
+      if (minDist === distRight) return { targetPath, zone: "right" };
+      if (minDist === distTop) return { targetPath, zone: "above" };
+      return { targetPath, zone: "below" };
     }
 
-    return { targetPath, zone: 'below' };
+    return { targetPath, zone: "below" };
   }
 
   return null;
@@ -110,7 +110,7 @@ export function DragProvider({ children, onDrop }) {
     }
 
     function onKey(e) {
-      if (e.key === 'Escape' && activeRef.current) {
+      if (e.key === "Escape" && activeRef.current) {
         startRef.current = null;
         activeRef.current = false;
         hoverDropRef.current = null;
@@ -119,13 +119,13 @@ export function DragProvider({ children, onDrop }) {
       }
     }
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("keydown", onKey);
     };
   }, [onDrop]);
 
