@@ -108,3 +108,24 @@ body {
     box-shadow: none;
   }
 }
+
+/* StatusPill dot pulse — used in StatusPill.jsx */
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-dot-pulse {
+  animation: status-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot-pulse {
+    animation: none;
+  }
+}

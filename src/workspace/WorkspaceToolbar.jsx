@@ -10,16 +10,44 @@ import { cn } from "@/lib/utils";
 // Visibility Popover — toggle module visibility from the header
 // ---------------------------------------------------------------------------
 
-export function VisibilityPopover() {
+export function VisibilityPopoverContent() {
   const { state, toggleModuleVisible, setFocus, setHoveredModuleId } = useWorkspaceStore();
   const { visibleModules } = state;
-
   return (
-    <Popover
-      onOpenChange={(open) => {
-        if (!open) setHoveredModuleId(null);
-      }}
-    >
+    <>
+      {Object.values(MODULE_REGISTRY).map(({ id, title, Icon }) => {
+        const isVisible = visibleModules.includes(id);
+        return (
+          <button
+            key={id}
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50",
+              isVisible ? "text-foreground" : "text-muted-foreground"
+            )}
+            onMouseEnter={() => setHoveredModuleId(id)}
+            onMouseLeave={() => setHoveredModuleId(null)}
+            onClick={() => {
+              toggleModuleVisible(id);
+              if (!isVisible) setFocus(id);
+            }}
+          >
+            <span className={cn("flex shrink-0", isVisible ? "text-foreground" : "text-muted-foreground/40")}>
+              <Icon />
+            </span>
+            <span className="flex-1 text-left">{title}</span>
+            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", isVisible ? "bg-primary" : "bg-muted-foreground/25")} />
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+export function VisibilityPopover() {
+  const { setHoveredModuleId } = useWorkspaceStore();
+  return (
+    <Popover onOpenChange={(open) => { if (!open) setHoveredModuleId(null); }}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -33,41 +61,7 @@ export function VisibilityPopover() {
         <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Modules
         </p>
-        {Object.values(MODULE_REGISTRY).map(({ id, title, Icon }) => {
-          const isVisible = visibleModules.includes(id);
-          return (
-            <button
-              key={id}
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50",
-                isVisible ? "text-foreground" : "text-muted-foreground"
-              )}
-              onMouseEnter={() => setHoveredModuleId(id)}
-              onMouseLeave={() => setHoveredModuleId(null)}
-              onClick={() => {
-                toggleModuleVisible(id);
-                if (!isVisible) setFocus(id);
-              }}
-            >
-              <span
-                className={cn(
-                  "flex shrink-0",
-                  isVisible ? "text-foreground" : "text-muted-foreground/40"
-                )}
-              >
-                <Icon />
-              </span>
-              <span className="flex-1 text-left">{title}</span>
-              <span
-                className={cn(
-                  "h-1.5 w-1.5 shrink-0 rounded-full",
-                  isVisible ? "bg-primary" : "bg-muted-foreground/25"
-                )}
-              />
-            </button>
-          );
-        })}
+        <VisibilityPopoverContent />
       </PopoverContent>
     </Popover>
   );
@@ -125,6 +119,67 @@ function SavePresetForm({ onSave, onCancel }) {
   );
 }
 
+export function PresetDropdownContent({ onClose } = {}) {
+  const { state, applyPreset, saveCurrentAsPreset } = useWorkspaceStore();
+  const { activePresetId, customPresets } = state;
+  const [saving, setSaving] = useState(false);
+
+  if (saving) {
+    return (
+      <SavePresetForm
+        onSave={(name) => {
+          saveCurrentAsPreset(name);
+          setSaving(false);
+          onClose?.();
+        }}
+        onCancel={() => setSaving(false)}
+      />
+    );
+  }
+
+  const allCustom = customPresets;
+  return (
+    <>
+      {BUILTIN_PRESETS.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
+          onClick={() => { applyPreset(p.id); onClose?.(); }}
+        >
+          {p.id === activePresetId ? <Check size={10} className="shrink-0 text-primary" /> : <span className="w-[10px] shrink-0" />}
+          {p.name}
+        </button>
+      ))}
+      {allCustom.length > 0 && (
+        <>
+          <div className="my-1 h-px bg-border/50" />
+          {allCustom.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
+              onClick={() => { applyPreset(p.id); onClose?.(); }}
+            >
+              {p.id === activePresetId ? <Check size={10} className="shrink-0 text-primary" /> : <span className="w-[10px] shrink-0" />}
+              {p.name}
+            </button>
+          ))}
+        </>
+      )}
+      <div className="my-1 h-px bg-border/50" />
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+        onClick={() => setSaving(true)}
+      >
+        <span className="w-[10px] shrink-0" />
+        Save as preset…
+      </button>
+    </>
+  );
+}
+
 export function PresetDropdown() {
   const { state, applyPreset, saveCurrentAsPreset } = useWorkspaceStore();
   const { activePresetId, customPresets } = state;
@@ -137,10 +192,7 @@ export function PresetDropdown() {
   if (saving) {
     return (
       <SavePresetForm
-        onSave={(name) => {
-          saveCurrentAsPreset(name);
-          setSaving(false);
-        }}
+        onSave={(name) => { saveCurrentAsPreset(name); setSaving(false); }}
         onCancel={() => setSaving(false)}
       />
     );
@@ -161,59 +213,7 @@ export function PresetDropdown() {
         <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Presets
         </p>
-        {BUILTIN_PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-            onClick={() => {
-              applyPreset(p.id);
-              setOpen(false);
-            }}
-          >
-            {p.id === activePresetId ? (
-              <Check size={10} className="shrink-0 text-primary" />
-            ) : (
-              <span className="w-[10px] shrink-0" />
-            )}
-            {p.name}
-          </button>
-        ))}
-        {customPresets.length > 0 && (
-          <>
-            <div className="my-1 h-px bg-border/50" />
-            {customPresets.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-                onClick={() => {
-                  applyPreset(p.id);
-                  setOpen(false);
-                }}
-              >
-                {p.id === activePresetId ? (
-                  <Check size={10} className="shrink-0 text-primary" />
-                ) : (
-                  <span className="w-[10px] shrink-0" />
-                )}
-                {p.name}
-              </button>
-            ))}
-          </>
-        )}
-        <div className="my-1 h-px bg-border/50" />
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          onClick={() => {
-            setOpen(false);
-            setSaving(true);
-          }}
-        >
-          <span className="w-[10px] shrink-0" />
-          Save as preset…
-        </button>
+        <PresetDropdownContent onClose={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
   );

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { WorkspaceProvider } from "./workspace/WorkspaceContext.jsx";
 import { AudioDataContext } from "./workspace/AudioDataContext.jsx";
 import { FrameIntake } from "./lib/FrameIntake.js";
@@ -11,41 +11,37 @@ import { useAudioEngine } from "./hooks/useAudioEngine";
 import { useSettings } from "./hooks/useSettings";
 import { useSnapshot } from "./hooks/useSnapshot";
 import { useHoverState } from "./hooks/useHoverState";
-import { useMeterHealth } from "./hooks/useMeterHealth";
 import { useAudioDevices } from "./hooks/useAudioDevices.js";
 import { usePeakVis } from "./hooks/usePeakVis.js";
+import { useSessionTimer } from "./hooks/useSessionTimer.js";
 import { resolveChannelLayout } from "./math/channelLayoutResolver.js";
-import { buildMeteringFootnoteHints } from "./math/meteringFootnoteHints.js";
 import {
   buildVectorscopePairOptions,
   clampVectorscopePairToAvailable,
 } from "./math/vectorscopePairMath.js";
 import { getBuiltinTheme } from "./theme/builtinThemes.js";
 import { LOUDNESS_REFERENCE_PROFILES } from "./config/loudnessReferenceProfiles.js";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { CaptureDeviceSelect } from "./components/CaptureDeviceSelect";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { StatusPill } from "./components/StatusPill.jsx";
+import { TransportButton } from "./components/TransportButton.jsx";
+import { IconButton } from "./components/IconButton.jsx";
 import { SplitLayout } from "./workspace/SplitLayout.jsx";
-import { PresetDropdown, VisibilityPopover } from "./workspace/WorkspaceToolbar.jsx";
+import { VisibilityPopoverContent, PresetDropdownContent } from "./workspace/WorkspaceToolbar.jsx";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
-  APP_TITLE,
-  APP_TITLE_BRAND,
   SHELL_FOOTER,
   SHELL_HEADER,
   SHELL_INNER,
   SHELL_PAGE,
 } from "@/lib/shellLayout";
-import { Play, Radio, Settings, Square, Trash2 } from "lucide-react";
+import { LayoutGrid, Settings, Trash2, Volume2 } from "lucide-react";
 import { isTauri } from "./ipc/env.js";
 import { clearAudioHistory, setVectorscopePair } from "./ipc/commands.js";
-import { MeterHealthBadge } from "./components/MeterHealthBadge";
 
 const HIST_MAX_SAMPLES = 36000;
 
-const buildVersionRaw = import.meta.env.VITE_APP_VERSION || "dev";
-const buildVersion = buildVersionRaw === "dev" ? "dev" : buildVersionRaw.slice(0, 7);
 const STORE_KEY = UI_PREFERENCES.layoutPersistKey;
 
 export default function App() {
@@ -65,12 +61,14 @@ export default function App() {
   const { audioDevices, captureDeviceId, setCaptureDeviceIdAndPersist, defaultOutputFormatSig } =
     useAudioDevices();
 
+  const { clockRef, canClearRef, startTimer, stopTimer, resetTimer } = useSessionTimer();
+  const [showClock, setShowClock] = useState(false);
+
   const [running, setRunning] = useState(false);
   const [channelLayout, setChannelLayout] = useState("auto");
   const [selectedOffset, setSelectedOffset] = useState(-1);
   const [status, setStatus] = useState("Ready - click Start to begin monitoring");
   const [status2, setStatus2] = useState("Device: Not connected");
-  const meterHealth = useMeterHealth();
   const [vectorscopePairUi, setVectorscopePairUi] = useState(() => readPersistedVectorscopePair());
   const [audio, setAudio] = useState({
     peakDb: [],
@@ -194,17 +192,13 @@ export default function App() {
   }, [resolvedThemeId]);
   const vsGridDiagFar = 100 - vsGridDiagInset;
   const startMode = selectedOffset >= 0 ? "live" : running ? "stop" : "start";
-  const startLabel = startMode === "live" ? "LIVE" : startMode === "stop" ? "STOP" : "START";
+  // Maps old startMode values to new 3-state chrome vocabulary
+  const chromeState = startMode === "stop" ? "live" : startMode === "live" ? "snapshot" : "ready";
   const channelCount = Array.isArray(displayAudio.peakDb) ? displayAudio.peakDb.length : 0;
   const layoutResolution = useMemo(
     () => resolveChannelLayout(channelLayout, { channelCount }),
     [channelLayout, channelCount]
   );
-  const meteringFootnotes = useMemo(
-    () => buildMeteringFootnoteHints({ running, channelLayout, channelCount }),
-    [running, channelLayout, channelCount]
-  );
-
   const peakLabelContext = useMemo(
     () => ({ channelLayout, resolvedLayout: layoutResolution.resolved }),
     [channelLayout, layoutResolution.resolved]
@@ -228,6 +222,14 @@ export default function App() {
     const d = audioDevices.find((x) => x.id === captureDeviceId);
     return d ? `${d.channels}:${d.defaultSampleRate}` : "";
   }, [captureDeviceId, audioDevices, defaultOutputFormatSig]);
+
+  const deviceName = useMemo(() => {
+    if (!isTauri()) return null;
+    if (captureDeviceId === "default") {
+      return audioDevices.find((d) => d.isSystemOutputMonitor)?.label ?? "Default";
+    }
+    return audioDevices.find((d) => d.id === captureDeviceId)?.label ?? null;
+  }, [captureDeviceId, audioDevices]);
 
   useEffect(() => {
     if (!running) return;
@@ -364,6 +366,13 @@ export default function App() {
         ? "Running - cleared history and peak hold"
         : "Ready - click Start to begin monitoring"
     );
+    stopTimer();
+    resetTimer();
+    setShowClock(false);
+    if (running) {
+      setRunning(false);
+      setSelectedOffset(-1);
+    }
   };
 
   const resetLayout = () => {
@@ -381,10 +390,39 @@ export default function App() {
       setSelectedOffset(-1);
       setStatus("Stopped - click Start to resume");
       setStatus2("Device: Not connected");
+      stopTimer();
       return;
     }
     setRunning(true);
+    startTimer();
+    setShowClock(true);
   };
+
+  const shortcutHandlerRef = useRef(null);
+  shortcutHandlerRef.current = { onStartClick, clearAll, running, showClock, setSettingsOpen };
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const { onStartClick: start, clearAll: clear, running: isRunning, showClock: hasClock, setSettingsOpen: openSettings } = shortcutHandlerRef.current;
+      const tag = document.activeElement?.tagName ?? "";
+      const editable = tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable;
+      if (e.code === "Space" && !editable && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        start();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (isRunning || hasClock) clear();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        openSettings(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     try {
@@ -542,85 +580,79 @@ export default function App() {
         <div className={SHELL_PAGE}>
           <div className={SHELL_INNER}>
             <header className={SHELL_HEADER}>
-              <div className={APP_TITLE}>
-                Audio<span className={APP_TITLE_BRAND}>Meter</span>
-              </div>
-              <div className="flex min-w-0 flex-1 items-center gap-3 pr-2">
-                {isTauri() && (
-                  <CaptureDeviceSelect
-                    audioDevices={audioDevices}
-                    value={captureDeviceId}
-                    disabled={!audioDevices.length}
-                    onValueChange={(v) => setCaptureDeviceIdAndPersist(v)}
-                  />
-                )}
-                <PresetDropdown />
-                <VisibilityPopover />
-              </div>
-              <div className="flex items-center gap-[var(--ui-header-action-gap)]">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+              <StatusPill state={chromeState} showClock={showClock} clockRef={clockRef} />
+              <div className="flex-1" />
+              <div className="flex items-center gap-1">
+                <TransportButton state={chromeState} onClick={onStartClick} />
+                <div className="mx-1 h-[18px] w-px shrink-0 bg-border" />
+                <IconButton
+                  icon={<Trash2 className="size-3.5" />}
+                  tip="Clear"
+                  disabled={!running && !showClock}
                   onClick={clearAll}
-                  className="gap-2 font-semibold"
-                >
-                  <Trash2 className="size-4 shrink-0" aria-hidden />
-                  Clear
-                </Button>
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={onStartClick}
-                  className={cn(
-                    "min-w-[5.75rem] gap-2 font-semibold",
-                    startMode === "live" &&
-                      "live-snap-pulse !bg-[var(--ui-chart-vectorscope-snap)] !text-white shadow-none hover:!brightness-[0.94]"
-                  )}
-                >
-                  {startMode === "live" ? (
-                    <Radio className="size-4 shrink-0" aria-hidden />
-                  ) : startMode === "stop" ? (
-                    <Square className="size-4 shrink-0" aria-hidden />
-                  ) : (
-                    <Play className="size-4 shrink-0" aria-hidden />
-                  )}
-                  {startLabel}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                />
+                {isTauri() && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <span>
+                        <IconButton
+                          icon={<Volume2 className="size-3.5" />}
+                          tip="Audio device"
+                        />
+                      </span>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" sideOffset={6} className="w-72 p-2">
+                      <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Audio Device
+                      </p>
+                      <CaptureDeviceSelect
+                        audioDevices={audioDevices}
+                        value={captureDeviceId}
+                        disabled={!audioDevices.length}
+                        onValueChange={(v) => setCaptureDeviceIdAndPersist(v)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <span>
+                      <IconButton
+                        icon={<LayoutGrid className="size-3.5" />}
+                        tip="Layout & modules"
+                      />
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" sideOffset={6} className="w-52 p-1">
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Modules
+                    </p>
+                    <VisibilityPopoverContent />
+                    <div className="my-1 h-px bg-border/50" />
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Presets
+                    </p>
+                    <PresetDropdownContent />
+                  </PopoverContent>
+                </Popover>
+                <IconButton
+                  icon={<Settings className="size-3.5" />}
+                  tip="Settings"
                   onClick={() => setSettingsOpen(true)}
-                  className="gap-2 font-semibold"
-                >
-                  <Settings className="size-4 shrink-0" aria-hidden />
-                  Settings
-                </Button>
+                />
               </div>
             </header>
 
             <SplitLayout />
 
             <footer className={SHELL_FOOTER}>
-              <span>{status}</span>
-              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-              <span>{status2}</span>
-              {meteringFootnotes.map((hint) => (
-                <Fragment key={hint.id}>
-                  <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-                  <span className="text-muted-foreground" title={hint.title}>
-                    {hint.message}
-                  </span>
-                </Fragment>
-              ))}
-              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-              <MeterHealthBadge health={meterHealth} />
-              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-              <span>Ref: {referenceProfile.label}</span>
-              <Separator orientation="vertical" className="h-3 shrink-0" decorative />
-              <span>Build: {buildVersion}</span>
+              <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">Device</span>
+              <span className={cn("tabular-nums", deviceName ? "text-foreground" : "text-muted-foreground")}>
+                {deviceName ?? "Not connected"}
+              </span>
+              <div className="mx-3.5 h-3 w-px shrink-0 bg-border" />
+              <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">Ref</span>
+              <span className="tabular-nums text-foreground">{referenceProfile.label}</span>
             </footer>
           </div>
 
