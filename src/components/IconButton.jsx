@@ -22,10 +22,8 @@ export function IconButton({ icon, tip, disabled = false, onClick, className }) 
           "flex items-center justify-center size-8 rounded-md",
           "text-muted-foreground bg-transparent",
           "transition-colors duration-[120ms]",
-          disabled
-            ? "opacity-40 cursor-not-allowed"
-            : "hover:bg-secondary hover:text-foreground",
-          className,
+          disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-secondary hover:text-foreground",
+          className
         )}
       >
         {icon}
@@ -40,7 +38,7 @@ export function IconButton({ icon, tip, disabled = false, onClick, className }) 
             "transition-opacity duration-100 delay-100",
             "text-[11px] text-foreground bg-popover",
             "border border-white/10 rounded px-2 py-1",
-            "whitespace-nowrap shadow-md",
+            "whitespace-nowrap shadow-md"
           )}
         >
           {tip}

@@ -30,12 +30,7 @@ import { SplitLayout } from "./workspace/SplitLayout.jsx";
 import { VisibilityPopoverContent, PresetDropdownContent } from "./workspace/WorkspaceToolbar.jsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import {
-  SHELL_FOOTER,
-  SHELL_HEADER,
-  SHELL_INNER,
-  SHELL_PAGE,
-} from "@/lib/shellLayout";
+import { SHELL_FOOTER, SHELL_HEADER, SHELL_INNER, SHELL_PAGE } from "@/lib/shellLayout";
 import { LayoutGrid, Settings, Trash2, Volume2 } from "lucide-react";
 import { isTauri } from "./ipc/env.js";
 import { clearAudioHistory, setVectorscopePair } from "./ipc/commands.js";
@@ -402,9 +397,16 @@ export default function App() {
   shortcutHandlerRef.current = { onStartClick, clearAll, running, showClock, setSettingsOpen };
   useEffect(() => {
     const onKeyDown = (e) => {
-      const { onStartClick: start, clearAll: clear, running: isRunning, showClock: hasClock, setSettingsOpen: openSettings } = shortcutHandlerRef.current;
+      const {
+        onStartClick: start,
+        clearAll: clear,
+        running: isRunning,
+        showClock: hasClock,
+        setSettingsOpen: openSettings,
+      } = shortcutHandlerRef.current;
       const tag = document.activeElement?.tagName ?? "";
-      const editable = tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable;
+      const editable =
+        tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable;
       if (e.code === "Space" && !editable && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         start();
@@ -595,10 +597,7 @@ export default function App() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <span>
-                        <IconButton
-                          icon={<Volume2 className="size-3.5" />}
-                          tip="Audio device"
-                        />
+                        <IconButton icon={<Volume2 className="size-3.5" />} tip="Audio device" />
                       </span>
                     </PopoverTrigger>
                     <PopoverContent align="end" sideOffset={6} className="w-72 p-2">
@@ -646,12 +645,21 @@ export default function App() {
             <SplitLayout />
 
             <footer className={SHELL_FOOTER}>
-              <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">Device</span>
-              <span className={cn("tabular-nums", deviceName ? "text-foreground" : "text-muted-foreground")}>
+              <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">
+                Device
+              </span>
+              <span
+                className={cn(
+                  "tabular-nums",
+                  deviceName ? "text-foreground" : "text-muted-foreground"
+                )}
+              >
                 {deviceName ?? "Not connected"}
               </span>
               <div className="mx-3.5 h-3 w-px shrink-0 bg-border" />
-              <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">Ref</span>
+              <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">
+                Ref
+              </span>
               <span className="tabular-nums text-foreground">{referenceProfile.label}</span>
             </footer>
           </div>

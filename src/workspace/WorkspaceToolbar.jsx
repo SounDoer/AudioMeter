@@ -32,11 +32,21 @@ export function VisibilityPopoverContent() {
               if (!isVisible) setFocus(id);
             }}
           >
-            <span className={cn("flex shrink-0", isVisible ? "text-foreground" : "text-muted-foreground/40")}>
+            <span
+              className={cn(
+                "flex shrink-0",
+                isVisible ? "text-foreground" : "text-muted-foreground/40"
+              )}
+            >
               <Icon />
             </span>
             <span className="flex-1 text-left">{title}</span>
-            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", isVisible ? "bg-primary" : "bg-muted-foreground/25")} />
+            <span
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                isVisible ? "bg-primary" : "bg-muted-foreground/25"
+              )}
+            />
           </button>
         );
       })}
@@ -47,7 +57,11 @@ export function VisibilityPopoverContent() {
 export function VisibilityPopover() {
   const { setHoveredModuleId } = useWorkspaceStore();
   return (
-    <Popover onOpenChange={(open) => { if (!open) setHoveredModuleId(null); }}>
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) setHoveredModuleId(null);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -145,9 +159,16 @@ export function PresetDropdownContent({ onClose } = {}) {
           key={p.id}
           type="button"
           className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-          onClick={() => { applyPreset(p.id); onClose?.(); }}
+          onClick={() => {
+            applyPreset(p.id);
+            onClose?.();
+          }}
         >
-          {p.id === activePresetId ? <Check size={10} className="shrink-0 text-primary" /> : <span className="w-[10px] shrink-0" />}
+          {p.id === activePresetId ? (
+            <Check size={10} className="shrink-0 text-primary" />
+          ) : (
+            <span className="w-[10px] shrink-0" />
+          )}
           {p.name}
         </button>
       ))}
@@ -159,9 +180,16 @@ export function PresetDropdownContent({ onClose } = {}) {
               key={p.id}
               type="button"
               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
-              onClick={() => { applyPreset(p.id); onClose?.(); }}
+              onClick={() => {
+                applyPreset(p.id);
+                onClose?.();
+              }}
             >
-              {p.id === activePresetId ? <Check size={10} className="shrink-0 text-primary" /> : <span className="w-[10px] shrink-0" />}
+              {p.id === activePresetId ? (
+                <Check size={10} className="shrink-0 text-primary" />
+              ) : (
+                <span className="w-[10px] shrink-0" />
+              )}
               {p.name}
             </button>
           ))}
@@ -192,7 +220,10 @@ export function PresetDropdown() {
   if (saving) {
     return (
       <SavePresetForm
-        onSave={(name) => { saveCurrentAsPreset(name); setSaving(false); }}
+        onSave={(name) => {
+          saveCurrentAsPreset(name);
+          setSaving(false);
+        }}
         onCancel={() => setSaving(false)}
       />
     );

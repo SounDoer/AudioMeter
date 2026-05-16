@@ -22,12 +22,12 @@ function formatClock(ms) {
  * (e.g. switching ready↔live); the timer only touches the clock text node.
  */
 export function useSessionTimer() {
-  const runStartedAtRef = useRef(null);  // Date.now() when last started, null when stopped
-  const accumulatedMsRef = useRef(0);   // ms accumulated from previous start/stop cycles
+  const runStartedAtRef = useRef(null); // Date.now() when last started, null when stopped
+  const accumulatedMsRef = useRef(0); // ms accumulated from previous start/stop cycles
   const rafIdRef = useRef(0);
   const lastTickMsRef = useRef(0);
-  const clockRef = useRef(null);        // attach to a DOM text node
-  const elapsedMsRef = useRef(0);       // current total elapsed ms (readable by caller)
+  const clockRef = useRef(null); // attach to a DOM text node
+  const elapsedMsRef = useRef(0); // current total elapsed ms (readable by caller)
   const canClearRef = useRef(false);
 
   const updateClockDom = useCallback(() => {
