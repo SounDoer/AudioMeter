@@ -47,6 +47,10 @@ npm run desktop:release-dmg   # macOS DMG only
 npm run check          # full pre-merge check (format + lint + test + build)
 ```
 
+## Support
+
+If you find PLVS useful, consider buying me a coffee — link coming soon.
+
 ## License
 
 [MIT](LICENSE)
