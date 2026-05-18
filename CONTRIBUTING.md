@@ -30,7 +30,7 @@ npm run build
 npm run desktop:release-nsis
 ```
 
-产物：`src-tauri/target/release/bundle/nsis/` 下的安装程序，以及 `src-tauri/target/release/app.exe`（便携版依赖本机已安装 WebView2，与安装包相同）。
+产物：`src-tauri/target/release/bundle/nsis/` 下的安装程序，以及 `src-tauri/target/release/plvs.exe`（便携版依赖本机已安装 WebView2，与安装包相同）。
 
 Rust（在 `src-tauri` 目录下）：
 
