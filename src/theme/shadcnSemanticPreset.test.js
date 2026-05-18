@@ -65,7 +65,6 @@ describe("applyShadcnSemanticTokensToDocument", () => {
   });
 });
 
-
 describe("buildThemeFallbackCss", () => {
   it("emits non-oklch value unchanged in base :root block", () => {
     const css = buildThemeFallbackCss({ primary: "#22d3ee" }, "0.5rem");
