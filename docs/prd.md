@@ -1,8 +1,8 @@
-# AudioMeter — Product Requirements (PRD)
+# PLVS — Product Requirements (PRD)
 
 ## Abstract (English)
 
-AudioMeter is a **local, read-only real-time audio meter** for **sound designers and mix engineers**: **Peak**, **LUFS loudness**, **FFT spectrum (RTA-style)**, and **vectorscope/correlation**, delivered as a **Tauri desktop app** for **Windows and macOS** with **equal product intent** (implementation constraints are documented separately). The app **does not process**, **route**, or **modify** audio; it **does not** ship as a plug-in, **does not** target Linux, and **does not** pursue storefront distribution in the near term. **Loudness** is based on **ITU-R BS.1770** measurement practice with **EBU R128** production/gating usage; **spectrum** is an **FFT-based RTA aligned with common DAW practice** (per-band power integrates FFT bins using **fractional Hz overlap** between band edges and each bin’s frequency tile; vertical scale is **in-band level in the dBFS domain**—same digital full-scale reference as peak meters but a different detector definition; see `docs/architecture.md` §6), not IEC 61260 filter-bank metrology. This PRD is intentionally **dual-track**: **product intent** plus an **implementation mapping / gap** section grounded in the current repository. **English is the default UI language**; **i18n** is a future option. **Privacy**: audio stays on device; **no default telemetry**; **no silent failure** for user-visible metering health. **Legacy browser builds** are **not maintained** and **may be removed**. **Distribution today** is **GitHub Releases** without code signing / Apple notarization / in-app auto-update; **signing, notarization, and updater** are **optional future milestones**.
+PLVS is a **local, read-only real-time audio meter** for **sound designers and mix engineers**: **Peak**, **LUFS loudness**, **FFT spectrum (RTA-style)**, and **vectorscope/correlation**, delivered as a **Tauri desktop app** for **Windows and macOS** with **equal product intent** (implementation constraints are documented separately). The app **does not process**, **route**, or **modify** audio; it **does not** ship as a plug-in, **does not** target Linux, and **does not** pursue storefront distribution in the near term. **Loudness** is based on **ITU-R BS.1770** measurement practice with **EBU R128** production/gating usage; **spectrum** is an **FFT-based RTA aligned with common DAW practice** (per-band power integrates FFT bins using **fractional Hz overlap** between band edges and each bin’s frequency tile; vertical scale is **in-band level in the dBFS domain**—same digital full-scale reference as peak meters but a different detector definition; see `docs/architecture.md` §6), not IEC 61260 filter-bank metrology. This PRD is intentionally **dual-track**: **product intent** plus an **implementation mapping / gap** section grounded in the current repository. **English is the default UI language**; **i18n** is a future option. **Privacy**: audio stays on device; **no default telemetry**; **no silent failure** for user-visible metering health. **Legacy browser builds** are **not maintained** and **may be removed**. **Distribution today** is **GitHub Releases** without code signing / Apple notarization / in-app auto-update; **signing, notarization, and updater** are **optional future milestones**.
 
 ---
 
@@ -48,7 +48,7 @@ AudioMeter is a **local, read-only real-time audio meter** for **sound designers
 - **形态**：**独立应用**；**不做** VST/AU/AAX 等插件形态。  
 - **平台**：**Windows 与 macOS 平等叙事**；OS 差异与最低版本写入下半对照表。  
 - **信号源**：**统一信号源下拉（A）** —— 同一选择器覆盖 **系统输出（loopback / tap）** 与 **物理输入**；包含 **Automatic / 默认输出**语义（用户选的是 **信号**，不是底层 API 名）。  
-- **表头**：**Peak / Loudness / Spectrum / Vectorscope** 同屏；默认 **英文 UI**；**主题**默认 **跟随系统**，保留 **Light/Dark**，未来可扩展更多主题样式。  
+- **表头**：**Peak / Loudness / Spectrum / Spectrogram / Vectorscope** 同屏；默认 **英文 UI**；**主题**默认 **跟随系统**，保留 **Light/Dark**，未来可扩展更多主题样式。  
 - **浮窗**：**进阶能力（B）** —— 优先保证 **主界面四表 + 基础体验**；浮窗在 **不拖累主路径**前提下持续完善。  
 - **隐私**：音频与计量数据 **默认不外传**；**默认无遥测**；未来若增加导出/诊断，必须 **明示、可选、可本地化**。  
 - **伦理底线**：**不得静默失败**（见 5.4）；并避免用户误以为已退出却仍在采集（与 5.7 一致）。  
@@ -230,24 +230,6 @@ AudioMeter is a **local, read-only real-time audio meter** for **sound designers
 - **系统托盘极简模式**：不作为 v1 承诺（见 5.7）。  
 - **无障碍增强**：非短期主线（见 5.11）。  
 - **一键诊断导出**：非承诺项（见 5.9）。  
-
----
-
-## 附录 B — Grill 决策追溯（2026-05）
-
-本条仅用于追溯 **本 PRD 产品意志** 的来源，不等于开发工单；执行仍以 issue 为准。
-
-- 双轨 PRD；主画像 **声音设计/混音**；四表同等重要，资源紧时偏 **Loudness/Spectrum**。  
-- 平台 **平等叙事**；分发 **诚实 + 可选未来签名/公证/更新**。  
-- 浮窗 **B**；非目标列表 **全保留**；免责声明与 FFT-RTA 边界 **采纳**。  
-- **Streaming reference**：同一引擎上叠加参考（Reference profiles 叙事）。  
-- **Spectrum**：先 **固定口径**；**多声道**走 **总能量曲线**。  
-- **L1 + Stereo/5.1 + Z/Y + 高级手动 C + 固定里程碑顺序**。  
-- **隐私、Local、无默认遥测**；**Legacy 不维护可删**；**英文 UI + 英文 Abstract + 中文正文**。  
-- **主题跟随系统 + Light/Dark + 未来主题**；**i18n 未来**；**无障碍近期非主线**（原文句意含混处按此落地）。  
-- **永不自动 START**；**持久化清单**、不做通用偏好框架。  
-- **会话级历史**；导出若存在亦会话边界。  
-- **多实例不专项保证**；快捷键不强制；托盘 v1 不做；过载状态栏提示；诊断 **B**；许可 **A**。
 
 ---
 
