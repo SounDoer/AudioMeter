@@ -90,6 +90,7 @@ describe("THEME_IDS", () => {
     expect(THEME_IDS).toContain("plvs-light");
     expect(THEME_IDS).toContain("plvs-phosphor");
     expect(THEME_IDS).toContain("plvs-tungsten");
+    expect(THEME_IDS).toContain("plvs-abyss");
     expect(THEME_IDS).not.toContain("audiometer-dark");
     expect(THEME_IDS).not.toContain("audiometer-light");
     expect(THEME_IDS).not.toContain("audiometer-ember");

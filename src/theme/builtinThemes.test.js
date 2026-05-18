@@ -7,6 +7,27 @@ describe("BUILTIN_THEMES", () => {
     expect(THEME_IDS).toContain("plvs-light");
     expect(THEME_IDS).toContain("plvs-phosphor");
     expect(THEME_IDS).toContain("plvs-tungsten");
+    expect(THEME_IDS).toContain("plvs-abyss");
+  });
+
+  it("plvs-abyss has colorScheme dark", () => {
+    expect(BUILTIN_THEMES["plvs-abyss"].colorScheme).toBe("dark");
+  });
+
+  it("plvs-abyss meterColorOverrides sets coral as toggle label", () => {
+    const ov = BUILTIN_THEMES["plvs-abyss"].meterColorOverrides;
+    expect(ov).toBeDefined();
+    expect(ov.metricToggleOnLabel).toBe("#ff5040");
+  });
+
+  it("plvs-abyss meterColorOverrides uses cyan-tinted row backgrounds", () => {
+    const ov = BUILTIN_THEMES["plvs-abyss"].meterColorOverrides;
+    expect(ov.metricRowBg).toMatch(/rgba\(0,195,210/);
+  });
+
+  it("getBuiltinTheme returns plvs-abyss correctly", () => {
+    expect(getBuiltinTheme("plvs-abyss").id).toBe("plvs-abyss");
+    expect(getBuiltinTheme("plvs-abyss").label).toBe("Abyss");
   });
 
   it("plvs-phosphor has colorScheme dark", () => {

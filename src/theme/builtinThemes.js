@@ -1,9 +1,10 @@
 /**
  * Builtin colour themes.
- * @typedef {"plvs-dark" | "plvs-light" | "plvs-phosphor" | "plvs-tungsten"} ThemeId
+ * @typedef {"plvs-dark" | "plvs-light" | "plvs-phosphor" | "plvs-tungsten" | "plvs-abyss"} ThemeId
  */
 
 import {
+  PLVS_SEMANTIC_ABYSS,
   PLVS_SEMANTIC_DARK,
   PLVS_SEMANTIC_LIGHT,
   PLVS_SEMANTIC_PHOSPHOR,
@@ -167,6 +168,59 @@ const METER_COLOR_OVERRIDES_PHOSPHOR = {
   loudnessTargetLine: "rgba(44,255,101,0.35)",
 };
 
+const CHARTS_PLVS_ABYSS = {
+  loudnessHistory: {
+    momentaryStroke: "#ff5040",
+    momentaryStrokeSnap: "#28c4cc",
+    momentaryStrokeWidth: 1.6,
+    shortTermStroke: "#cc3828",
+    shortTermStrokeSnap: "#1a9098",
+    shortTermStrokeWidth: 1.2,
+    shortTermOpacity: 0.7,
+    selectionStroke: "#28c4cc",
+    selectionStrokeWidth: 1.2,
+    historyGridLineColor: "color-mix(in srgb, var(--border) 15%, transparent)",
+  },
+  vectorscope: {
+    strokeLive: "#ff5040",
+    strokeSnap: "#28c4cc",
+    strokeWidth: 1,
+    axisOpacity: 0.6,
+    gridDiagInsetPct: 1.2,
+    plotRadius: 240,
+    gridDiagStroke: "color-mix(in srgb, var(--border) 80%, transparent)",
+    gridDiagDash: "2.6 3.4",
+  },
+  spectrum: {
+    strokeLive: "#ff5040",
+    strokeSnap: "#28c4cc",
+    strokeWidth: 1.5,
+    fillOpacityTop: 0.18,
+    fillOpacityBottom: 0.02,
+  },
+};
+
+const METER_GRADIENT_ABYSS = {
+  top: "#ff1800",
+  mid: "#ff5040",
+  midStopPercent: 46,
+  bottom: "#28c4cc",
+};
+
+const METER_COLOR_OVERRIDES_ABYSS = {
+  peakSamplePeak: "#ff5040",
+  peakTruePeak: "#ff1800",
+  tpMaxText: "#ff1800",
+  correlation: { bad: "#ff1800", mid: "#166872", good: "#28c4cc" },
+  metricRowBg: "rgba(0,195,210,0.03)",
+  metricRowHoverBg: "rgba(0,195,210,0.07)",
+  metricRowToggleOnBorder: "rgba(255,80,64,0.28)",
+  metricRowToggleOnBg: "rgba(255,80,64,0.08)",
+  metricRowToggleOnGlow: "rgba(255,80,64,0.18)",
+  metricToggleOnLabel: "#ff5040",
+  loudnessTargetLine: "rgba(255,80,64,0.35)",
+};
+
 const CHARTS_PLVS_TUNGSTEN = {
   loudnessHistory: {
     momentaryStroke: "#ffaa00",
@@ -256,11 +310,26 @@ export const BUILTIN_THEMES = {
     colorScheme: "dark",
     meterColorOverrides: METER_COLOR_OVERRIDES_TUNGSTEN,
   },
+  "plvs-abyss": {
+    id: "plvs-abyss",
+    label: "Abyss",
+    semantic: PLVS_SEMANTIC_ABYSS,
+    charts: CHARTS_PLVS_ABYSS,
+    meterGradient: METER_GRADIENT_ABYSS,
+    colorScheme: "dark",
+    meterColorOverrides: METER_COLOR_OVERRIDES_ABYSS,
+  },
 };
 
 /** @type {readonly ThemeId[]} */
 export const THEME_IDS = Object.freeze(
-  /** @type {ThemeId[]} */ (["plvs-dark", "plvs-light", "plvs-phosphor", "plvs-tungsten"])
+  /** @type {ThemeId[]} */ ([
+    "plvs-dark",
+    "plvs-light",
+    "plvs-phosphor",
+    "plvs-tungsten",
+    "plvs-abyss",
+  ])
 );
 
 /**

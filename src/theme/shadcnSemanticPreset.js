@@ -83,6 +83,34 @@ export const AUDIOMETER_SEMANTIC_DARK = {
   ring: "#22d3ee",
 };
 
+/** PLVS Abyss — bioluminescent cyan × volcanic coral on deep ocean black. */
+export const PLVS_SEMANTIC_ABYSS = {
+  background: "#020c11",
+  foreground: "#28c4cc",
+  card: "#051b27",
+  cardForeground: "#28c4cc",
+  popover: "#051b27",
+  popoverForeground: "#28c4cc",
+  primary: "#ff5040",
+  primaryForeground: "#020c11",
+  secondary: "#072330",
+  secondaryForeground: "#28c4cc",
+  muted: "#072330",
+  mutedForeground: "#166872",
+  accent: "#072330",
+  accentForeground: "#28c4cc",
+  destructive: "#ff1800",
+  destructiveForeground: "#28c4cc",
+  border: "rgba(0,195,210,0.08)",
+  input: "rgba(0,195,210,0.14)",
+  ring: "#ff5040",
+  chart1: "#ff5040",
+  chart2: "#28c4cc",
+  chart3: "#0d5060",
+  chart4: "#ff7860",
+  chart5: "#166872",
+};
+
 /** PLVS Tungsten — incandescent amber on warm near-black. */
 export const PLVS_SEMANTIC_TUNGSTEN = {
   background: "#0c0700",
