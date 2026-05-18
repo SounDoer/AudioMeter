@@ -8,7 +8,7 @@ const STORE_FILE = "audiometer-settings.json";
 const STORE_KEY = "captureDeviceId";
 
 /** Legacy key (pre–plugin-store); still read once for migration. */
-export const LEGACY_CAPTURE_DEVICE_LS_KEY = "audiometer.captureDeviceId";
+export const LEGACY_CAPTURE_DEVICE_LS_KEY = "plvs.captureDeviceId";
 
 function validateId(raw) {
   if (raw === "default") return "default";

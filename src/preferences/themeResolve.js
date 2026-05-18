@@ -42,7 +42,7 @@ export function readPersistedShellThemeFields(prefs) {
   if (typeof localStorage === "undefined") {
     return { appearance: "system", themeId: null };
   }
-  const key = prefs?.layoutPersistKey ?? "audiometer.ui";
+  const key = prefs?.layoutPersistKey ?? "plvs.ui";
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return { appearance: "system", themeId: null };

@@ -1,6 +1,6 @@
 {
-  "name": "audiometer-modern-ui",
-  "description": "Browser-based real-time audio meter — loudness (LUFS), peak, spectrum, and vectorscope",
+  "name": "plvs",
+  "description": "PLVS — real-time audio metering desktop app (Peak / Loudness / Vectorscope / Spectrum)",
   "private": true,
   "version": "0.0.15",
   "type": "module",

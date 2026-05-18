@@ -5,7 +5,7 @@
  */
 
 export const UI_PREFERENCES = {
-  layoutPersistKey: "audiometer.ui",
+  layoutPersistKey: "plvs.ui",
 
   layout: {
     shell: {

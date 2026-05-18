@@ -1,10 +1,10 @@
 [package]
-name = "app"
+name = "plvs"
 version = "0.0.15"
-description = "AudioMeter — real-time audio metering (Tauri desktop shell)"
+description = "PLVS — real-time audio metering (Tauri desktop shell)"
 authors = ["SounDoer"]
 license = "MIT"
-repository = "https://github.com/SounDoer/AudioMeter"
+repository = "https://github.com/SounDoer/PLVS"
 edition = "2021"
 rust-version = "1.77.2"
 

@@ -1,6 +1,6 @@
 /** @import { TreeNode, ModuleId, WorkspaceState, Preset } from './types.js' */
 
-export const WORKSPACE_STORAGE_KEY = "audiometer:workspace:v2";
+export const WORKSPACE_STORAGE_KEY = "plvs:workspace:v2";
 
 /** @type {ModuleId[]} */
 export const ALL_MODULE_IDS = [
