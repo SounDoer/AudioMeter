@@ -74,7 +74,7 @@ export function applyLayoutToDocument(prefs = UI_PREFERENCES, ctx = { colorSchem
   setCssVar("--ui-w-spectrum-y-axis", `${widthsPx.spectrumYAxis}px`);
   setCssVar("--ui-w-peak-ticks", `${widthsPx.peakTickCol}px`);
 
-  setCssVar("--ui-panel-gap", `${splitters.sectionGapPx}px`);
+  setCssVar("--ui-panel-gap", `${splitters.sectionGapRem}rem`);
   setCssVar("--ui-loudness-gap", `${splitters.loudnessGapPx}px`);
   setCssVar("--ui-splitter-bar-thickness", `${splitters.barThicknessPx}px`);
 

@@ -14,7 +14,7 @@ export const UI_PREFERENCES = {
       gapRem: { base: 0.55, lg: 0.6 },
     },
     splitters: {
-      sectionGapPx: 8,
+      sectionGapRem: 0.55,
       barThicknessPx: 1,
       loudnessGapPx: 8,
     },
