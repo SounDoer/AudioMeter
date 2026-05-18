@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { useAudioData } from "../../workspace/AudioDataContext.jsx";
 import { cn } from "@/lib/utils";
 import {
@@ -9,23 +9,9 @@ import {
 } from "@/lib/shellLayout";
 import { FREQ_LABELS, freqToXFrac } from "../../config/scales";
 import { useSpectrogramCanvas } from "../../hooks/useSpectrogramCanvas";
+import { useCanvasSize } from "../../hooks/useCanvasSize";
 import { buildHistoryTimeAxisLabels, HISTORY_TIME_TICK_STEPS } from "../../math/historyMath";
 import { HIST_SAMPLE_SEC } from "../../hooks/useLoudnessHistory";
-
-function useCanvasSize(canvasRef, containerRef) {
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const ro = new ResizeObserver(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-    });
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, [canvasRef, containerRef]);
-}
 
 export function SpectrogramPanel({ compact = false }) {
   const {

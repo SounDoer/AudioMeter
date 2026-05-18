@@ -171,7 +171,7 @@ export function useSpectrogramCanvas({
         const normFromRight = Math.max(0, Math.min(1, fromRight / Math.max(1, count - 1)));
         const cx = Math.round((1 - normFromRight) * W);
         ctx.strokeStyle = "rgba(255,255,255,0.85)";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = window.devicePixelRatio || 1;
         ctx.beginPath();
         ctx.moveTo(cx, 0);
         ctx.lineTo(cx, H);
