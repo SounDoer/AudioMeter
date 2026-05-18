@@ -49,6 +49,19 @@ export function getHistoryViewport(totalSamples, historyWindowSec, historyOffset
   };
 }
 
+/**
+ * Merges a target LUFS value into the base tick list, sorts descending, and returns the result.
+ * @param {number} targetLufs
+ * @param {{ v: number, lb: string }[]} baseTicks
+ * @returns {{ v: number, lb: string }[]}
+ */
+export function buildLoudnessYAxisTicks(targetLufs, baseTicks) {
+  const out = [...baseTicks];
+  if (!out.some((t) => t.v === targetLufs)) out.push({ v: targetLufs, lb: String(targetLufs) });
+  out.sort((a, b) => b.v - a.v);
+  return out;
+}
+
 export function buildHistoryPath(
   histSourceList,
   key,

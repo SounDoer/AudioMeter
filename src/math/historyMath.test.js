@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getHistoryViewport,
   buildHistoryPath,
+  buildLoudnessYAxisTicks,
   HISTORY_MIN_WINDOW_SEC,
   HISTORY_MAX_WINDOW_SEC,
   HISTORY_TIME_TICK_STEPS,
@@ -73,5 +74,38 @@ describe("buildHistoryPath", () => {
     const list = [{ m: 0 }, { m: 0 }, { m: 0 }];
     const path = buildHistoryPath(list, "m", 10, 0, () => 42);
     expect(path).toContain("42");
+  });
+});
+
+describe("buildLoudnessYAxisTicks", () => {
+  const base = [
+    { v: -10, lb: "-10" },
+    { v: -23, lb: "-23" },
+    { v: -40, lb: "-40" },
+  ];
+
+  it("does not duplicate a target already in the base list", () => {
+    const result = buildLoudnessYAxisTicks(-23, base);
+    const count = result.filter((t) => t.v === -23).length;
+    expect(count).toBe(1);
+  });
+
+  it("inserts the target when not present", () => {
+    const result = buildLoudnessYAxisTicks(-18, base);
+    expect(result.some((t) => t.v === -18)).toBe(true);
+    expect(result.length).toBe(base.length + 1);
+  });
+
+  it("returns ticks sorted descending by v", () => {
+    const result = buildLoudnessYAxisTicks(-18, base);
+    for (let i = 0; i < result.length - 1; i++) {
+      expect(result[i].v).toBeGreaterThan(result[i + 1].v);
+    }
+  });
+
+  it("does not mutate the base array", () => {
+    const original = [...base];
+    buildLoudnessYAxisTicks(-18, base);
+    expect(base).toEqual(original);
   });
 });

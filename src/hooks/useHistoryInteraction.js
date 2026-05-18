@@ -1,4 +1,9 @@
 import { useCallback, useRef } from "react";
+import {
+  computeSelectionOffset,
+  computePanOffset,
+  computeWheelZoom,
+} from "../math/historyInteractionMath";
 
 export function useHistoryInteraction({
   /** When false, history pointer/wheel handlers and HUD helpers from this hook are no-ops (App: `historyChartInteractive`). */
@@ -41,11 +46,9 @@ export function useHistoryInteraction({
 
   const updateSelectionFromClientX = useCallback(
     (clientX, rect) => {
-      const width = Math.max(1, rect.width);
-      const x = Math.max(0, Math.min(width, clientX - rect.left));
-      const normalized = 1 - x / width;
-      const fromEndSamples = effectiveOffsetSamples + normalized * Math.max(0, visibleSamples - 1);
-      setSelectedOffset(Math.round(fromEndSamples) * sampleSec);
+      setSelectedOffset(
+        computeSelectionOffset(clientX, rect, effectiveOffsetSamples, visibleSamples, sampleSec)
+      );
     },
     [effectiveOffsetSamples, visibleSamples, setSelectedOffset, sampleSec]
   );
@@ -108,10 +111,13 @@ export function useHistoryInteraction({
         return;
       }
       const dx = ev.clientX - panStartRef.current.x;
-      const secPerPx = (visibleSamples * sampleSec) / Math.max(1, rect.width);
-      const next = Math.max(
-        0,
-        Math.min(maxOffsetSamples * sampleSec, panStartRef.current.offset + dx * secPerPx)
+      const next = computePanOffset(
+        panStartRef.current.offset,
+        dx,
+        visibleSamples,
+        sampleSec,
+        rect.width,
+        maxOffsetSamples * sampleSec
       );
       setHistoryOffsetSec(next);
       showHistoryHud(1600);
@@ -152,23 +158,18 @@ export function useHistoryInteraction({
       const width = Math.max(1, rect.width);
       const x = Math.max(0, Math.min(width, ev.clientX - rect.left));
       const norm = 1 - x / width;
-      const anchorFromEndSamples = effectiveOffsetSamples + norm * Math.max(0, visibleSamples - 1);
-      const baselineSec = Math.max(sampleSec, visibleSamples * sampleSec);
-      const next = Math.max(minWindowSec, Math.min(maxWindowSec, baselineSec * factor));
-      const nextVisibleSamples = Math.max(
-        1,
-        Math.min(Math.max(1, totalSamples), Math.round(next / sampleSec))
-      );
-      const nextMaxOffsetSamples = Math.max(0, totalSamples - nextVisibleSamples);
-      const nextOffsetSamples = Math.max(
-        0,
-        Math.min(
-          nextMaxOffsetSamples,
-          Math.round(anchorFromEndSamples - norm * Math.max(0, nextVisibleSamples - 1))
-        )
-      );
-      setHistoryWindowSec(next);
-      setHistoryOffsetSec(nextOffsetSamples * sampleSec);
+      const { nextWindowSec, nextOffsetSec } = computeWheelZoom({
+        factor,
+        norm,
+        effectiveOffsetSamples,
+        visibleSamples,
+        sampleSec,
+        minWindowSec,
+        maxWindowSec,
+        totalSamples,
+      });
+      setHistoryWindowSec(nextWindowSec);
+      setHistoryOffsetSec(nextOffsetSec);
     },
     [
       enabled,
