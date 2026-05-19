@@ -98,8 +98,6 @@ export function applyLayoutToDocument(prefs = UI_PREFERENCES, ctx = { colorSchem
   setCssVar("--ui-chart-axis-gap", `${spacingRem.axisGapX}rem`);
   setCssVar("--ui-header-action-gap", `${spacingRem.headerActionGap}rem`);
   setCssVar("--ui-metric-inline-gap", `${spacingRem.inlineValueGap}rem`);
-  setCssVar("--ui-tp-info-left-blank", `${spacingRem.tpInfoLeftBlank}rem`);
-  setCssVar("--ui-corr-info-left-blank", `${spacingRem.corrInfoLeftBlank}rem`);
   setCssVar("--ui-peak-axis-chart-gap", `${spacingRem.peakAxisChartGap}rem`);
   setCssVar("--ui-peak-channel-gap", `${spacingRem.peakChannelGap}rem`);
   setCssVar("--ui-chart-inset-top", `${spacingRem.spectrumDisplayTopInset}rem`);
