@@ -6,7 +6,7 @@ import { VectorscopePanel } from "../components/panels/VectorscopePanel";
 import { SpectrumPanel } from "../components/panels/SpectrumPanel";
 import { SpectrogramPanel } from "../components/panels/SpectrogramPanel";
 
-/** @type {Record<import('./types.js').ModuleId, { id: string, title: string, minWidth: number, minHeight: number, Component: React.FC<{compact:boolean}>, Icon: React.FC }>} */
+/** @type {Record<import('./types.js').ModuleId, { id: string, title: string, minWidth: number, minHeight: number, Component: React.FC<{compact?: boolean}>, Icon: React.FC }>} */
 export const MODULE_REGISTRY = {
   peak: {
     id: "peak",

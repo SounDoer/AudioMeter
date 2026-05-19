@@ -183,7 +183,7 @@ export function LeafView({ node, path, style }) {
 
       {/* Panel body */}
       <div data-leaf-body className="flex min-h-0 flex-1 overflow-hidden">
-        {ActiveComponent && <ActiveComponent compact={false} />}
+        {ActiveComponent && <ActiveComponent />}
       </div>
     </div>
   );
