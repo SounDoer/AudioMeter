@@ -45,8 +45,8 @@ function SplitDivider({ parentPath, aboveIdx, direction, aboveNode, belowNode })
     if (!aboveEl || !belowEl) return;
 
     const containerEl = ref.current.parentElement;
-    const startAbovePx = isH ? aboveEl.clientWidth : aboveEl.clientHeight;
-    const startBelowPx = isH ? belowEl.clientWidth : belowEl.clientHeight;
+    const startAbovePx = isH ? aboveEl.offsetWidth : aboveEl.offsetHeight;
+    const startBelowPx = isH ? belowEl.offsetWidth : belowEl.offsetHeight;
     const containerPx = isH ? containerEl.clientWidth : containerEl.clientHeight;
     if (containerPx === 0) return;
     const startPos = isH ? e.clientX : e.clientY;
