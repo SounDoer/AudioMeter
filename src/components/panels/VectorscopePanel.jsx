@@ -120,19 +120,19 @@ export function VectorscopePanel() {
             {axisYLabel}
           </span>
         </div>
-        <div className="@max-[220px]:hidden mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-center text-[length:var(--ui-fs-display)]">
-          <div className="flex items-baseline gap-[var(--ui-metric-inline-gap)]">
-            <span className="text-muted-foreground">CORRELATION</span>
-            <span
-              className={
-                Number.isFinite(correlation)
-                  ? "font-[family-name:var(--ui-font-mono)] tabular-nums font-semibold text-[color:var(--ui-signal-tp-max)]"
-                  : "font-[family-name:var(--ui-font-mono)] tabular-nums font-semibold text-muted-foreground"
-              }
-            >
-              {Number.isFinite(correlation) ? correlation.toFixed(2) : "-"}
-            </span>
-          </div>
+      </div>
+      <div className="@max-[220px]:hidden mt-[var(--ui-panel-footer-gap)] flex shrink-0 items-baseline justify-center text-[length:var(--ui-fs-display)]">
+        <div className="flex items-baseline gap-[var(--ui-metric-inline-gap)]">
+          <span className="text-muted-foreground">CORRELATION</span>
+          <span
+            className={
+              Number.isFinite(correlation)
+                ? "font-[family-name:var(--ui-font-mono)] tabular-nums font-semibold text-[color:var(--ui-signal-tp-max)]"
+                : "font-[family-name:var(--ui-font-mono)] tabular-nums font-semibold text-muted-foreground"
+            }
+          >
+            {Number.isFinite(correlation) ? correlation.toFixed(2) : "-"}
+          </span>
         </div>
       </div>
     </div>
