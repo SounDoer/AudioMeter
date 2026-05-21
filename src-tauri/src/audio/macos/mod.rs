@@ -44,9 +44,7 @@ unsafe extern "C" {
 fn uid_for_output_name(label: &str) -> Option<String> {
   let cname = CString::new(label).ok()?;
   let mut buf = vec![0u8; 512];
-  let st = unsafe {
-    macos_uid_for_output_name(cname.as_ptr(), buf.as_mut_ptr().cast(), buf.len())
-  };
+  let st = unsafe { macos_uid_for_output_name(cname.as_ptr(), buf.as_mut_ptr().cast(), buf.len()) };
   if st != 0 {
     return None;
   }
