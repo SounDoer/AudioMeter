@@ -17,6 +17,7 @@ export function useAudioDevices() {
     readCaptureDeviceIdFromLocalStorage()
   );
   const [defaultOutputFormatSig, setDefaultOutputFormatSig] = useState("");
+  const [defaultOutputLabel, setDefaultOutputLabel] = useState("");
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -26,6 +27,9 @@ export function useAudioDevices() {
         if (cancelled || !p || !Number.isFinite(p.channels) || !Number.isFinite(p.sampleRateHz))
           return;
         setDefaultOutputFormatSig(`${p.channels}:${p.sampleRateHz}`);
+        if (typeof p.label === "string" && p.label.length > 0) {
+          setDefaultOutputLabel(p.label);
+        }
       },
       () => {}
     );
@@ -109,5 +113,6 @@ export function useAudioDevices() {
     setCaptureDeviceId,
     setCaptureDeviceIdAndPersist,
     defaultOutputFormatSig,
+    defaultOutputLabel,
   };
 }

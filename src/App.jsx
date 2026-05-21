@@ -53,8 +53,13 @@ export default function App() {
     setReferenceProfileId,
   } = useSettings();
 
-  const { audioDevices, captureDeviceId, setCaptureDeviceIdAndPersist, defaultOutputFormatSig } =
-    useAudioDevices();
+  const {
+    audioDevices,
+    captureDeviceId,
+    setCaptureDeviceIdAndPersist,
+    defaultOutputFormatSig,
+    defaultOutputLabel,
+  } = useAudioDevices();
 
   const { clockRef, canClearRef, startTimer, stopTimer, resetTimer } = useSessionTimer();
   const [showClock, setShowClock] = useState(false);
@@ -221,10 +226,10 @@ export default function App() {
   const deviceName = useMemo(() => {
     if (!isTauri()) return null;
     if (captureDeviceId === "default") {
-      return audioDevices.find((d) => d.isSystemOutputMonitor)?.label ?? "Default";
+      return defaultOutputLabel || audioDevices.find((d) => d.isSystemOutputMonitor)?.label || null;
     }
     return audioDevices.find((d) => d.id === captureDeviceId)?.label ?? null;
-  }, [captureDeviceId, audioDevices]);
+  }, [captureDeviceId, audioDevices, defaultOutputLabel]);
 
   useEffect(() => {
     if (!running) return;
