@@ -655,7 +655,7 @@ export default function App() {
               </span>
               <span
                 className={cn(
-                  "tabular-nums",
+                  "min-w-0 truncate tabular-nums",
                   deviceName ? "text-foreground" : "text-muted-foreground"
                 )}
               >
@@ -665,7 +665,9 @@ export default function App() {
               <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">
                 Ref
               </span>
-              <span className="tabular-nums text-foreground">{referenceProfile.label}</span>
+              <span className="min-w-0 truncate tabular-nums text-foreground">
+                {referenceProfile.label}
+              </span>
             </footer>
           </div>
 

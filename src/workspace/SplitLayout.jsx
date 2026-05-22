@@ -120,6 +120,12 @@ function SplitView({ node, path, style }) {
     .map((child, i) => (isNodeEmpty(child, visibleModules) ? null : i))
     .filter((i) => i !== null);
 
+  // When all visible children have fixed sizes (no null), normalize so they fill the container.
+  const visibleSizes = visibleChildIndices.map((i) => node.sizes[i]);
+  const hasNullSize = visibleSizes.some((s) => s === null);
+  const fixedTotal = hasNullSize ? 1 : visibleSizes.reduce((sum, s) => sum + (s ?? 0), 0);
+  const normFactor = !hasNullSize && fixedTotal > 0 ? 1 / fixedTotal : 1;
+
   return (
     <div style={style} className={cn("flex min-h-0 min-w-0", isH ? "flex-row" : "flex-col")}>
       {visibleChildIndices.map((childIdx, renderIdx) => {
@@ -127,7 +133,7 @@ function SplitView({ node, path, style }) {
         const size = node.sizes[childIdx];
         const childStyle =
           size !== null
-            ? { flex: `0 0 ${size * 100}%`, minWidth: 0, minHeight: 0 }
+            ? { flex: `0 0 ${size * normFactor * 100}%`, minWidth: 0, minHeight: 0 }
             : { flex: "1 1 0", minWidth: 0, minHeight: 0 };
 
         const aboveChildIdx = renderIdx > 0 ? visibleChildIndices[renderIdx - 1] : -1;
