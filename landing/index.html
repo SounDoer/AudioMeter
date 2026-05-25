@@ -57,8 +57,8 @@
 
     /* ── HERO ── */
     .hero {
-      padding: 88px 0 72px;
-      border-bottom: 1px solid var(--border);
+      padding: 52px 0 36px;
+      border-bottom: none;
     }
 
     .hero > * {
@@ -106,35 +106,103 @@
       font-size: 13px;
       color: var(--primary);
       letter-spacing: 0.06em;
-      margin-bottom: 40px;
+      margin-bottom: 20px;
     }
     .hero-modules .sep {
       color: rgba(251, 146, 60, 0.28);
       margin: 0 8px;
     }
 
+    /* ── PLATFORM CARDS ── */
     .hero-btns {
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
 
-    .btn-group {
+    .platform-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 14px;
+    }
+
+    .platform-card.active {
+      border-color: rgba(251, 146, 60, 0.2);
+      background: rgba(251, 146, 60, 0.025);
+    }
+
+    .platform-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .platform-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--foreground);
+      letter-spacing: 0.01em;
+    }
+
+    .platform-os-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: rgba(158, 148, 136, 0.4);
+    }
+
+    .platform-card.active .platform-os-tag {
+      color: rgba(251, 146, 60, 0.5);
+    }
+
+    .platform-specs {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .spec-row:first-child { padding-top: 0; }
+    .spec-row:last-child  { border-bottom: none; padding-bottom: 0; }
+
+    .spec-key {
+      font-size: 11px;
+      color: rgba(158, 148, 136, 0.44);
+    }
+
+    .spec-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+
+    .platform-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .btn {
       font-family: var(--font-sans);
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 600;
-      padding: 11px 26px;
+      padding: 10px 22px;
       border-radius: var(--radius);
       border: none;
       cursor: pointer;
       text-decoration: none;
       display: inline-block;
+      text-align: center;
       transition: opacity 0.15s ease, transform 0.12s ease;
       white-space: nowrap;
     }
@@ -156,30 +224,78 @@
       font-size: 12px;
       color: var(--muted-foreground);
       text-decoration: none;
-      border-bottom: 1px solid rgba(158, 148, 136, 0.28);
+      transition: color 0.15s;
+    }
+    .portable-link:hover { color: var(--foreground); }
+
+    .install-warning {
+      display: flex;
+      gap: 7px;
+      align-items: flex-start;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .warn-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: rgba(251, 146, 60, 0.5);
+      background: rgba(251, 146, 60, 0.07);
+      border: 1px solid rgba(251, 146, 60, 0.14);
+      border-radius: 3px;
+      padding: 1px 5px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      line-height: 1.5;
+    }
+
+    .warn-text {
+      font-size: 11px;
+      color: rgba(158, 148, 136, 0.42);
+      line-height: 1.55;
+    }
+
+    .cmd-block {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 5px;
+      padding: 7px 10px;
+    }
+
+    .cmd-text {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--muted-foreground);
+      user-select: all;
+    }
+
+    .cmd-copy {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: rgba(158, 148, 136, 0.4);
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 3px;
+      padding: 2px 6px;
+      cursor: pointer;
+      flex-shrink: 0;
       transition: color 0.15s, border-color 0.15s;
     }
-    .portable-link:hover { color: var(--foreground); border-color: rgba(255,255,255,0.35); }
-
-    .install-note {
-      font-size: 11px;
-      color: rgba(158, 148, 136, 0.5);
-      line-height: 1.5;
-      margin-top: 6px;
-    }
-
-    .version-chip {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: rgba(251, 146, 60, 0.48);
-      letter-spacing: 0.06em;
-      align-self: center;
-    }
+    .cmd-copy:hover { color: var(--muted-foreground); border-color: rgba(255, 255, 255, 0.18); }
 
     /* ── SCREENSHOT ── */
     .screenshot-section {
-      padding: 52px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 24px 0;
+      border-bottom: none;
     }
 
     .screenshot-frame {
@@ -190,7 +306,7 @@
     }
     .screenshot-chrome {
       background: rgba(255, 255, 255, 0.025);
-      border-bottom: 1px solid var(--border);
+      border-bottom: none;
       padding: 10px 16px;
       display: flex;
       align-items: center;
@@ -230,13 +346,13 @@
       text-transform: uppercase;
       letter-spacing: 0.12em;
       color: var(--primary);
-      margin-bottom: 52px;
+      margin-bottom: 32px;
     }
 
     /* ── FEATURES ── */
     .features-section {
-      padding: 80px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 40px 0;
+      border-bottom: none;
     }
 
     .feature-row {
@@ -244,7 +360,7 @@
       grid-template-columns: 1fr 1fr;
       gap: 52px;
       align-items: center;
-      margin-bottom: 80px;
+      margin-bottom: 36px;
       opacity: 0;
       transform: translateY(24px);
       transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
@@ -297,49 +413,69 @@
       line-height: 1.75;
     }
 
-    /* ── SYSTEM REQUIREMENTS ── */
-    .sysreq-section {
-      padding: 64px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    /* ── EMAIL SUBSCRIPTION ── */
+    .subscribe-section {
+      padding: 28px 0 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
       gap: 16px;
     }
 
-    .info-card {
+    .subscribe-label {
+      font-size: 13px;
+      color: var(--muted-foreground);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .subscribe-form {
+      display: flex;
+      gap: 8px;
+    }
+
+    .subscribe-input {
+      flex: 1;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 22px;
+      padding: 9px 14px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      color: var(--foreground);
+      outline: none;
+      transition: border-color 0.15s;
     }
-    .info-card-title {
+    .subscribe-input::placeholder { color: rgba(158, 148, 136, 0.35); }
+    .subscribe-input:focus { border-color: rgba(251, 146, 60, 0.35); }
+
+    .subscribe-btn {
+      font-family: var(--font-sans);
       font-size: 13px;
       font-weight: 600;
-      color: var(--foreground);
-      margin-bottom: 14px;
-    }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      font-size: 12px;
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .info-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .info-key { color: rgba(158, 148, 136, 0.5); }
-    .info-val {
-      font-family: var(--font-mono);
-      font-size: 11px;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--card);
       color: var(--muted-foreground);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .subscribe-btn:hover { color: var(--foreground); border-color: rgba(255, 255, 255, 0.2); }
+
+    .subscribe-thanks {
+      font-size: 13px;
+      color: rgba(251, 146, 60, 0.7);
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
     }
 
     /* ── FOOTER ── */
     .footer {
-      padding: 28px 0;
+      padding: 12px 0 28px;
       display: flex;
       gap: 20px;
       align-items: center;
@@ -373,30 +509,26 @@
     <p class="hero-modules">
       Peak<span class="sep">·</span>Loudness<span class="sep">·</span>Vectorscope<span class="sep">·</span>Spectrum<span class="sep">·</span>Spectrogram
     </p>
+    <div class="screenshot-section">
+      <div class="screenshot-frame">
+        <div class="screenshot-chrome">
+          <div class="chrome-dot"></div>
+          <div class="chrome-dot"></div>
+          <div class="chrome-dot"></div>
+          <span class="chrome-title">PLVS</span>
+        </div>
+        <div class="screenshot-body">
+          <span class="screenshot-hint">App Screenshot</span>
+        </div>
+      </div>
+    </div>
     <div class="hero-btns" id="hero-btns">
       <!-- Populated by JS after GitHub API fetch -->
     </div>
   </section>
 
-  <!-- SCREENSHOT -->
-  <section class="screenshot-section">
-    <div class="screenshot-frame">
-      <div class="screenshot-chrome">
-        <div class="chrome-dot"></div>
-        <div class="chrome-dot"></div>
-        <div class="chrome-dot"></div>
-        <span class="chrome-title">PLVS</span>
-      </div>
-      <div class="screenshot-body">
-        <span class="screenshot-hint">App Screenshot</span>
-      </div>
-    </div>
-  </section>
-
   <!-- FEATURES -->
   <section class="features-section">
-    <div class="section-label">Features</div>
-
     <div class="feature-row">
       <div class="feature-visual"><span class="feature-visual-hint">Image</span></div>
       <div class="feature-text">
@@ -434,24 +566,14 @@
     </div>
   </section>
 
-  <!-- SYSTEM REQUIREMENTS -->
-  <section class="sysreq-section">
-    <div class="section-label">System Requirements</div>
-    <div class="two-col">
-      <div class="info-card">
-        <div class="info-card-title">Windows</div>
-        <div class="info-row"><span class="info-key">OS</span><span class="info-val">Windows 10 / 11</span></div>
-        <div class="info-row"><span class="info-key">Installer</span><span class="info-val">NSIS .exe</span></div>
-        <div class="info-row"><span class="info-key">System audio</span><span class="info-val">WASAPI loopback</span></div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">macOS</div>
-        <div class="info-row"><span class="info-key">Architecture</span><span class="info-val">Apple Silicon</span></div>
-        <div class="info-row"><span class="info-key">Installer</span><span class="info-val">DMG (aarch64)</span></div>
-        <div class="info-row"><span class="info-key">System audio</span><span class="info-val">macOS 14.2+</span></div>
-      </div>
-    </div>
-  </section>
+  <!-- EMAIL SUBSCRIPTION -->
+  <div class="subscribe-section">
+    <span class="subscribe-label">Get notified of new releases</span>
+    <form class="subscribe-form" id="subscribe-form">
+      <input class="subscribe-input" type="email" placeholder="your@email.com" required>
+      <button class="subscribe-btn" type="submit">Notify me</button>
+    </form>
+  </div>
 
   <!-- FOOTER -->
   <footer class="footer">
@@ -489,27 +611,62 @@
   function renderButtons(version, urls) {
     const isMac = /Mac/.test(navigator.platform) || /Mac/.test(navigator.userAgent);
 
-    const winGroup = `
-      <div class="btn-group">
-        <a class="btn ${isMac ? 'btn-secondary' : 'btn-primary'}" href="${urls.winInstall || '#'}">Windows Installer</a>
-        <a class="portable-link" href="${urls.winPortable || '#'}">Portable version</a>
-        <span class="install-note">If SmartScreen blocks the installer — More info → Run anyway</span>
+    const winCard = `
+      <div class="platform-card${!isMac ? ' active' : ''}">
+        <div class="platform-header">
+          <span class="platform-name">Windows</span>
+          <span class="platform-os-tag">10 / 11</span>
+        </div>
+        <div class="platform-actions">
+          <a class="btn ${!isMac ? 'btn-primary' : 'btn-secondary'}" href="${urls.winInstall || '#'}">Download Installer</a>
+          <a class="portable-link" href="${urls.winPortable || '#'}">Portable version</a>
+        </div>
+        <div class="install-warning">
+          <span class="warn-badge">!</span>
+          <span class="warn-text">If SmartScreen blocks — More info → Run anyway</span>
+        </div>
+        <div class="platform-specs">
+          <div class="spec-row"><span class="spec-key">Installer</span><span class="spec-val">NSIS .exe</span></div>
+          <div class="spec-row"><span class="spec-key">System audio</span><span class="spec-val">WASAPI loopback</span></div>
+        </div>
       </div>`;
 
-    const macGroup = `
-      <div class="btn-group">
-        <a class="btn ${isMac ? 'btn-primary' : 'btn-secondary'}" href="${urls.mac || '#'}">macOS Apple Silicon</a>
-        <span class="install-note">First launch: if macOS blocks the app, run&nbsp;<code style="font-family:var(--font-mono);font-size:10px">xattr -cr /Applications/PLVS.app</code></span>
+    const macCard = `
+      <div class="platform-card${isMac ? ' active' : ''}">
+        <div class="platform-header">
+          <span class="platform-name">macOS</span>
+          <span class="platform-os-tag">Apple Silicon</span>
+        </div>
+        <div class="platform-actions">
+          <a class="btn ${isMac ? 'btn-primary' : 'btn-secondary'}" href="${urls.mac || '#'}">Download for macOS</a>
+        </div>
+        <div class="install-warning">
+          <span class="warn-badge">!</span>
+          <span class="warn-text">First launch: if macOS blocks the app —
+            <div class="cmd-block">
+              <span class="cmd-text">xattr -cr /Applications/PLVS.app</span>
+              <button class="cmd-copy" onclick="navigator.clipboard.writeText('xattr -cr /Applications/PLVS.app').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='copy',1500)})">copy</button>
+            </div>
+          </span>
+        </div>
+        <div class="platform-specs">
+          <div class="spec-row"><span class="spec-key">Installer</span><span class="spec-val">DMG (aarch64)</span></div>
+          <div class="spec-row"><span class="spec-key">System audio</span><span class="spec-val">macOS 14.2+</span></div>
+        </div>
       </div>`;
-
-    const chip = `<span class="version-chip">${version}</span>`;
 
     document.getElementById('hero-btns').innerHTML = isMac
-      ? macGroup + winGroup + chip
-      : winGroup + macGroup + chip;
+      ? macCard + winCard
+      : winCard + macCard;
   }
 
   loadRelease();
+
+  // ── Email subscription ──
+  document.getElementById('subscribe-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    this.innerHTML = '<span class="subscribe-thanks">✓ You\'re on the list</span>';
+  });
 
   // ── Scroll-triggered feature rows ──
   const io = new IntersectionObserver(
