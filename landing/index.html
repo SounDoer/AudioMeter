@@ -413,7 +413,7 @@
       line-height: 1.75;
     }
 
-    /* ── EMAIL SUBSCRIPTION ── */
+    /* ── RELEASE UPDATES ── */
     .subscribe-section {
       padding: 28px 0 12px;
       border-top: 1px solid var(--border);
@@ -428,49 +428,6 @@
       color: var(--muted-foreground);
       white-space: nowrap;
       flex-shrink: 0;
-    }
-
-    .subscribe-form {
-      display: flex;
-      gap: 8px;
-    }
-
-    .subscribe-input {
-      flex: 1;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 9px 14px;
-      font-family: var(--font-sans);
-      font-size: 13px;
-      color: var(--foreground);
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    .subscribe-input::placeholder { color: rgba(158, 148, 136, 0.35); }
-    .subscribe-input:focus { border-color: rgba(251, 146, 60, 0.35); }
-
-    .subscribe-btn {
-      font-family: var(--font-sans);
-      font-size: 13px;
-      font-weight: 600;
-      padding: 9px 18px;
-      border-radius: var(--radius);
-      border: none;
-      background: var(--card);
-      color: var(--muted-foreground);
-      border: 1px solid var(--border);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .subscribe-btn:hover { color: var(--foreground); border-color: rgba(255, 255, 255, 0.2); }
-
-    .subscribe-thanks {
-      font-size: 13px;
-      color: rgba(251, 146, 60, 0.7);
-      font-family: var(--font-mono);
-      letter-spacing: 0.04em;
     }
 
     /* ── FOOTER ── */
@@ -493,6 +450,57 @@
       transition: color 0.15s, border-color 0.15s;
     }
     .footer-link:hover { color: var(--foreground); border-color: rgba(255,255,255,0.35); }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 0 20px;
+      }
+
+      .hero {
+        padding-top: 36px;
+      }
+
+      .hero-logo {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 42px;
+      }
+
+      .hero-btns,
+      .feature-row {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-row {
+        gap: 18px;
+        margin-bottom: 32px;
+      }
+
+      .feature-row.reverse .feature-visual,
+      .feature-row.reverse .feature-text {
+        order: initial;
+      }
+
+      .screenshot-body {
+        height: 260px;
+      }
+
+      .features-section {
+        padding: 32px 0;
+      }
+
+      .subscribe-section {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .footer {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+    }
   </style>
 </head>
 <body>
@@ -566,20 +574,17 @@
     </div>
   </section>
 
-  <!-- EMAIL SUBSCRIPTION -->
+  <!-- RELEASE UPDATES -->
   <div class="subscribe-section">
     <span class="subscribe-label">Get notified of new releases</span>
-    <form class="subscribe-form" id="subscribe-form">
-      <input class="subscribe-input" type="email" placeholder="your@email.com" required>
-      <button class="subscribe-btn" type="submit">Notify me</button>
-    </form>
+    <a class="footer-link" href="https://github.com/SounDoer/PLVS/releases" target="_blank" rel="noopener">Follow GitHub Releases</a>
   </div>
 
   <!-- FOOTER -->
   <footer class="footer">
     <a class="footer-link" href="https://github.com/SounDoer/PLVS" target="_blank" rel="noopener">GitHub</a>
     <span class="footer-text">MIT License</span>
-    <span class="footer-text" id="footer-version">v0.1.0</span>
+    <span class="footer-text" id="footer-version">Latest release</span>
   </footer>
 
 </div>
@@ -587,7 +592,8 @@
 <script>
   // ── GitHub Releases: auto-fetch latest version + download URLs ──
   const REPO = 'SounDoer/PLVS';
-  const FALLBACK = 'v0.1.0';
+  const RELEASES_URL = 'https://github.com/SounDoer/PLVS/releases';
+  const FALLBACK = 'Latest release';
 
   async function loadRelease() {
     let version = FALLBACK, urls = {};
@@ -610,16 +616,22 @@
 
   function renderButtons(version, urls) {
     const isMac = /Mac/.test(navigator.platform) || /Mac/.test(navigator.userAgent);
+    const winInstallUrl = urls.winInstall || RELEASES_URL;
+    const winPortableUrl = urls.winPortable || RELEASES_URL;
+    const macUrl = urls.mac || RELEASES_URL;
+    const winInstallLabel = urls.winInstall ? 'Download Installer' : 'View Releases';
+    const winPortableLabel = urls.winPortable ? 'Portable version' : 'All releases';
+    const macLabel = urls.mac ? 'Download for macOS' : 'View Releases';
 
     const winCard = `
       <div class="platform-card${!isMac ? ' active' : ''}">
         <div class="platform-header">
           <span class="platform-name">Windows</span>
-          <span class="platform-os-tag">10 / 11</span>
+          <span class="platform-os-tag">10 / 11 · x64</span>
         </div>
         <div class="platform-actions">
-          <a class="btn ${!isMac ? 'btn-primary' : 'btn-secondary'}" href="${urls.winInstall || '#'}">Download Installer</a>
-          <a class="portable-link" href="${urls.winPortable || '#'}">Portable version</a>
+          <a class="btn ${!isMac ? 'btn-primary' : 'btn-secondary'}" href="${winInstallUrl}">${winInstallLabel}</a>
+          <a class="portable-link" href="${winPortableUrl}">${winPortableLabel}</a>
         </div>
         <div class="install-warning">
           <span class="warn-badge">!</span>
@@ -638,7 +650,7 @@
           <span class="platform-os-tag">Apple Silicon</span>
         </div>
         <div class="platform-actions">
-          <a class="btn ${isMac ? 'btn-primary' : 'btn-secondary'}" href="${urls.mac || '#'}">Download for macOS</a>
+          <a class="btn ${isMac ? 'btn-primary' : 'btn-secondary'}" href="${macUrl}">${macLabel}</a>
         </div>
         <div class="install-warning">
           <span class="warn-badge">!</span>
@@ -661,12 +673,6 @@
   }
 
   loadRelease();
-
-  // ── Email subscription ──
-  document.getElementById('subscribe-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    this.innerHTML = '<span class="subscribe-thanks">✓ You\'re on the list</span>';
-  });
 
   // ── Scroll-triggered feature rows ──
   const io = new IntersectionObserver(
