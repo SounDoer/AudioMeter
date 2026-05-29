@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-05-29
+
+### Added
+
+- Landing page now uses real product screenshots for appearance, history, multichannel, and system-audio sections.
+- Snapshot scrubbing behavior is covered by a dedicated hook regression test.
+
+### Changed
+
+- Remaining user-facing app and tooling labels now use PLVS branding.
+- Tauri debug logging dependency is declared with a supported Cargo configuration while keeping the plugin on debug builds only.
+
+### Fixed
+
+- Audio capture buffer handling is hardened against unbounded growth and dropped-buffer cases.
+- Tauri desktop security configuration is tightened for the 0.1.0 release.
+- Snapshot scrubbing no longer reads or mutates React refs during render.
+
 ## [0.0.18] - 2026-05-29
 
 ### Added
