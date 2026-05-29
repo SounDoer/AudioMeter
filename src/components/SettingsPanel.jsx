@@ -29,6 +29,7 @@ export function SettingsPanel({
   vectorscopePairX = 0,
   vectorscopePairY = 1,
   onVectorscopePairChange,
+  appVersion,
 }) {
   const vsKey = `${vectorscopePairX}-${vectorscopePairY}`;
   const reduceMotion = useReducedMotion();
@@ -199,6 +200,15 @@ export function SettingsPanel({
                     </p>
                   )}
                 </div>
+                {appVersion ? (
+                  <>
+                    <Separator />
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Version</span>
+                      <span className="font-mono tabular-nums">{appVersion}</span>
+                    </div>
+                  </>
+                ) : null}
               </div>
             </motion.div>
           ) : null}

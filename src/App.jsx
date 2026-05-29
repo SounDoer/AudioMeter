@@ -37,13 +37,32 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { SHELL_FOOTER, SHELL_HEADER, SHELL_INNER, SHELL_PAGE } from "@/lib/shellLayout";
+import { formatAudioDeviceLabel } from "@/lib/audioDeviceLabels.js";
 import { LayoutGrid, Settings, Trash2, Volume2 } from "lucide-react";
 import { isTauri } from "./ipc/env.js";
 import { clearAudioHistory, setVectorscopePair } from "./ipc/commands.js";
+import packageInfo from "../package.json";
 
 const HIST_MAX_SAMPLES = 36000;
 
 const STORE_KEY = UI_PREFERENCES.layoutPersistKey;
+const APP_VERSION = packageInfo.version;
+
+function AudioDeviceOption({ device }) {
+  const label = formatAudioDeviceLabel(device.label);
+  return (
+    <SelectItem key={device.id} value={device.id} className="min-w-0 py-2">
+      <span className="flex min-w-0 flex-col leading-tight">
+        <span className="truncate">{label.primary}</span>
+        {label.secondary ? (
+          <span className="mt-0.5 truncate text-xs text-muted-foreground/70">
+            {label.secondary}
+          </span>
+        ) : null}
+      </span>
+    </SelectItem>
+  );
+}
 
 export default function App() {
   const {
@@ -248,6 +267,13 @@ export default function App() {
     }
     return audioDevices.find((d) => d.id === captureDeviceId)?.label ?? null;
   }, [captureDeviceId, audioDevices, defaultOutputLabel]);
+  const deviceDisplay = useMemo(
+    () => (deviceName ? formatAudioDeviceLabel(deviceName) : null),
+    [deviceName]
+  );
+  const footerDeviceLabel = deviceDisplay
+    ? deviceDisplay.secondary || deviceDisplay.primary
+    : "Not connected";
 
   useEffect(() => {
     if (!running) return;
@@ -620,17 +646,15 @@ export default function App() {
                         className="flex items-center justify-center size-8 rounded-md text-muted-foreground bg-transparent border-0 shadow-none hover:bg-secondary hover:text-foreground transition-colors duration-[120ms] disabled:opacity-40 disabled:cursor-not-allowed [&>svg:last-child]:hidden focus:ring-0 focus:ring-offset-0"
                         aria-label="Audio device"
                       >
-                        <Volume2 className="size-3.5" />
+                        <Volume2 className="size-4 shrink-0" />
                       </SelectTrigger>
-                      <SelectContent align="end" sideOffset={6} className="max-w-[min(22rem,90vw)]">
+                      <SelectContent align="end" sideOffset={6} className="w-[min(28rem,92vw)]">
                         <SelectItem value="default">Automatic (default system output)</SelectItem>
                         {audioOutputs.length ? (
                           <SelectGroup>
                             <SelectLabel>Output</SelectLabel>
                             {audioOutputs.map((d) => (
-                              <SelectItem key={d.id} value={d.id} className="min-w-0">
-                                <span className="truncate">{d.label}</span>
-                              </SelectItem>
+                              <AudioDeviceOption key={d.id} device={d} />
                             ))}
                           </SelectGroup>
                         ) : null}
@@ -638,9 +662,7 @@ export default function App() {
                           <SelectGroup>
                             <SelectLabel>Input</SelectLabel>
                             {audioInputs.map((d) => (
-                              <SelectItem key={d.id} value={d.id} className="min-w-0">
-                                <span className="truncate">{d.label}</span>
-                              </SelectItem>
+                              <AudioDeviceOption key={d.id} device={d} />
                             ))}
                           </SelectGroup>
                         ) : null}
@@ -689,10 +711,10 @@ export default function App() {
               <span
                 className={cn(
                   "min-w-0 truncate tabular-nums",
-                  deviceName ? "text-foreground" : "text-muted-foreground"
+                  deviceDisplay ? "text-foreground" : "text-muted-foreground"
                 )}
               >
-                {deviceName ?? "Not connected"}
+                {footerDeviceLabel}
               </span>
               <div className="mx-3.5 h-3 w-px shrink-0 bg-border" />
               <span className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground/60">
@@ -720,6 +742,7 @@ export default function App() {
             vectorscopePairX={vectorscopePairUi.x}
             vectorscopePairY={vectorscopePairUi.y}
             onVectorscopePairChange={onVectorscopePairChange}
+            appVersion={APP_VERSION}
           />
         </div>
       </AudioDataContext.Provider>

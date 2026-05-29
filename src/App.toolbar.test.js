@@ -1,0 +1,25 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const appSource = readFileSync(join(currentDir, "App.jsx"), "utf8");
+
+describe("App toolbar", () => {
+  it("uses a slightly larger device icon to match neighboring toolbar glyphs visually", () => {
+    expect(appSource).toContain('<Volume2 className="size-4 shrink-0" />');
+  });
+
+  it("uses formatted audio device labels in both the picker and footer", () => {
+    expect(appSource).toContain("formatAudioDeviceLabel(device.label)");
+    expect(appSource).toContain("formatAudioDeviceLabel(deviceName)");
+    expect(appSource).toContain("const footerDeviceLabel = deviceDisplay");
+    expect(appSource).toContain("deviceDisplay.secondary || deviceDisplay.primary");
+    expect(appSource).toContain("{footerDeviceLabel}");
+    expect(appSource).not.toContain("title={label.full}");
+    expect(appSource).not.toContain("title={deviceDisplay?.full}");
+    expect(appSource).toContain("w-[min(28rem,92vw)]");
+  });
+});

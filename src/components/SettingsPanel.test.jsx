@@ -63,4 +63,10 @@ describe("SettingsPanel", () => {
     fireEvent.change(input, { target: { value: "" } });
     expect(setReferenceLufs).not.toHaveBeenCalled();
   });
+
+  it("shows the current app version in settings", () => {
+    render(<SettingsPanel {...BASE_PROPS} appVersion="0.0.17" />);
+    expect(screen.getByText("Version")).toBeTruthy();
+    expect(screen.getByText("0.0.17")).toBeTruthy();
+  });
 });
