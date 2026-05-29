@@ -14,7 +14,8 @@ use tauri::AppHandle;
 use super::capture::{AudioCapture, AudioCaptureSession};
 use super::cpal_backend::{
   append_input_devices, collect_outputs, device_id_key, device_list_label, pick_output_by_index,
-  resolve_default_output, run_meter_pipeline_bridge_thread, CpalBackend,
+  pooled_pcm_buffer_capacity, resolve_default_output, run_meter_pipeline_bridge_thread,
+  CpalBackend, PcmBufferPool,
 };
 use super::device::DeviceInfo;
 use super::device_id;
@@ -154,7 +155,9 @@ fn run_macos_tap_worker(
   dropped_chunks: Arc<AtomicU64>,
 ) -> Result<(), String> {
   let (uid, sample_rate, channels) = resolve_tap_uid_channels_rate(&device_id)?;
-  let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(256);
+  let pcm_pool = PcmBufferPool::new(64, pooled_pcm_buffer_capacity(sample_rate, channels));
+  let bridge_pool = pcm_pool.clone();
+  let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(64);
   let clear_for_thread = clear_peak_history.clone();
   let dropped_for_thread = dropped_chunks.clone();
   let bridge = std::thread::spawn(move || {
@@ -169,12 +172,14 @@ fn run_macos_tap_worker(
       channel_layout,
       meter_history,
       dropped_for_thread,
+      bridge_pool,
     );
   });
 
   let ctx = Box::new(PcmBridgeCtx {
     tx: audio_tx.clone(),
     dropped: dropped_chunks,
+    pool: pcm_pool,
   });
   let ctx_ptr = Box::into_raw(ctx);
   let uid_c = CString::new(uid).map_err(|_| "device UID contains NUL".to_string())?;

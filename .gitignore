@@ -25,6 +25,7 @@ node_modules/
 
 # Build output
 dist/
+coverage/
 
 # Claude Code local settings
 .claude/

@@ -4,7 +4,7 @@
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{SampleFormat, StreamConfig};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use super::capture::{AudioCapture, AudioCaptureSession};
@@ -15,6 +15,10 @@ use crate::engine::ChannelLayoutSetting;
 use crate::engine::MeterPipeline;
 use crate::ipc::types::{EngineBackpressurePayload, MeterHistoryBuf};
 use tauri::{AppHandle, Emitter};
+
+const PCM_QUEUE_CAP: usize = 64;
+const PCM_POOL_CHUNK_MS: usize = 100;
+const PCM_MIN_BUFFER_SAMPLES: usize = 4096;
 
 // Re-export device helpers for ipc/commands.rs (all platforms).
 pub use super::device_enum::{
@@ -136,6 +140,126 @@ struct RunCaptureArgs {
   dropped_chunks: Arc<AtomicU64>,
 }
 
+#[derive(Clone)]
+pub(crate) struct PcmBufferPool {
+  buffers: Arc<Mutex<Vec<Vec<f32>>>>,
+}
+
+impl PcmBufferPool {
+  pub(crate) fn new(buffer_count: usize, buffer_capacity: usize) -> Self {
+    let mut buffers = Vec::with_capacity(buffer_count);
+    for _ in 0..buffer_count {
+      buffers.push(Vec::with_capacity(buffer_capacity));
+    }
+    Self {
+      buffers: Arc::new(Mutex::new(buffers)),
+    }
+  }
+
+  pub(crate) fn checkout(&self) -> Option<Vec<f32>> {
+    self.buffers.try_lock().ok()?.pop().map(|mut buffer| {
+      buffer.clear();
+      buffer
+    })
+  }
+
+  pub(crate) fn recycle(&self, mut buffer: Vec<f32>) {
+    buffer.clear();
+    if let Ok(mut buffers) = self.buffers.try_lock() {
+      buffers.push(buffer);
+    }
+  }
+}
+
+pub(crate) fn pooled_pcm_buffer_capacity(sample_rate: u32, channels: u16) -> usize {
+  let ch = channels.max(1) as usize;
+  ((sample_rate as usize * ch * PCM_POOL_CHUNK_MS) / 1000).max(PCM_MIN_BUFFER_SAMPLES)
+}
+
+pub(crate) fn send_pcm_buffer_or_count_drop(
+  tx: &std::sync::mpsc::SyncSender<Vec<f32>>,
+  pool: &PcmBufferPool,
+  buffer: Vec<f32>,
+  dropped: &AtomicU64,
+) -> bool {
+  match tx.try_send(buffer) {
+    Ok(()) => true,
+    Err(std::sync::mpsc::TrySendError::Full(buffer))
+    | Err(std::sync::mpsc::TrySendError::Disconnected(buffer)) => {
+      dropped.fetch_add(1, Ordering::Relaxed);
+      pool.recycle(buffer);
+      false
+    }
+  }
+}
+
+pub(crate) fn copy_f32_pcm_to_pooled_buffer(
+  pool: &PcmBufferPool,
+  data: &[f32],
+  dropped: &AtomicU64,
+) -> Option<Vec<f32>> {
+  let mut buffer = match pool.checkout() {
+    Some(buffer) => buffer,
+    None => {
+      dropped.fetch_add(1, Ordering::Relaxed);
+      return None;
+    }
+  };
+  if buffer.capacity() < data.len() {
+    dropped.fetch_add(1, Ordering::Relaxed);
+    pool.recycle(buffer);
+    return None;
+  }
+  buffer.extend_from_slice(data);
+  Some(buffer)
+}
+
+fn copy_i16_pcm_to_pooled_buffer(
+  pool: &PcmBufferPool,
+  data: &[i16],
+  dropped: &AtomicU64,
+) -> Option<Vec<f32>> {
+  let mut buffer = match pool.checkout() {
+    Some(buffer) => buffer,
+    None => {
+      dropped.fetch_add(1, Ordering::Relaxed);
+      return None;
+    }
+  };
+  if buffer.capacity() < data.len() {
+    dropped.fetch_add(1, Ordering::Relaxed);
+    pool.recycle(buffer);
+    return None;
+  }
+  for &s in data {
+    buffer.push(s as f32 / 32768.0);
+  }
+  Some(buffer)
+}
+
+fn copy_u16_pcm_to_pooled_buffer(
+  pool: &PcmBufferPool,
+  data: &[u16],
+  dropped: &AtomicU64,
+) -> Option<Vec<f32>> {
+  let mut buffer = match pool.checkout() {
+    Some(buffer) => buffer,
+    None => {
+      dropped.fetch_add(1, Ordering::Relaxed);
+      return None;
+    }
+  };
+  if buffer.capacity() < data.len() {
+    dropped.fetch_add(1, Ordering::Relaxed);
+    pool.recycle(buffer);
+    return None;
+  }
+  for &s in data {
+    buffer.push((s as f32 / 32768.0) - 1.0);
+  }
+  Some(buffer)
+}
+
 /// Feeds interleaved f32 PCM from `audio_rx` into [`MeterPipeline`] until the sender side drops.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_meter_pipeline_bridge_thread(
@@ -149,6 +273,7 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
   channel_layout: Arc<std::sync::Mutex<ChannelLayoutSetting>>,
   meter_history: MeterHistoryBuf,
   dropped_chunks: Arc<AtomicU64>,
+  pcm_pool: PcmBufferPool,
 ) {
   let dropped_worker = dropped_chunks.clone();
   let mut pipeline = MeterPipeline::new(sample_rate, channels, meter_history);
@@ -177,6 +302,7 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
       .map(|g| *g)
       .unwrap_or(ChannelLayoutSetting::Auto);
     let (frame, slow) = pipeline.push_pcm_f32(&floats, pair, layout);
+    let mut should_stop = false;
     if let Some(f) = frame {
       if let Ok(mut m) = frame_subscribers.lock() {
         {
@@ -186,7 +312,7 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
             None => false,
           };
           if !main_ok {
-            break;
+            should_stop = true;
           }
         }
         // Avoid per-key remove/insert on every frame; drop dead float subscribers lazily.
@@ -203,11 +329,15 @@ pub(crate) fn run_meter_pipeline_bridge_thread(
           m.remove(&id);
         }
       } else {
-        break;
+        should_stop = true;
       }
     }
     if let Some(s) = slow {
       let _ = app.emit("loudness-slow", &s);
+    }
+    pcm_pool.recycle(floats);
+    if should_stop {
+      break;
     }
   }
 }
@@ -234,7 +364,12 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     buffer_size: cpal::BufferSize::Default,
   };
 
-  let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(256);
+  let pcm_pool = PcmBufferPool::new(
+    PCM_QUEUE_CAP,
+    pooled_pcm_buffer_capacity(sample_rate, channels),
+  );
+  let bridge_pool = pcm_pool.clone();
+  let (audio_tx, audio_rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(PCM_QUEUE_CAP);
 
   let bridge = std::thread::spawn(move || {
     run_meter_pipeline_bridge_thread(
@@ -248,6 +383,7 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
       channel_layout,
       meter_history,
       dropped_chunks,
+      bridge_pool,
     );
   });
 
@@ -255,14 +391,13 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     SampleFormat::F32 => {
       let tx = audio_tx.clone();
       let dropped = dropped_for_callbacks.clone();
+      let pool = pcm_pool.clone();
       device
         .build_input_stream(
           &stream_config,
           move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let mut v = Vec::with_capacity(data.len());
-            v.extend_from_slice(data);
-            if tx.try_send(v).is_err() {
-              dropped.fetch_add(1, Ordering::Relaxed);
+            if let Some(buffer) = copy_f32_pcm_to_pooled_buffer(&pool, data, &dropped) {
+              send_pcm_buffer_or_count_drop(&tx, &pool, buffer, &dropped);
             }
           },
           |e| log::error!("cpal stream error: {e}"),
@@ -273,16 +408,13 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     SampleFormat::I16 => {
       let tx = audio_tx.clone();
       let dropped = dropped_for_callbacks.clone();
+      let pool = pcm_pool.clone();
       device
         .build_input_stream(
           &stream_config,
           move |data: &[i16], _: &cpal::InputCallbackInfo| {
-            let mut floats: Vec<f32> = Vec::with_capacity(data.len());
-            for &s in data {
-              floats.push(s as f32 / 32768.0);
-            }
-            if tx.try_send(floats).is_err() {
-              dropped.fetch_add(1, Ordering::Relaxed);
+            if let Some(buffer) = copy_i16_pcm_to_pooled_buffer(&pool, data, &dropped) {
+              send_pcm_buffer_or_count_drop(&tx, &pool, buffer, &dropped);
             }
           },
           |e| log::error!("cpal stream error: {e}"),
@@ -293,16 +425,13 @@ fn run_capture_worker(args: RunCaptureArgs) -> Result<(), String> {
     SampleFormat::U16 => {
       let tx = audio_tx.clone();
       let dropped = dropped_for_callbacks.clone();
+      let pool = pcm_pool.clone();
       device
         .build_input_stream(
           &stream_config,
           move |data: &[u16], _: &cpal::InputCallbackInfo| {
-            let mut floats: Vec<f32> = Vec::with_capacity(data.len());
-            for &s in data {
-              floats.push((s as f32 / 32768.0) - 1.0);
-            }
-            if tx.try_send(floats).is_err() {
-              dropped.fetch_add(1, Ordering::Relaxed);
+            if let Some(buffer) = copy_u16_pcm_to_pooled_buffer(&pool, data, &dropped) {
+              send_pcm_buffer_or_count_drop(&tx, &pool, buffer, &dropped);
             }
           },
           |e| log::error!("cpal stream error: {e}"),
@@ -397,5 +526,117 @@ mod pcm_chunk_tests {
     let need = bytes.len();
     bytes.truncate(need.saturating_sub(3));
     assert!(unpack_pcm_chunk(&bytes).is_none());
+  }
+}
+
+#[cfg(test)]
+mod pcm_buffer_pool_tests {
+  use super::{
+    copy_f32_pcm_to_pooled_buffer, copy_i16_pcm_to_pooled_buffer, copy_u16_pcm_to_pooled_buffer,
+    send_pcm_buffer_or_count_drop, PcmBufferPool,
+  };
+  use std::sync::atomic::{AtomicU64, Ordering};
+
+  #[test]
+  fn returned_buffers_are_cleared_and_reused() {
+    let pool = PcmBufferPool::new(1, 4);
+
+    let mut first = pool.checkout().expect("buffer");
+    first.extend_from_slice(&[0.25, -0.5]);
+    let first_capacity = first.capacity();
+
+    pool.recycle(first);
+
+    let second = pool.checkout().expect("buffer");
+    assert!(second.is_empty());
+    assert_eq!(second.capacity(), first_capacity);
+  }
+
+  #[test]
+  fn checkout_returns_none_instead_of_blocking_when_pool_is_busy() {
+    let pool = PcmBufferPool::new(1, 4);
+    let _guard = pool.buffers.lock().expect("lock pool");
+    let worker_pool = pool.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+      tx.send(worker_pool.checkout().is_none())
+        .expect("send result");
+    });
+
+    assert_eq!(
+      rx.recv_timeout(std::time::Duration::from_millis(50)),
+      Ok(true)
+    );
+  }
+
+  #[test]
+  fn full_queue_recycles_buffer_and_counts_drop() {
+    let pool = PcmBufferPool::new(1, 4);
+    let dropped = AtomicU64::new(0);
+    let (tx, _rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(0);
+
+    let mut buffer = pool.checkout().expect("buffer");
+    buffer.extend_from_slice(&[0.25, -0.5]);
+    let capacity = buffer.capacity();
+
+    assert!(!send_pcm_buffer_or_count_drop(&tx, &pool, buffer, &dropped));
+
+    assert_eq!(dropped.load(Ordering::Relaxed), 1);
+    let recycled = pool.checkout().expect("recycled buffer");
+    assert!(recycled.is_empty());
+    assert_eq!(recycled.capacity(), capacity);
+  }
+
+  #[test]
+  fn f32_pcm_data_is_copied_into_a_pooled_buffer() {
+    let pool = PcmBufferPool::new(1, 4);
+    let dropped = AtomicU64::new(0);
+
+    let buffer =
+      copy_f32_pcm_to_pooled_buffer(&pool, &[0.25, -0.5], &dropped).expect("pooled buffer");
+
+    assert_eq!(buffer, vec![0.25, -0.5]);
+    assert_eq!(dropped.load(Ordering::Relaxed), 0);
+    assert!(pool.checkout().is_none());
+  }
+
+  #[test]
+  fn oversized_pcm_data_is_dropped_instead_of_growing_the_buffer() {
+    let pool = PcmBufferPool::new(1, 1);
+    let dropped = AtomicU64::new(0);
+
+    let buffer = copy_f32_pcm_to_pooled_buffer(&pool, &[0.25, -0.5], &dropped);
+
+    assert!(buffer.is_none());
+    assert_eq!(dropped.load(Ordering::Relaxed), 1);
+    let recycled = pool.checkout().expect("recycled buffer");
+    assert_eq!(recycled.capacity(), 1);
+  }
+
+  #[test]
+  fn i16_pcm_data_is_converted_into_a_pooled_buffer() {
+    let pool = PcmBufferPool::new(1, 4);
+    let dropped = AtomicU64::new(0);
+
+    let buffer =
+      copy_i16_pcm_to_pooled_buffer(&pool, &[16_384, -32_768], &dropped).expect("pooled buffer");
+
+    assert_eq!(buffer, vec![0.5, -1.0]);
+    assert_eq!(dropped.load(Ordering::Relaxed), 0);
+    assert!(pool.checkout().is_none());
+  }
+
+  #[test]
+  fn u16_pcm_data_is_converted_into_a_pooled_buffer() {
+    let pool = PcmBufferPool::new(1, 4);
+    let dropped = AtomicU64::new(0);
+
+    let buffer =
+      copy_u16_pcm_to_pooled_buffer(&pool, &[49_152, 0], &dropped).expect("pooled buffer");
+
+    assert_eq!(buffer, vec![0.5, -1.0]);
+    assert_eq!(dropped.load(Ordering::Relaxed), 0);
+    assert!(pool.checkout().is_none());
   }
 }
